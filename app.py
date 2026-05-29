@@ -15,12 +15,17 @@ timeframe = st.selectbox("Timeframe එක තෝරන්න:", ["1h", "4h", "1
 # 1. Data Download කිරීම
 @st.cache_data
 def get_market_data(symbol, tf):
-    df = yf.download(symbol, period="60d", interval=tf)
+    # auto_adjust=True සහ group_by='column' දමා 2D array එරර් එක නැති කිරීම
+    df = yf.download(symbol, period="60d", interval=tf, auto_adjust=True)
     return df
 
 df = get_market_data(ticker, timeframe)
 
 if not df.empty:
+    # Multi-index columns තියෙනවා නම් ඒවා තනි මට්ටමකට පත් කිරීම (Error Fix)
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+        
     # 2. Indicators සැකසීම (RSI සහ SMA)
     df['Returns'] = df['Close'].pct_change()
     df['SMA_10'] = df['Close'].rolling(window=10).mean()
@@ -55,8 +60,11 @@ if not df.empty:
     prediction = model.predict(last_market_state)[0]
     probability = model.predict_proba(last_market_state)[0]
     
-    current_price = float(df['Close'].iloc[-1])
-    volatility = float(df['High'].iloc[-1] - df['Low'].iloc[-1])
+    # පේළි තනි අගයන් බවට පත් කරගැනීම (float conversion fix)
+    current_price = float(df['Close'].to_numpy()[-1])
+    current_high = float(df['High'].to_numpy()[-1])
+    current_low = float(df['Low'].to_numpy()[-1])
+    volatility = current_high - current_low
     
     # 5. ප්‍රතිඵල Screen එක මත පෙන්වීම
     st.subheader(f"📊 {ticker} සඳහා වත්මන් තත්ත්වය:")
@@ -73,6 +81,12 @@ if not df.empty:
         st.write(f"🛑 **Stop Loss (SL):** ${(current_price + volatility):.4f}")
         
     st.write("📈 මෑතකාලීන දත්ත සටහන:")
-    st.dataframe(df[['Close', 'RSI', 'SMA_10']].tail(5))
+    # දර්ශනය සඳහා සරල දත්ත පුවරුවක් සැකසීම
+    display_df = pd.DataFrame({
+        'Close Price': df['Close'],
+        'RSI (14)': df['RSI'],
+        'SMA (10)': df['SMA_10']
+    })
+    st.dataframe(display_df.tail(5))
 else:
     st.error("දත්ත ලබාගැනීමට අපොහොසත් විය. කරුණාකර Ticker එක නිවැරදිදැයි බලන්න.")
