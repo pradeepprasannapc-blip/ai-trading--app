@@ -6,23 +6,53 @@ from sklearn.ensemble import RandomForestClassifier
 
 # App Interface එක සිංහලෙන්
 st.title("🤖 AI Trading Signal App")
-st.write("Real-time AI තාක්ෂණයෙන් ක්‍රිප්ටෝ සහ ස්ටොක් Signal ලබාගන්න.")
+st.write("Real-time AI TA ශබ්දකෝෂයෙන් ක්‍රිප්ටෝ, ෆොරෙක්ස් සහ රන් Signal ලබාගන්න.")
 
-# පරිශීලකයාට කැමති Coin එකක් තෝරාගත හැක
-ticker = st.text_input("කාසිය ඇතුලත් කරන්න (उदा: BTC-USD, SOL-USD, ETH-USD):", "BTC-USD")
+# 💡 සාමාන්‍ය නම හඳුනාගැනීමේ ශබ්දකෝෂය (Smart Dictionary)
+COIN_DICTIONARY = {
+    # ක්‍රිප්ටෝ (Crypto)
+    "bitcoin": "BTC-USD", "බිට්කොයින්": "BTC-USD", "btc": "BTC-USD",
+    "ethereum": "ETH-USD", "ඉතීරියම්": "ETH-USD", "eth": "ETH-USD",
+    "solana": "SOL-USD", "සොලානා": "SOL-USD", "sol": "SOL-USD",
+    "ripple": "XRP-USD", "රිපල්": "XRP-USD", "xrp": "XRP-USD",
+    "cardano": "ADA-USD", "කාඩානോ": "ADA-USD", "ada": "ADA-USD",
+    "dogecoin": "DOGE-USD", "ඩොජ්කොයින්": "DOGE-USD", "doge": "DOGE-USD",
+    "binance coin": "BNB-USD", "බයිනෑන්ස්": "BNB-USD", "bnb": "BNB-USD",
+    
+    # රන් සහ වෙනත් (Commodities)
+    "gold": "GC=F", "රන්": "GC=F", "රත්තරන්": "GC=F", "xau": "GC=F",
+    "oil": "CL=F", "තෙල්": "CL=F", "crude oil": "CL=F",
+    
+    # ෆොරෙක්ස් (Forex)
+    "eurusd": "EURUSD=X", "යුරෝ": "EURUSD=X",
+    "gbpusd": "GBPUSD=X", "පවුම්": "GBPUSD=X",
+    "audusd": "AUDUSD=X"
+}
+
+# පරිශීලකයාගෙන් සාමාන්‍ය නම ලබාගැනීම
+user_input = st.text_input("ඔයාට අවශ්‍ය කාසියේ හෝ වෙළඳපොලේ නම ඇතුලත් කරන්න (සිංහලෙන් හෝ ඉංග්‍රීසියෙන්):", "Bitcoin")
+
+# නම පිරිසිදු කර ශබ්දකෝෂය හරහා සෙවීම
+clean_input = user_input.strip().lower()
+
+if clean_input in COIN_DICTIONARY:
+    ticker = COIN_DICTIONARY[clean_input]
+    st.info(f"🔍 AI විසින් හඳුනාගත් කේතය: **{ticker}** ({user_input})")
+else:
+    # ලැයිස්තුවේ නැති එකක් නම් කෙලින්ම ගහපු එක ගන්නවා
+    ticker = user_input.strip().upper()
+
 timeframe = st.selectbox("Timeframe එක තෝරන්න:", ["1h", "4h", "1d"])
 
 # 1. Data Download කිරීම
 @st.cache_data
 def get_market_data(symbol, tf):
-    # auto_adjust=True සහ group_by='column' දමා 2D array එරර් එක නැති කිරීම
     df = yf.download(symbol, period="60d", interval=tf, auto_adjust=True)
     return df
 
 df = get_market_data(ticker, timeframe)
 
 if not df.empty:
-    # Multi-index columns තියෙනවා නම් ඒවා තනි මට්ටමකට පත් කිරීම (Error Fix)
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
         
@@ -31,14 +61,12 @@ if not df.empty:
     df['SMA_10'] = df['Close'].rolling(window=10).mean()
     df['SMA_30'] = df['Close'].rolling(window=30).mean()
     
-    # RSI Indicator එක හැදීම
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
     rs = gain / loss
     df['RSI'] = 100 - (100 / (1 + rs))
     
-    # ඊළඟ කැන්ඩල් එක උඩ යයිද පහළ යයිද කියා Target එක සෙටප් කිරීම
     df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
     df.dropna(inplace=True)
     
@@ -47,11 +75,9 @@ if not df.empty:
     X = df[features]
     y = df['Target']
     
-    # දත්ත බෙදීම
     split = int(0.8 * len(df))
     X_train, y_train = X[:split], y[:split]
     
-    # Random Forest Classifier AI එක ක්‍රියාත්මක කිරීම
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     
@@ -60,7 +86,6 @@ if not df.empty:
     prediction = model.predict(last_market_state)[0]
     probability = model.predict_proba(last_market_state)[0]
     
-    # පේළි තනි අගයන් බවට පත් කරගැනීම (float conversion fix)
     current_price = float(df['Close'].to_numpy()[-1])
     current_high = float(df['High'].to_numpy()[-1])
     current_low = float(df['Low'].to_numpy()[-1])
@@ -68,7 +93,7 @@ if not df.empty:
     
     # 5. ප්‍රතිඵල Screen එක මත පෙන්වීම
     st.subheader(f"📊 {ticker} සඳහා වත්මන් තත්ත්වය:")
-    st.metric(label="දැනට පවතින මිල (Current Price)", value=f"${current_price:.4f}")
+    st.metric(label="දැනට පවතින මිල (Current Start Entry)", value=f"${current_price:.4f}")
     
     st.write("---")
     if prediction == 1:
@@ -81,7 +106,6 @@ if not df.empty:
         st.write(f"🛑 **Stop Loss (SL):** ${(current_price + volatility):.4f}")
         
     st.write("📈 මෑතකාලීන දත්ත සටහන:")
-    # දර්ශනය සඳහා සරල දත්ත පුවරුවක් සැකසීම
     display_df = pd.DataFrame({
         'Close Price': df['Close'],
         'RSI (14)': df['RSI'],
@@ -89,4 +113,4 @@ if not df.empty:
     })
     st.dataframe(display_df.tail(5))
 else:
-    st.error("දත්ත ලබාගැනීමට අපොහොසත් විය. කරුණාකර Ticker එක නිවැරදිදැයි බලන්න.")
+    st.error("දත්ත ලබාගැනීමට අපොහොසත් විය. කරුණාකර නම නිවැරදිදැයි හෝ ඉන්ටර්නෙට් සම්බන්ධතාවය පරීක්ෂා කරන්න.")
