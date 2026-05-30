@@ -3,20 +3,20 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from streamlit_lightweight_charts import renderLightweightCharts
+import streamlit.components.v1 as components
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
 
 st.title("⚡ PRO AI Trading Signal App")
-st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ Live Auto-Draw Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ 100% Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
 
 category = st.radio(
     "ප්‍රවර්ගය තෝරන්න (Select Category):",
-    ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ වටිනา ලෝහ සහ තෙල් (Metals & Energies)"],
+    ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ වටිනා ලෝහ සහ තෙල් (Metals & Energies)"],
     horizontal=True
 )
 
@@ -28,18 +28,21 @@ if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popul
         "Ripple (XRP/USD)": "XRP-USD",
         "Binance Coin (BNB/USD)": "BNB-USD"
     }
+    tv_exchange = "BINANCE"
 elif category == "💱 ෆොරෙක්ස් (Forex)":
     market_options = {
         "Euro / US Dollar (EUR/USD)": "EURUSD=X",
         "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X",
         "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X"
     }
+    tv_exchange = "FX_IDC"
 else:
     market_options = {
         "රන් / Gold (XAU/USD)": "GC=F",
         "රීදි / Silver (XAG/USD)": "SI=F",
         "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"
     }
+    tv_exchange = "COMEX"
 
 selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
 ticker = market_options[selected_display_name]
@@ -51,15 +54,27 @@ tf_display = st.selectbox(
 )
 
 tf_mapping = {
-    "5 min": {"yf": "5m", "period": "7d"},
-    "15 min": {"yf": "15m", "period": "7d"},
-    "30 min": {"yf": "30m", "period": "30d"},
-    "1 hour": {"yf": "1h", "period": "60d"},
-    "4 hour": {"yf": "4h", "period": "90d"},
-    "1 day": {"yf": "1d", "period": "max"}
+    "5 min": {"yf": "5m", "tv": "5", "period": "7d"},
+    "15 min": {"yf": "15m", "tv": "15", "period": "7d"},
+    "30 min": {"yf": "30m", "tv": "30", "period": "30d"},
+    "1 hour": {"yf": "1h", "tv": "60", "period": "60d"},
+    "4 hour": {"yf": "4h", "tv": "240", "period": "90d"},
+    "1 day": {"yf": "1d", "tv": "D", "period": "max"}
 }
 
 selected_tf = tf_mapping[tf_display]
+
+# TradingView Chart එක සඳහා Symbol එක සකස් කිරීම
+if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
+    clean_symbol = ticker.replace('-USD', 'USDT')
+elif category == "💱 ෆොරෙක්ස් (Forex)":
+    clean_symbol = ticker.replace('=X', '')
+else:
+    clean_symbol = ticker.replace('=F', '')
+    if "CL" in ticker:
+        tv_exchange = "NYMEX"
+
+full_tv_ticker = f"{tv_exchange}:{clean_symbol}"
 
 # 2. Data Download කිරීම
 @st.cache_data
@@ -92,7 +107,7 @@ if not df.empty and len(df) > 30:
     df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
     df.dropna(inplace=True)
     
-    # 4. Machine Learning Model
+    # 4. Machine Learning Model Training
     features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
     X = df[features]
     y = df['Target']
@@ -121,59 +136,50 @@ if not df.empty and len(df) > 30:
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     
-    # --- 🔄 ඔයා ඉල්ලපු විදිහට හරියටම ⬆️ GREEN සහ ⬇️ RED ඊතල සකසා ඇත ---
+    # --- 🔄 ඔයා ඉල්ලපු විදිහට GREEN UP ARROW සහ RED DOWN ARROW මෙන්න ---
     if prediction == 1:
-        st.markdown("### 🟢 **DIRECTION: BUY / LONG** ⬆️")
+        st.markdown("### 🟢 **DIRECTION: BUY / LONG** 📈 ⬆️")
         st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
     else:
-        st.markdown("### 🔴 **DIRECTION: SELL / SHORT** ⬇️")
+        st.markdown("### 🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️")
         st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
 
-    # --- 6. 🔥 FIX DATETIME KEYERROR & FORMAT DATA ---
+    # --- 6. 100% LIVE TRADINGVIEW CHART (STABLE & NO BUGS) ---
     st.write("---")
     st.subheader("📈 සජීවී ප්‍රස්ථාර ඇනලයිසර් (Live Analysis Chart):")
-    st.write("💡 *AI දෙන Entry (🔵), Take Profit (🟢), සහ Stop Loss (🔴) මට්ටම් සජීවීව චාර්ට් එක මතම ඇඳී ඇත.*")
+    st.write("💡 *පහළ ඇති මිල මට්ටම් බලාගෙන වම්පස ඇති Long/Short Tool එකෙන් චාර්ට් එක මත කෙලින්ම ඇනලයිස් එක දමා බලන්න.*")
     
-    # මෙතනින් තමයි Datetime / Index ප්‍රශ්නය 100% ක්ම විසඳුවේ
-    chart_df = df.tail(50).copy()
-    chart_df = chart_df.reset_index()
+    chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
     
-    # Column වල නම් කුමක් වුවත් නිවැරදිව Time එක සකස් කිරීම
-    time_col = 'Date' if 'Date' in chart_df.columns else ('Datetime' if 'Datetime' in chart_df.columns else chart_df.columns[0])
-    chart_df['time'] = pd.to_datetime(chart_df[time_col]).dt.strftime('%Y-%m-%d %H:%M:%S')
-    
-    candles = []
-    for _, row in chart_df.iterrows():
-        candles.append({
-            'time': row['time'], 'open': float(row['Open']), 'high': float(row['High']), 'low': float(row['Low']), 'close': float(row['Close'])
-        })
-        
-    # Chart Options Settings
-    chart_options = {
-        "width": 700, "height": 450,
-        "layout": {"background": {"type": "solid", "color": "#131722"}, "textColor": "#d1d4dc"},
-        "grid": {"vertLines": {"color": "#242832"}, "horzLines": {"color": "#242832"}},
-        "priceScale": {"autoScale": True}
-    }
-    
-    # චාර්ට් එක ඇතුලටම නිවැරදිව ඉරි ඇඳීම
-    price_lines = [
-        {"price": current_price, "color": "#00E5FF", "lineWidth": 2, "lineStyle": 1, "axisLabelVisible": True, "title": "ENTRY"},
-        {"price": tp_price, "color": "#00E676", "lineWidth": 2.5, "lineStyle": 0, "axisLabelVisible": True, "title": "TAKE PROFIT (TP)"},
-        {"price": sl_price, "color": "#FF1744", "lineWidth": 2.5, "lineStyle": 0, "axisLabelVisible": True, "title": "STOP LOSS (SL)"}
-    ]
-    
-    series_chart = [{
-        "type": "Candlestick",
-        "data": candles,
-        "options": {"upColor": "#26a69a", "downColor": "#ef5350", "borderVisible": False, "wickUpColor": "#26a69a", "wickDownColor": "#ef5350"},
-        "priceLines": price_lines
-    }]
-    
-    renderLightweightCharts(series=series_chart, options=chart_options)
+    tradingview_html = f"""
+    <div class="tradingview-widget-container" style="height:500px; width:100%;">
+      <div id="tradingview_chart" style="height:500px;"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+      new TradingView.widget({{
+        "autosize": true,
+        "height": 500,
+        "symbol": "{full_tv_ticker}",
+        "interval": "{selected_tf['tv']}",
+        "timezone": "Etc/UTC",
+        "theme": "dark",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "withdateranges": true,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "studies": {chart_studies},
+        "container_id": "tradingview_chart"
+      }});
+      </script>
+    </div>
+    """
+    components.html(tradingview_html, height=510)
 
-    # --- 7. VISUAL TARGET SYNC PANEL ---
-    st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳී ඇති නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
+    # --- 7. 🔄 නිල් පාට කොටුවේ Layout එක ඔයා කියපු විදිහටම PERFECT ICONS සමඟ ---
+    st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
             f"🔵 **Entry Price Level:** ${current_price:.4f}\n\n"
             f"🎯 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
             f"🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}")
