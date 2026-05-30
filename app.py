@@ -3,12 +3,13 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+import streamlit.components.v1 as components  # Live Chart එක Embed කිරීමට
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
 
 st.title("⚡ PRO AI Trading Signal App")
-st.write("SMC තාක්ෂණය සහ ලෝකයේ හොඳම Indicators එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Indicators සහ Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
@@ -27,6 +28,7 @@ if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popul
         "Ripple (XRP/USD)": "XRP-USD",
         "Binance Coin (BNB/USD)": "BNB-USD"
     }
+    tv_symbol = f"BINANCE:{ticker.replace('-USD', 'USDT')}" if 'ticker' in locals() else "BINANCE:BTCUSDT"
 elif category == "💱 ෆොරෙක්ස් (Forex)":
     market_options = {
         "Euro / US Dollar (EUR/USD)": "EURUSD=X",
@@ -42,6 +44,14 @@ else:
 
 selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
 ticker = market_options[selected_display_name]
+
+# TradingView සජීවී චාර්ට් එක සඳහා නිවැරදි Symbol එක සැකසීම
+if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
+    tv_symbol = f"BINANCE:{ticker.replace('-USD', 'USDT')}"
+elif category == "💱 ෆොරෙක්ස් (Forex)":
+    tv_symbol = f"FX_IDC:{ticker.replace('=X', '')}"
+else:
+    tv_symbol = f"COMEX:{ticker.replace('=F', '1!')}" if "GC" in ticker or "SI" in ticker else f"NYMEX:{ticker.replace('=F', '1!')}"
 
 timeframe = st.selectbox("Timeframe එක තෝරන්න (SMC සඳහා 1h හෝ 4h වඩාත් සුදුසුයි):", ["1h", "4h", "1d"])
 
@@ -149,8 +159,41 @@ if not df.empty:
             if is_bear_fvg_present:
                 st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා. විකිණුම්කරුවන් (Sellers) ප්‍රබලයි.")
                 
+    # --- 8. LIVE INTERACTIVE CHART EMBEDDING ---
     st.write("---")
-    st.write("📈 **තාක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data):**")
+    st.subheader(f"📈 සජීවී තාක්ෂණික ප්‍රස්ථාරය (Live Technical Chart):")
+    
+    # Timeframe එක TradingView එකට ගැළපෙන සේ හැඩගැස්වීම
+    tv_tf = "60" if timeframe == "1h" else "240" if timeframe == "4h" else "D"
+    
+    tradingview_html = f"""
+    <div class="tradingview-widget-container" style="height:450px;">
+      <div id="tradingview_chart"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+      new TradingView.widget({{
+        "width": "100%",
+        "height": 450,
+        "symbol": "{tv_symbol}",
+        "interval": "{tv_tf}",
+        "timezone": "Etc/UTC",
+        "theme": "dark",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "container_id": "tradingview_chart"
+      }});
+      </script>
+    </div>
+    """
+    # HTML Component එක ඇප් එක ඇතුලට දැමීම
+    components.html(tradingview_html, height=460)
+
+    st.write("---")
+    st.write("📊 **තාක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data Table):**")
     display_df = pd.DataFrame({
         'Close Price': df['Close'],
         'RSI (Momentum)': df['RSI'],
