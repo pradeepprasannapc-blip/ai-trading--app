@@ -14,7 +14,6 @@ st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indi
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
 
-# --- 🔄 අලුතින් 'වෙනත් (Custom)' එකතු කර ඇත ---
 category = st.radio(
     "ප්‍රවර්ගය තෝරන්න (Select Category):",
     ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ", "💱 ෆොරෙක්ස්", "✨ ලෝහ සහ තෙල්", "✏️ වෙනත් (Custom)"],
@@ -60,7 +59,6 @@ elif category == "✨ ලෝහ සහ තෙල්":
     full_tv_ticker = f"{tv_exchange}:{clean_symbol}"
 
 else:
-    # --- 🔄 ඕනෑම Coin එකක් සඳහා Custom Input ---
     st.info("💡 **ඔබට අවශ්‍ය ඕනෑම කාසියක් මෙහි ඇතුළත් කළ හැක.**")
     col_c1, col_c2 = st.columns(2)
     with col_c1:
@@ -151,10 +149,12 @@ if not df.empty and len(df) > 35:
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     
+    has_valid_signal = False # සිග්නල් එකක් තියෙනවාද නැද්ද යන්න හඳුනාගැනීමට
+    
     if ai_confidence < 60.0:
         st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් බලන්න.")
     else:
-        # --- 🔄 රවුම් ICONS සහ ඊතල 100% ක්ම නිවැරදි කර ඇත ---
+        has_valid_signal = True # සිග්නල් එක සාර්ථකයි
         if prediction == 1:
             st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
         else:
@@ -194,10 +194,14 @@ if not df.empty and len(df) > 35:
     """
     components.html(tradingview_html, height=510)
 
-    # --- 8. VISUAL TARGET SYNC PANEL ---
-    st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
-            f"🔵 **Entry Price Level:** ${current_price:.4f}\n\n"
-            f"🎯 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
-            f"🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}")
+    # --- 8. VISUAL TARGET SYNC PANEL (ලොජික් දෝෂය නිවැරදි කර ඇත) ---
+    if has_valid_signal:
+        st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
+                f"🔵 **Entry Price Level:** ${current_price:.4f}\n\n"
+                f"🎯 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
+                f"🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}")
+    else:
+        st.info("ℹ️ **AI එකට මාකට් එක සුවර් නැති නිසා (NO SIGNAL), අලාභ වළක්වා ගැනීමට Entry, TP, සහ SL මට්ටම් මෙහි ලබා දී නොමැත.**")
+
 else:
     st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරන්න.")
