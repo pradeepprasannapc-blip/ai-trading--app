@@ -64,13 +64,13 @@ tf_mapping = {
 
 selected_tf = tf_mapping[tf_display]
 
-# TradingView සඳහා Symbol එක සකස් කිරීම
+# TradingView සඳහා Symbol එක සකස් කිරීම (සුදු කොටුවේ ප්‍රශ්නය මෙතනින් 100% ක් නිවැරදි කර ඇත)
 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
     clean_symbol = ticker.replace('-USD', 'USDT')
 elif category == "💱 ෆොරෙක්ස් (Forex)":
     clean_symbol = ticker.replace('=X', '')
 else:
-    clean_symbol = ticker.replace('=F', '1!')
+    clean_symbol = ticker.replace('=F', '')
     if "CL" in ticker:
         tv_exchange = "NYMEX"
 
@@ -161,7 +161,7 @@ if not df.empty and len(df) > 30:
         else:
             if prediction == 1:
                 st.markdown(f"### 🟩 **DIRECTION: BUY / LONG**")
-                st.markdown(f"🔹 **Entry Zone:** `${current_price:.4f}`")
+                st.markdown(f"🔵 **Entry Zone:** `${current_price:.4f}`")
                 st.markdown(f"🟩 **Take Profit (TP):** `${tp_price:.4f}`")
                 st.markdown(f"🟥 **Stop Loss (SL):** `${sl_price:.4f}`")
                 st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
@@ -230,15 +230,15 @@ if not df.empty and len(df) > 30:
     """
     components.html(tradingview_html, height=560)
 
-    # Visual Target Sync Panel
-    st.info(f"🎯 **ප්‍රස්ථාරයේ ඇඳී ඇති නිවැරදි මිල මට්ටම් (Visual Target Sync):**\n\n"
-            f"🔵 **Entry Price:** ${current_price:.4f} | "
-            f"🟩 **Take Profit (TP):** ${tp_price:.4f} | "
-            f"🟥 **Stop Loss (SL):** ${sl_price:.4f}")
+    # --- 🔄 නිල් පාට කොටුවේ Layout එක 100% ක් පිළිවෙළට සකසා ඇත (No Text Overlapping) ---
+    st.info(f"🎯 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Target Sync):**\n\n"
+            f"🔵 **Entry Price Level:** ${current_price:.4f}\n\n"
+            f"🟩 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
+            f"🟥 **Stop Loss (SL) Target:** ${sl_price:.4f}")
 
     # --- 9. DATA TABLE ---
     st.write("---")
-    st.subheader("📊 TAක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data Table):")
+    st.subheader("📊 තාක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data Table):")
     table_df = df[['Close', 'RSI', 'MACD', 'BB_Upper', 'BB_Lower']].copy()
     table_df.columns = ['Close Price', 'RSI (14)', 'MACD Trend', 'BB Upper (Res)', 'BB Lower (Sup)']
     st.dataframe(table_df.tail(5))
