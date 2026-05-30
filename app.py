@@ -14,13 +14,14 @@ st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indi
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
 
+# --- 🔄 අලුතින් 'වෙනත් (Custom)' එකතු කර ඇත ---
 category = st.radio(
     "ප්‍රවර්ගය තෝරන්න (Select Category):",
-    ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ වටිනා ලෝහ සහ තෙල් (Metals & Energies)"],
+    ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ", "💱 ෆොරෙක්ස්", "✨ ලෝහ සහ තෙල්", "✏️ වෙනත් (Custom)"],
     horizontal=True
 )
 
-if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
+if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
     market_options = {
         "Bitcoin (BTC/USD)": "BTC-USD",
         "Ethereum (ETH/USD)": "ETH-USD",
@@ -28,26 +29,47 @@ if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popul
         "Ripple (XRP/USD)": "XRP-USD",
         "Binance Coin (BNB/USD)": "BNB-USD"
     }
-    tv_exchange = "BINANCE"
-elif category == "💱 ෆොරෙක්ස් (Forex)":
+    selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
+    ticker = market_options[selected_display_name]
+    clean_symbol = ticker.replace('-USD', 'USDT')
+    full_tv_ticker = f"BINANCE:{clean_symbol}"
+
+elif category == "💱 ෆොරෙක්ස්":
     market_options = {
         "Euro / US Dollar (EUR/USD)": "EURUSD=X",
         "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X",
         "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X"
     }
-    tv_exchange = "FX_IDC"
-else:
+    selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Pair):", list(market_options.keys()))
+    ticker = market_options[selected_display_name]
+    clean_symbol = ticker.replace('=X', '')
+    full_tv_ticker = f"FX_IDC:{clean_symbol}"
+
+elif category == "✨ ලෝහ සහ තෙල්":
     market_options = {
         "රන් / Gold (XAU/USD)": "GC=F",
         "රීදි / Silver (XAG/USD)": "SI=F",
         "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"
     }
+    selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Commodity):", list(market_options.keys()))
+    ticker = market_options[selected_display_name]
+    clean_symbol = ticker.replace('=F', '')
     tv_exchange = "COMEX"
+    if "CL" in ticker:
+        tv_exchange = "NYMEX"
+    full_tv_ticker = f"{tv_exchange}:{clean_symbol}"
 
-selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
-ticker = market_options[selected_display_name]
+else:
+    # --- 🔄 ඕනෑම Coin එකක් සඳහා Custom Input ---
+    st.info("💡 **ඔබට අවශ්‍ය ඕනෑම කාසියක් මෙහි ඇතුළත් කළ හැක.**")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        ticker = st.text_input("Yahoo Finance Ticker (උදා: DOGE-USD, AAPL):", "DOGE-USD")
+    with col_c2:
+        full_tv_ticker = st.text_input("TradingView Symbol (උදා: BINANCE:DOGEUSDT):", "BINANCE:DOGEUSDT")
+    selected_display_name = f"Custom Symbol ({ticker})"
 
-# --- TIMEFRAME SELECTOR (Error එක මෙතනින් 100% ක් නිවැරදි කර ඇත) ---
+# --- TIMEFRAME SELECTOR ---
 tf_display = st.selectbox(
     "Timeframe එක තෝරන්න (Select Timeframe):", 
     ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"]
@@ -63,18 +85,6 @@ tf_mapping = {
 }
 
 selected_tf = tf_mapping[tf_display]
-
-# TradingView Chart එක සඳහා Symbol එක සකස් කිරීම
-if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
-    clean_symbol = ticker.replace('-USD', 'USDT')
-elif category == "💱 ෆොරෙක්ස් (Forex)":
-    clean_symbol = ticker.replace('=X', '')
-else:
-    clean_symbol = ticker.replace('=F', '')
-    if "CL" in ticker:
-        tv_exchange = "NYMEX"
-
-full_tv_ticker = f"{tv_exchange}:{clean_symbol}"
 
 # 2. Data Download කිරීම
 @st.cache_data
@@ -107,7 +117,7 @@ if not df.empty and len(df) > 35:
     df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
     df.dropna(inplace=True)
     
-    # 4. Machine Learning Model Training (Train/Test Split Fixed to prevent Overfitting)
+    # 4. Machine Learning Model Training 
     features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
     X = df[features]
     y = df['Target']
@@ -144,11 +154,11 @@ if not df.empty and len(df) > 35:
     if ai_confidence < 60.0:
         st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් බලන්න.")
     else:
-        # --- 🔄 GREEN UP ARROW සහ RED DOWN ARROW 100% නිවැරදි කර ඇත ---
+        # --- 🔄 රවුම් ICONS සහ ඊතල 100% ක්ම නිවැරදි කර ඇත ---
         if prediction == 1:
-            st.success(f"🟩 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
+            st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
         else:
-            st.error(f"🟥 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
+            st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
 
     # --- 7. 100% LIVE TRADINGVIEW CHART WITH AUTO-SCALE ---
     st.write("---")
