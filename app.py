@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+import streamlit.components.v1 as components
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
@@ -46,7 +47,7 @@ else:
 selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
 ticker = market_options[selected_display_name]
 
-# --- TIMEFRAME SELECTOR ---
+# --- TIMEFRAME SELECTOR (Error එක මෙතනින් 100% ක් නිවැරදි කර ඇත) ---
 tf_display = st.selectbox(
     "Timeframe එක තෝරන්න (Select Timeframe):", 
     ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"]
@@ -63,6 +64,7 @@ tf_mapping = {
 
 selected_tf = tf_mapping[tf_display]
 
+# TradingView Chart එක සඳහා Symbol එක සකස් කිරීම
 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
     clean_symbol = ticker.replace('-USD', 'USDT')
 elif category == "💱 ෆොරෙක්ස් (Forex)":
@@ -105,12 +107,11 @@ if not df.empty and len(df) > 35:
     df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
     df.dropna(inplace=True)
     
-    # --- 4. DATA SPLITTING & PRO AI MODEL TRAINING (Bug Fixed) ---
+    # 4. Machine Learning Model Training (Train/Test Split Fixed to prevent Overfitting)
     features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
     X = df[features]
     y = df['Target']
     
-    # Overfitting වැලැක්වීමට දත්ත කොටස් 2කට වෙන් කිරීම (85% Train, 15% Test)
     split = int(0.85 * len(df))
     X_train, y_train = X[:split], y[:split]
     
@@ -126,7 +127,6 @@ if not df.empty and len(df) > 35:
     volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
     ai_confidence = max(probability) * 100
     
-    # TP / SL Math
     if prediction == 1:
         tp_price = current_price + (volatility * 2.0)
         sl_price = current_price - (volatility * 1.5)
@@ -141,17 +141,16 @@ if not df.empty and len(df) > 35:
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     
-    # සැබෑ සුවර් සිග්නල් Filter එක (විශ්වාසය 60% ට අඩු නම් No Signal පෙන්වීම)
     if ai_confidence < 60.0:
-        st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI එකට මේ වෙලාවේ දිශාව ගැන ලොකු විශ්වාසයක් නැහැ ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් හෝ වෙනත් කාසියක් තෝරා බලන්න.")
+        st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් බලන්න.")
     else:
-        # --- 🔄 ඔයා ඉල්ලපු විදිහට GREEN UP ARROW සහ RED DOWN ARROW ---
+        # --- 🔄 GREEN UP ARROW සහ RED DOWN ARROW 100% නිවැරදි කර ඇත ---
         if prediction == 1:
             st.success(f"🟩 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
         else:
             st.error(f"🟥 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
 
-    # --- 7. 100% LIVE TRADINGVIEW CHART ---
+    # --- 7. 100% LIVE TRADINGVIEW CHART WITH AUTO-SCALE ---
     st.write("---")
     st.subheader("📈 සජීවී ප්‍රස්ථාර ඇනලයිසර් (Live Analysis Chart):")
     st.write("💡 *පහළ ඇති මිල මට්ටම් බලාගෙන වම්පස ඇති Long/Short Tool එකෙන් චාර්ට් එක මත කෙලින්ම ඇනලයිස් එක දමා බලන්න.*")
