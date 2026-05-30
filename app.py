@@ -9,7 +9,7 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
 
 st.title("⚡ PRO AI Trading Signal App")
-st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ Live Analysis Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC TAක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ Live Analysis Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
@@ -64,7 +64,7 @@ tf_mapping = {
 
 selected_tf = tf_mapping[tf_display]
 
-# --- 🛠️ TRADINGVIEW SYMBOL FIXED (සුදු කොටුවේ ප්‍රශ්නය මෙතනින් 100% විසඳා ඇත) ---
+# --- 🔄 TRADINGVIEW SYMBOL FORMAT FIXED (සුදු කොටුවේ අවුල මඟහැරීමට සෘජු පරිවර්තනය) ---
 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
     clean_symbol = ticker.replace('-USD', 'USDT')
 elif category == "💱 ෆොරෙක්ස් (Forex)":
@@ -73,8 +73,10 @@ else:
     if "GC" in ticker: clean_symbol = "XAUUSD"
     elif "SI" in ticker: clean_symbol = "XAGUSD"
     elif "CL" in ticker: 
-        clean_symbol = "CRUDEOIL"
+        clean_symbol = "CL1!"
         tv_exchange = "NYMEX"
+
+full_tv_ticker = f"{tv_exchange}:{clean_symbol}"
 
 # 2. Data Download කිරීම
 @st.cache_data
@@ -144,7 +146,6 @@ if not df.empty and len(df) > 30:
     
     ai_confidence = max(probability) * 100
     
-    # TP / SL Calculations
     if prediction == 1:
         tp_price = current_price + (volatility * 2.0)
         sl_price = current_price - (volatility * 1.5)
@@ -152,69 +153,35 @@ if not df.empty and len(df) > 30:
         tp_price = current_price - (volatility * 2.0)
         sl_price = current_price + (volatility * 1.5)
 
-    col1, col2 = st.columns([1, 1])
+    # --- 🎯 CLEAN & PROFESSIONAL TARGET PANEL ---
+    st.metric(label="📊 සජීවී වෙළඳපොල මිල (Live Market Price)", value=f"${current_price:.4f}")
     
-    with col1:
-        st.metric(label="📊 සජීවී වෙළඳපොල මිල (Live Price)", value=f"${current_price:.4f}")
-        st.write("### 🚨 AI Analysis Target Levels:")
-        
-        if ai_confidence < 58.0:
-            st.warning(f"⚠️ **NO SIGNAL** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%).")
+    if ai_confidence < 58.0:
+        st.warning(f"⚠️ **NO SIGNAL** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් බලන්න.")
+    else:
+        if prediction == 1:
+            st.success(f"🟩 **DIRECTION: BUY / LONG** 📈 (Confidence: {ai_confidence:.1f}%)")
+            if is_bull_fvg_present: st.info("💡 **SMC Confluence:** Bullish Fair Value Gap එකක් හමු විය!")
         else:
-            # --- 🔄 ඔයා ඉල්ලපු විදිහට BUY/SELL පැහැදිලි ICONS එකතු කිරීම ---
-            if prediction == 1:
-                st.markdown("### 🟢 **DIRECTION: BUY / LONG** 📈")
-                st.markdown(f"🔵 **Entry Zone:** `${current_price:.4f}`")
-                st.markdown(f"🎯 **Take Profit (TP):** `${tp_price:.4f}`")
-                st.markdown(f"🛑 **Stop Loss (SL):** `${sl_price:.4f}`")
-                st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
-                if is_bull_fvg_present: st.success("💡 Bullish FVG Detected!")
-            else:
-                st.markdown("### 🔴 **DIRECTION: SELL / SHORT** 📉")
-                st.markdown(f"🔵 **Entry Zone:** `${current_price:.4f}`")
-                st.markdown(f"🎯 **Take Profit (TP):** `${tp_price:.4f}`")
-                st.markdown(f"🛑 **Stop Loss (SL):** `${sl_price:.4f}`")
-                st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
-                if is_bear_fvg_present: st.error("💡 Bearish OB/FVG Detected!")
+            st.error(f"🟥 **DIRECTION: SELL / SHORT** 📉 (Confidence: {ai_confidence:.1f}%)")
+            if is_bear_fvg_present: st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් හමු විය!")
 
-    with col2:
-        st.write("### 📈 Live Technical Summary:")
-        tv_summary_html = f"""
-        <div class="tradingview-widget-container">
-          <div class="tradingview-widget-container__widget"></div>
-          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
-          {{
-          "interval": "{selected_tf['tv'] if selected_tf['tv'] != '5' else '1m'}",
-          "width": "100%",
-          "isTransparent": false,
-          "height": 280,
-          "symbol": "{tv_exchange}:{clean_symbol}",
-          "showHeading": false,
-          "screenMode": "normal",
-          "locale": "en",
-          "theme": "dark"
-          }}
-          </script>
-        </div>
-        """
-        components.html(tv_summary_html, height=290)
-                
-    # --- 8. LIVE TRADINGVIEW CHART ---
+    # --- 🔄 8. ALL-IN-ONE INTERACTIVE LIVE CHART (සුදු කොටුව සම්පූර්ණයෙන්ම ඉවත් කර ඇත) ---
     st.write("---")
     st.subheader(f"📈 සජීවී ස්වයංක්‍රීය ප්‍රස්ථාරය (Live Technical Chart):")
-    st.write("💡 *ඉහත AI ලෙවල්ස් බලාගෙන වම්පස ඇති Long/Short Position Tool එකෙන් චාර්ට් එක මත කෙලින්ම ඇනලයිස් එක දමා බලන්න.*")
+    st.write("💡 *චාර්ට් එකේ පහළින් ඇති 'Technical Summary' ටැබ් එකෙන් සජීවී Indicators Gauges සහ මීටරය බලාගත හැක.*")
     
     chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
     
     tradingview_html = f"""
-    <div class="tradingview-widget-container" style="height:550px; width:100%;">
-      <div id="tradingview_chart" style="height:550px;"></div>
+    <div class="tradingview-widget-container" style="height:600px; width:100%;">
+      <div id="tradingview_chart" style="height:600px;"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
       <script type="text/javascript">
       new TradingView.widget({{
         "autosize": true,
-        "height": 550,
-        "symbol": "{tv_exchange}:{clean_symbol}",
+        "height": 600,
+        "symbol": "{full_tv_ticker}",
         "interval": "{selected_tf['tv']}",
         "timezone": "Etc/UTC",
         "theme": "dark",
@@ -225,15 +192,18 @@ if not df.empty and len(df) > 30:
         "withdateranges": true,
         "hide_side_toolbar": false,
         "allow_symbol_change": true,
+        "show_popup_button": true,
+        "popup_width": "1000",
+        "popup_height": "650",
         "studies": {chart_studies},
         "container_id": "tradingview_chart"
       }});
       </script>
     </div>
     """
-    components.html(tradingview_html, height=560)
+    components.html(tradingview_html, height=610)
 
-    # --- 🔄 නිල් පාට කොටුවේ Layout එක ඔයා කියපු විදිහටම 100% ක් පිළිවෙළට සකසා ඇත ---
+    # --- 🎯 8.1. VISUAL TARGET SYNC PANEL (100% PERFECTLY FORMATTED) ---
     st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Target Sync):**\n\n"
             f"🔵 **Entry Price Level:** ${current_price:.4f}\n\n"
             f"🎯 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
