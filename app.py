@@ -9,7 +9,7 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
 
 st.title("⚡ PRO AI Trading Signal App")
-st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Indicators සහ Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC TAක්ෂණය, ලෝකයේ හොඳම Indicators සහ Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
@@ -44,14 +44,12 @@ else:
 selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
 ticker = market_options[selected_display_name]
 
-# --- 🔄 නවීකරණය කරන ලද TIMEFRAME SELECTOR ---
-# විනාඩි 1 සිට දින/සති දක්වා තෝරාගැනීමේ හැකියාව
+# --- TIMEFRAME SELECTOR ---
 tf_display = st.selectbox(
     "Timeframe එක තෝරන්න (Select Timeframe):", 
     ["1 min", "5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day", "1 week"]
 )
 
-# yfinance සහ TradingView සඳහා ගැළපෙන කේතයන් සිතියම්ගත කිරීම (Mapping)
 tf_mapping = {
     "1 min": {"yf": "1m", "tv": "1", "period": "7d"},
     "5 min": {"yf": "5m", "tv": "5", "period": "60d"},
@@ -65,7 +63,6 @@ tf_mapping = {
 
 selected_tf = tf_mapping[tf_display]
 
-# TradingView සජීවී චාර්ට් එක සඳහා නිවැරදි Symbol එක සැකසීම
 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
     tv_symbol = f"BINANCE:{ticker.replace('-USD', 'USDT')}"
 elif category == "💱 ෆොරෙක්ස් (Forex)":
@@ -81,7 +78,7 @@ def get_market_data(symbol, tf, prd):
 
 df = get_market_data(ticker, selected_tf["yf"], selected_tf["period"])
 
-if not df.empty and len(df) > 30: # ප්‍රමාණවත් දත්ත ප්‍රමාණයක් තිබේදැයි බැලීම
+if not df.empty and len(df) > 30:
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
         
@@ -150,7 +147,7 @@ if not df.empty and len(df) > 30: # ප්‍රමාණවත් දත්ත 
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     if ai_confidence < 58.0:
-        st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI එකට මෙම Timeframe එකේ ({tf_display}) දිශාව ගැන ලොකු විශ්වාසයක් නැහැ ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් තෝරා බලන්න.")
+        st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI එකට මෙම Timeframe එකේ ({tf_display}) දිශාව ගැන ලොකු විශ්වාසයක් නැහැ ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් හෝ වෙනත් කාසියක් තෝරා බලන්න.")
     else:
         if prediction == 1:
             st.success(f"🔥 **HIGH-CONFIDENCE SIGNAL: BUY / LONG** (සුවර් එක: {ai_confidence:.1f}%)")
@@ -175,7 +172,7 @@ if not df.empty and len(df) > 30: # ප්‍රමාණවත් දත්ත 
             if is_bear_fvg_present:
                 st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා!")
                 
-    # --- 8. LIVE INTERACTIVE CHART EMBEDDING (WITH EXTENDED TIMEFRAMES) ---
+    # --- 8. LIVE INTERACTIVE CHART EMBEDDING ---
     st.write("---")
     st.subheader(f"📈 සජීවී තාක්ෂණික ප්‍රස්ථාරය (Live Technical Chart):")
     
@@ -195,8 +192,8 @@ if not df.empty and len(df) > 30: # ප්‍රමාණවත් දත්ත 
         "locale": "en",
         "toolbar_bg": "#f1f3f6",
         "enable_publishing": false,
-        "withdateranges": true,        // පල්ලෙහා දින පරාසයන් පෙන්වීමට
-        "hide_side_toolbar": false,     // චාර්ට් එකේ Tools බලාගන්න
+        "withdateranges": true,
+        "hide_side_toolbar": false,
         "allow_symbol_change": true,
         "container_id": "tradingview_chart"
       }});
@@ -205,8 +202,15 @@ if not df.empty and len(df) > 30: # ප්‍රමාණවත් දත්ත 
     """
     components.html(tradingview_html, height=510)
 
+    # --- 9. CORRECTED DATA TABLE ---
+    # මෙතන වැරදි දත්ත නිවැරදි කර ඇත
     st.write("---")
-    st.write("📊 **තාක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data Table):**")
-    st.dataframe(df[['Close', 'RSI', 'MAC', 'BB_Upper', 'BB_Lower']].rename(columns={'Close': 'Close Price', 'MACD': 'MACD Trend'}).tail(5))
+    st.subheader("📊 තාක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data Table):")
+    
+    # හරියටම පවතින Columns පමණක් තෝරාගෙන ඇත
+    table_df = df[['Close', 'RSI', 'MACD', 'BB_Upper', 'BB_Lower']].copy()
+    table_df.columns = ['Close Price', 'RSI (14)', 'MACD Trend', 'BB Upper (Res)', 'BB Lower (Sup)']
+    
+    st.dataframe(table_df.tail(5))
 else:
-    st.error("තෝරාගත් කුඩා කාල රාමුව (Small Timeframe) සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර '5 min' හෝ ඊට වැඩි Timeframe එකක් තෝරන්න.")
+    st.error("තෝරාගත් කුඩා කාල රාමුව (Small Timeframe) සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් කාසියක් හෝ '5 min' වලට වඩා වැඩි Timeframe එකක් තෝරන්න.")
