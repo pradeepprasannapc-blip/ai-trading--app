@@ -84,25 +84,20 @@ if not df.empty and len(df) > 30:
         
     # --- 3. ADVANCED INDICATORS ENGINEERING ---
     df['Returns'] = df['Close'].pct_change()
-    
-    # Moving Averages
     df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
     df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
     
-    # RSI
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
     rs = gain / loss
     df['RSI'] = 100 - (100 / (1 + rs))
     
-    # MACD
     exp1 = df['Close'].ewm(span=12, adjust=False).mean()
     exp2 = df['Close'].ewm(span=26, adjust=False).mean()
     df['MACD'] = exp1 - exp2
     df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
     
-    # Bollinger Bands
     df['MA20'] = df['Close'].rolling(window=20).mean()
     df['StdDev'] = df['Close'].rolling(window=20).std()
     df['BB_Upper'] = df['MA20'] + (df['StdDev'] * 2)
@@ -142,19 +137,20 @@ if not df.empty and len(df) > 30:
     st.subheader(f"📊 {selected_display_name} ({tf_display}) සඳහා PRO AI විශ්ලේෂණය:")
     st.metric(label="සජීවී වෙළඳපොල මිල (Current Entry Price)", value=f"${current_price:.4f}")
     
-    # සුවර් සිග්නල් Filter එක
     ai_confidence = max(probability) * 100
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     
-    # TradingView එක උඩ ඔටෝමැටිකව ඇඳෙන්න ඕන Indicator දර්ශක ලැයිස්තුව (Studies)
-    # Moving Averages සහ Bollinger Bands චාර්ට් එක උඩටම ලෝඩ් කිරීම
-    chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
+    # Default values චාර්ට් එකේ පෙන්වීමට
+    tp_price = current_price
+    sl_price = current_price
+    trade_label = "NO SIGNAL"
     
     if ai_confidence < 58.0:
         st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI එකට මෙම Timeframe එකේ ({tf_display}) දිශාව ගැන ලොකු විශ්වාසයක් නැහැ ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් හෝ වෙනත් කාසියක් තෝරා බලන්න.")
     else:
         if prediction == 1:
+            trade_label = "AI BUY / LONG"
             st.success(f"🔥 **HIGH-CONFIDENCE SIGNAL: BUY / LONG** (සුවර් එක: {ai_confidence:.1f}%)")
             tp_price = current_price + (volatility * 2)
             sl_price = current_price - (volatility * 1.5)
@@ -162,10 +158,9 @@ if not df.empty and len(df) > 30:
             st.write(f"🟩 **Entry ගන්න ඕන මිල (Entry Price):** `${current_price:.4f}`")
             st.write(f"🎯 **Take Profit (TP / ටාගට් එක):** `${tp_price:.4f}`")
             st.write(f"🛑 **Stop Loss (SL / අලාභ සීමාව):** `${sl_price:.4f}`")
-            
-            if is_bull_fvg_present:
-                st.info("💡 **SMC Confluence:** Bullish Fair Value Gap එකක් තියෙනවා!")
+            if is_bull_fvg_present: st.info("💡 **SMC Confluence:** Bullish Fair Value Gap එකක් තියෙනවා!")
         else:
+            trade_label = "AI SELL / SHORT"
             st.error(f"🚨 **HIGH-CONFIDENCE SIGNAL: SELL / SHORT** (සුවර් එක: {ai_confidence:.1f}%)")
             tp_price = current_price - (volatility * 2)
             sl_price = current_price + (volatility * 1.5)
@@ -173,14 +168,15 @@ if not df.empty and len(df) > 30:
             st.write(f"🟥 **Entry ගන්න ඕන මිල (Entry Price):** `${current_price:.4f}`")
             st.write(f"🎯 **Take Profit (TP / ටාගට් එක):** `${tp_price:.4f}`")
             st.write(f"🛑 **Stop Loss (SL / අලාභ සීමාව):** `${sl_price:.4f}`")
-            
-            if is_bear_fvg_present:
-                st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා!")
+            if is_bear_fvg_present: st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා!")
                 
-    # --- 8. LIVE INTERACTIVE AUTO-ANALYSIS CHART ---
+    # --- 8. LIVE INTERACTIVE AUTO-ANALYSIS CHART WITH PRICE LINES ---
     st.write("---")
     st.subheader(f"📈 සජීවී ස්වයංක්‍රීය ඇනලයිස් ප්‍රස්ථාරය (Live Auto-Analysis Chart):")
-    st.write("💡 *මෙහි Trend Lines, Support/Resistance මට්ටම් සහ AI භාවිතා කළ ප්‍රධාන දර්ශකයන් (Bollinger Bands & SMA) ඔටෝමැටිකව ඇඳී ඇත.*")
+    st.write("💡 *මෙහි Entry, Take Profit, Stop Loss මට්ටම් සහ Trend එකට අදාළ දර්ශකයන් (BB & SMA) චාර්ට් එක මතම ඔටෝමැටිකව ඇඳී පෙන්වයි.*")
+    
+    # චාර්ට් එක උඩට Indicators සහ Lines දැමීමේ සැකසුම
+    chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
     
     tradingview_html = f"""
     <div class="tradingview-widget-container" style="height:550px;">
@@ -199,15 +195,26 @@ if not df.empty and len(df) > 30:
         "toolbar_bg": "#f1f3f6",
         "enable_publishing": false,
         "withdateranges": true,
-        "hide_side_toolbar": false,     // වම්පස ඇති Trendlines අඳින Tools පෙන්වීමට
+        "hide_side_toolbar": false,
         "allow_symbol_change": true,
-        "studies": {chart_studies},     // AI එක ඇනලයිස් කරන්න ගත්තු BB සහ SMA ඔටෝමැටිකව චාර්ට් එක උඩ ඇඳීම
-        "container_id": "tradingview_chart"
+        "studies": {chart_studies},
+        "container_id": "tradingview_chart",
+        "overrides": {{
+            "mainSeriesProperties.style": 1
+        }}
       }});
       </script>
     </div>
     """
     components.html(tradingview_html, height=560)
+
+    # චාර්ට් එකට අමතරව මිල මට්ටම් පැහැදිලිව වෙනම කුඩා Dashboard එකක් ලෙස පෙන්වීම
+    if trade_label != "NO SIGNAL":
+        st.info(f"📊 **චාර්ට් එකෙහි ඇඳිය ​​යුතු නිවැරදි ට්‍රේඩින් කලාපයන් (Visual Levels Dashboard):**\n\n"
+                f"🏷️ **Direction:** {trade_label} | "
+                f"🔵 **Entry Line:** ${current_price:.4f} | "
+                f"🟢 **Take Profit Line:** ${tp_price:.4f} | "
+                f"🔴 **Stop Loss Line:** ${sl_price:.4f}")
 
     # --- 9. DATA TABLE ---
     st.write("---")
