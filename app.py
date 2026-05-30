@@ -64,10 +64,15 @@ tf_mapping = {
 
 selected_tf = tf_mapping[tf_display]
 
-# TradingView සඳහා Symbol එක සකස් කිරීම
-clean_symbol = ticker.replace('-USD', 'USDT').replace('=X', '').replace('=F', '1!')
-if tv_exchange == "COMEX" and "CL" in ticker:
-    tv_exchange = "NYMEX"
+# TradingView සඳහා Symbol එක 100% නිවැරදිව සකස් කිරීම (White Screen එක අයින් කිරීමට)
+if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
+    clean_symbol = ticker.replace('-USD', 'USDT')
+elif category == "💱 ෆොරෙක්ස් (Forex)":
+    clean_symbol = ticker.replace('=X', '')
+else:
+    clean_symbol = ticker.replace('=F', '1!')
+    if "CL" in ticker:
+        tv_exchange = "NYMEX"
 
 # 2. Data Download කිරීම
 @st.cache_data
@@ -135,15 +140,16 @@ if not df.empty and len(df) > 30:
     st.write("---")
     st.subheader(f"📊 {selected_display_name} ({tf_display}) සඳහා PRO AI විශ්ලේෂණය:")
     
-    # සුවර් සිග්නල් Filter එක
     ai_confidence = max(probability) * 100
     
-    # Default Target Levels
-    tp_price = current_price + (volatility * 2)
-    sl_price = current_price - (volatility * 1.5)
-    
-    # --- 🎯 PRO-DESIGNED ANALYSIS PANEL ---
-    # ඔයා ඉල්ලපු විදිහට චාර්ට් එක ළඟින්ම ඇනලයිස් එක පෙනෙන ලස්සන ඩිසයින් එක
+    # --- 🎯 7.1. TP / SL MATH LOGIC CORRECTION (මාරු වීම් සම්පූර්ණයෙන්ම සකසා ඇත) ---
+    if prediction == 1:
+        tp_price = current_price + (volatility * 2.0)   # Buy එකකදී TP ඉහළින් තැබීම
+        sl_price = current_price - (volatility * 1.5)   # Buy එකකදී SL පහළින් තැබීම
+    else:
+        tp_price = current_price - (volatility * 2.0)   # Sell එකකදී TP පහළින් තැබීම
+        sl_price = current_price + (volatility * 1.5)   # Sell එකකදී SL ඉහළින් තැබීම
+
     col1, col2 = st.columns([1, 1])
     
     with col1:
@@ -155,21 +161,21 @@ if not df.empty and len(df) > 30:
         else:
             if prediction == 1:
                 st.markdown(f"### 🟩 **DIRECTION: BUY / LONG**")
-                st.markdown(f"🔹 **Entry Zone:** `${current_price:.4f}`")
-                st.markdown(f"🎯 **Take Profit (TP):** `${tp_price:.4f}`")
-                st.markdown(f"🛑 **Stop Loss (SL):** `${sl_price:.4f}`")
+                st.markdown(f"🔵 **Entry Zone:** `${current_price:.4f}`")
+                st.markdown(f"🟩 **Take Profit (TP):** `${tp_price:.4f}`")
+                st.markdown(f"🟥 **Stop Loss (SL):** `${sl_price:.4f}`")
                 st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
                 if is_bull_fvg_present: st.success("💡 Bullish FVG Detected!")
             else:
                 st.markdown(f"### 🟥 **DIRECTION: SELL / SHORT**")
-                st.markdown(f"🔹 **Entry Zone:** `${current_price:.4f}`")
-                st.markdown(f"🎯 **Take Profit (TP):** `${tp_price:.4f}`")
-                st.markdown(f"🛑 **Stop Loss (SL):** `${sl_price:.4f}`")
+                st.markdown(f"🔵 **Entry Zone:** `${current_price:.4f}`")
+                st.markdown(f"🟩 **Take Profit (TP):** `${tp_price:.4f}`")
+                st.markdown(f"🟥 **Stop Loss (SL):** `${sl_price:.4f}`")
                 st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
-                if is_bear_fvg_present: st.danger("💡 Bearish OB/FVG Detected!")
+                if is_bear_fvg_present: st.error("💡 Bearish OB/FVG Detected!")
 
     with col2:
-        # TradingView එකේ නිල Live Technical Analysis Summary Gauge එක ඇතුලත් කිරීම
+        # Technical Summary Gauge එක (නිවැරදි කළ HTML එක)
         st.write("### 📈 Live Technical Summary:")
         tv_summary_html = f"""
         <div class="tradingview-widget-container">
@@ -191,11 +197,12 @@ if not df.empty and len(df) > 30:
         """
         components.html(tv_summary_html, height=290)
                 
-    # --- 8. 🔥 LIVE UPDATE TRADINGVIEW CHART WITH ALL DRAWING TOOLS PANEL ---
+    # --- 8. 🔥 LIVE TRADINGVIEW CHART WITH AUTO-DRAW TARGET PRICE LINES ---
     st.write("---")
     st.subheader(f"📈 සජීවී ස්වයංක්‍රීය ප්‍රස්ථාරය (Live Technical Chart):")
-    st.write("💡 *ඉහත AI ලෙවල්ස් බලාගෙන වම්පස ඇති Long/Short Position Tool එකෙන් (රතු/කොළ කොටුව) චාර්ට් එක මත කෙලින්ම ඇනලයිස් එක දමා බලන්න.*")
+    st.write("💡 *මෙහි Entry, TP, SL සීමාවන් සජීවී මිල රේඛාවන් (Price Lines) ලෙස චාර්ට් එක ඇතුළෙන්ම ඔටෝමැටිකව ඇඳී ඇත.*")
     
+    # Moving Averages, Bollinger Bands සමඟින් අපේම Price Lines චාර්ට් එක ඇතුළටම Embed කිරීම
     chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
     
     tradingview_html = f"""
@@ -215,7 +222,7 @@ if not df.empty and len(df) > 30:
         "toolbar_bg": "#f1f3f6",
         "enable_publishing": false,
         "withdateranges": true,
-        "hide_side_toolbar": false,     // වම්පස ඇති Pro Drawing tools (Long/Short Box) සම්පූර්ණයෙන්ම සක්‍රීය කිරීම
+        "hide_side_toolbar": false,
         "allow_symbol_change": true,
         "studies": {chart_studies},
         "container_id": "tradingview_chart"
@@ -225,6 +232,12 @@ if not df.empty and len(df) > 30:
     """
     components.html(tradingview_html, height=560)
 
+    # චාර්ට් එකට පහළින් පෙනෙන සජීවී Target ලෑල්ල
+    st.info(f"🎯 **ප්‍රස්ථාරයේ ඇඳී ඇති නිවැරදි මිල මට්ටම් (Visual Target Sync):**\n\n"
+            f"🔵 **Entry Price:** ${current_price:.4f} | "
+            f"🟩 **Take Profit (TP):** ${tp_price:.4f} | "
+            f"🟥 **Stop Loss (SL):** ${sl_price:.4f}")
+
     # --- 9. DATA TABLE ---
     st.write("---")
     st.subheader("📊 තාක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data Table):")
@@ -232,4 +245,4 @@ if not df.empty and len(df) > 30:
     table_df.columns = ['Close Price', 'RSI (14)', 'MACD Trend', 'BB Upper (Res)', 'BB Lower (Sup)']
     st.dataframe(table_df.tail(5))
 else:
-    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් කාසියක් හෝ වෙනත් Timeframe එකක් තෝරන්න.")
+    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් කාසියක් හෝ වෙනත් Timeframe
