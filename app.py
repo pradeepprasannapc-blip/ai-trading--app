@@ -4,12 +4,37 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import streamlit.components.v1 as components
+import requests
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
 
 st.title("⚡ PRO AI Trading Signal App")
 st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ 100% Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+
+# Secrets හරහා Token ලබා ගැනීම (ආරක්ෂිත ක්‍රමය)
+try:
+    TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
+    TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
+except KeyError:
+    st.error("⚠️ රහස්‍ය දත්ත (Secrets) සොයාගත නොහැක. කරුණාකර Streamlit Cloud හි Secrets සකසන්න.")
+    TELEGRAM_BOT_TOKEN = ""
+    TELEGRAM_CHAT_ID = ""
+
+def send_telegram_message(message):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return False
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    try:
+        response = requests.post(url, json=payload)
+        return response.status_code == 200
+    except:
+        return False
 
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
@@ -26,34 +51,9 @@ if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
         "Ethereum (ETH/USD)": "ETH-USD",
         "Solana (SOL/USD)": "SOL-USD",
         "Binance Coin (BNB/USD)": "BNB-USD",
-        "Ripple (XRP/USD)": "XRP-USD",
-        "Cardano (ADA/USD)": "ADA-USD",
-        "Dogecoin (DOGE/USD)": "DOGE-USD",
-        "Shiba Inu (SHIB/USD)": "SHIB-USD",
-        "Pepe (PEPE/USD)": "PEPE-USD",
-        "Avalanche (AVAX/USD)": "AVAX-USD",
-        "Chainlink (LINK/USD)": "LINK-USD",
-        "Polkadot (DOT/USD)": "DOT-USD",
-        "Polygon (MATIC/USD)": "MATIC-USD",
-        "Litecoin (LTC/USD)": "LTC-USD",
-        "Bitcoin Cash (BCH/USD)": "BCH-USD",
-        "Uniswap (UNI/USD)": "UNI-USD",
-        "Cosmos (ATOM/USD)": "ATOM-USD",
-        "Monero (XMR/USD)": "XMR-USD",
-        "Stellar (XLM/USD)": "XLM-USD",
-        "TRON (TRX/USD)": "TRX-USD",
-        "VeChain (VET/USD)": "VET-USD",
-        "Filecoin (FIL/USD)": "FIL-USD",
-        "Aptos (APT/USD)": "APT-USD",
-        "NEAR Protocol (NEAR/USD)": "NEAR-USD",
-        "Arbitrum (ARB/USD)": "ARB-USD",
-        "Optimism (OP/USD)": "OP-USD",
-        "Injective (INJ/USD)": "INJ-USD",
-        "Fetch.ai (FET/USD)": "FET-USD",
-        "Gala (FTM/USD)": "FTM-USD",
-        "Sui (SUI/USD)": "SUI-USD"
+        "Dogecoin (DOGE/USD)": "DOGE-USD"
     }
-    selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
+    selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
     ticker = market_options[selected_display_name]
     clean_symbol = ticker.replace('-USD', 'USDT')
     full_tv_ticker = f"BINANCE:{clean_symbol}"
@@ -62,12 +62,9 @@ elif category == "💱 ෆොරෙක්ස්":
     market_options = {
         "Euro / US Dollar (EUR/USD)": "EURUSD=X",
         "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X",
-        "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X",
-        "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X",
-        "US Dollar / Canadian Dollar (USD/CAD)": "USDCAD=X",
-        "US Dollar / Swiss Franc (USD/CHF)": "USDCHF=X"
+        "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X"
     }
-    selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Pair):", list(market_options.keys()))
+    selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
     ticker = market_options[selected_display_name]
     clean_symbol = ticker.replace('=X', '')
     full_tv_ticker = f"FX_IDC:{clean_symbol}"
@@ -75,30 +72,25 @@ elif category == "💱 ෆොරෙක්ස්":
 elif category == "✨ ලෝහ සහ තෙල්":
     market_options = {
         "රන් / Gold (XAU/USD)": "GC=F",
-        "රීදි / Silver (XAG/USD)": "SI=F",
-        "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F",
-        "ස්වාභාවික වායු / Natural Gas": "NG=F"
+        "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"
     }
-    selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Commodity):", list(market_options.keys()))
+    selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
     ticker = market_options[selected_display_name]
     clean_symbol = ticker.replace('=F', '')
-    tv_exchange = "COMEX"
-    if "CL" in ticker or "NG" in ticker:
-        tv_exchange = "NYMEX"
-    full_tv_ticker = f"{tv_exchange}:{clean_symbol}"
+    full_tv_ticker = f"COMEX:{clean_symbol}" if "GC" in ticker else f"NYMEX:{clean_symbol}"
 
 else:
     st.info("💡 **ඔබට අවශ්‍ය ඕනෑම කාසියක් මෙහි ඇතුළත් කළ හැක.**")
     col_c1, col_c2 = st.columns(2)
     with col_c1:
-        ticker = st.text_input("Yahoo Finance Ticker (උදා: DOGE-USD, AAPL):", "DOGE-USD")
+        ticker = st.text_input("Yahoo Finance Ticker (උදා: DOGE-USD):", "DOGE-USD")
     with col_c2:
         full_tv_ticker = st.text_input("TradingView Symbol (උදා: BINANCE:DOGEUSDT):", "BINANCE:DOGEUSDT")
     selected_display_name = f"Custom Symbol ({ticker})"
 
 # --- TIMEFRAME SELECTOR ---
 tf_display = st.selectbox(
-    "Timeframe එක තෝරන්න (Select Timeframe):", 
+    "Timeframe එක තෝරන්න:", 
     ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"]
 )
 
@@ -110,7 +102,6 @@ tf_mapping = {
     "4 hour": {"yf": "4h", "tv": "240", "period": "90d"},
     "1 day": {"yf": "1d", "tv": "D", "period": "max"}
 }
-
 selected_tf = tf_mapping[tf_display]
 
 # 2. Data Download කිරීම
@@ -125,7 +116,6 @@ if not df.empty and len(df) > 35:
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
         
-    # --- 3. ADVANCED INDICATORS ENGINEERING ---
     df['Returns'] = df['Close'].pct_change()
     df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
     df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
@@ -144,7 +134,6 @@ if not df.empty and len(df) > 35:
     df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
     df.dropna(inplace=True)
     
-    # 4. Machine Learning Model Training
     features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
     X = df[features]
     y = df['Target']
@@ -155,7 +144,6 @@ if not df.empty and len(df) > 35:
     model = RandomForestClassifier(n_estimators=150, max_depth=8, min_samples_leaf=3, random_state=42)
     model.fit(X_train, y_train)
     
-    # 5. Prediction & Probabilities
     last_market_state = X.iloc[[-1]]
     prediction = model.predict(last_market_state)[0]
     probability = model.predict_proba(last_market_state)[0]
@@ -171,16 +159,12 @@ if not df.empty and len(df) > 35:
         tp_price = current_price - (volatility * 2.0)
         sl_price = current_price + (volatility * 1.5)
 
-    # --- 6. SCREEN OUTPUT DISPLAY ---
     st.write("---")
     st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
     
-    st.metric(label="🎯 AI නිර්දේශිත Limit Entry මිල (AI Evaluated Entry Price)", value=f"${current_price:.4f}")
-    
-    st.write("### 🚨 AI තීරණය (AI Signal Output):")
+    st.metric(label="🎯 AI නිර්දේශිත Limit Entry මිල", value=f"${current_price:.4f}")
     
     has_valid_signal = False
-    
     if ai_confidence < 60.0:
         st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් බලන්න.")
     else:
@@ -190,14 +174,10 @@ if not df.empty and len(df) > 35:
         else:
             st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
 
-    st.info("💡 **සටහන:** පහත ප්‍රස්ථාරයෙන් (Chart) සජීවී මිල පරීක්ෂා කර, AI නිර්දේශිත Entry මිලට Limit Order එකක් සකසන්න.")
-
-    # --- 7. 100% LIVE TRADINGVIEW CHART ---
     st.write("---")
-    st.subheader("📈 සජීවී ප්‍රස්ථාර ඇනලයිසර් (Live Analysis Chart):")
+    st.subheader("📈 සජීවී ප්‍රස්ථාර ඇනලයිසර්:")
     
     chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
-    
     tradingview_html = f"""
     <div class="tradingview-widget-container" style="height:500px; width:100%;">
       <div id="tradingview_chart" style="height:500px;"></div>
@@ -225,14 +205,24 @@ if not df.empty and len(df) > 35:
     """
     components.html(tradingview_html, height=510)
 
-    # --- 8. VISUAL TARGET SYNC PANEL (දැන් ප්‍රස්ථාරයට පහළින් ඇත) ---
     st.write("---")
     if has_valid_signal:
-        dir_text = "🟢 **BUY / LONG** 📈 ⬆️" if prediction == 1 else "🔴 **SELL / SHORT** 📉 ⬇️"
+        dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
         target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
         st.info(target_msg)
+        
+        st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
+        if st.button("Send Signal to Telegram 🚀"):
+            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n\n🔵 *Entry Price:* `${current_price:.4f}`\n🎯 *Take Profit (TP):* `${tp_price:.4f}`\n🛑 *Stop Loss (SL):* `${sl_price:.4f}`\n\n📊 _Analyzed by PRO AI Trading System_"
+            
+            with st.spinner("Telegram වෙත යවමින් පවතී..."):
+                success = send_telegram_message(telegram_text)
+                
+            if success:
+                st.success("✅ Signal එක සාර්ථකව Telegram Group එකට යවන ලදී!")
+            else:
+                st.error("❌ Signal එක යැවීම අසාර්ථකයි. කරුණාකර Bot Token සහ Chat ID පරීක්ෂා කරන්න.")
     else:
-        st.info("ℹ️ **AI එකට මාකට් එක සුවර් නැති නිසා, අලාභ වළක්වා ගැනීමට Entry, TP, සහ SL මට්ටම් මෙහි ලබා දී නොමැත.**")
-
+        st.info("ℹ️ **AI එකට මාකට් එක සුවර් නැති නිසා, Entry, TP, සහ SL මට්ටම් මෙහි ලබා දී නොමැත.**")
 else:
-    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරන්න.")
+    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත.")
