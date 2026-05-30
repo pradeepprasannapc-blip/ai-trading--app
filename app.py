@@ -3,13 +3,13 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-import streamlit.components.v1 as components
+import plotly.graph_objects as go  # චාර්ට් එක උඩම ඉරි ඇඳීම සඳහා
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
 
 st.title("⚡ PRO AI Trading Signal App")
-st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Indicators සහ Live Auto-Analysis Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Indicators සහ Auto-Draw Levels ප්‍රස්ථාරය මුසු වූ ස්මාර්ට් ඇනලයිසර් එක.")
 
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
@@ -47,28 +47,19 @@ ticker = market_options[selected_display_name]
 # --- TIMEFRAME SELECTOR ---
 tf_display = st.selectbox(
     "Timeframe එක තෝරන්න (Select Timeframe):", 
-    ["1 min", "5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day", "1 week"]
+    ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"]
 )
 
 tf_mapping = {
-    "1 min": {"yf": "1m", "tv": "1", "period": "7d"},
-    "5 min": {"yf": "5m", "tv": "5", "period": "60d"},
-    "15 min": {"yf": "15m", "tv": "15", "period": "60d"},
-    "30 min": {"yf": "30m", "tv": "30", "period": "60d"},
-    "1 hour": {"yf": "1h", "tv": "60", "period": "90d"},
-    "4 hour": {"yf": "4h", "tv": "240", "period": "90d"},
-    "1 day": {"yf": "1d", "tv": "D", "period": "max"},
-    "1 week": {"yf": "1wk", "tv": "W", "period": "max"}
+    "5 min": {"yf": "5m", "period": "60d"},
+    "15 min": {"yf": "15m", "period": "60d"},
+    "30 min": {"yf": "30m", "period": "60d"},
+    "1 hour": {"yf": "1h", "period": "90d"},
+    "4 hour": {"yf": "4h", "period": "90d"},
+    "1 day": {"yf": "1d", "period": "max"}
 }
 
 selected_tf = tf_mapping[tf_display]
-
-if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
-    tv_symbol = f"BINANCE:{ticker.replace('-USD', 'USDT')}"
-elif category == "💱 ෆොරෙක්ස් (Forex)":
-    tv_symbol = f"FX_IDC:{ticker.replace('=X', '')}"
-else:
-    tv_symbol = f"COMEX:{ticker.replace('=F', '1!')}" if "GC" in ticker or "SI" in ticker else f"NYMEX:{ticker.replace('=F', '1!')}"
 
 # 2. Data Download කිරීම
 @st.cache_data
@@ -141,80 +132,76 @@ if not df.empty and len(df) > 30:
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     
-    # Default values චාර්ට් එකේ පෙන්වීමට
-    tp_price = current_price
-    sl_price = current_price
-    trade_label = "NO SIGNAL"
-    
+    has_signal = False
     if ai_confidence < 58.0:
         st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI එකට මෙම Timeframe එකේ ({tf_display}) දිශාව ගැන ලොකු විශ්වාසයක් නැහැ ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් හෝ වෙනත් කාසියක් තෝරා බලන්න.")
     else:
+        has_signal = True
         if prediction == 1:
-            trade_label = "AI BUY / LONG"
             st.success(f"🔥 **HIGH-CONFIDENCE SIGNAL: BUY / LONG** (සුවර් එක: {ai_confidence:.1f}%)")
             tp_price = current_price + (volatility * 2)
             sl_price = current_price - (volatility * 1.5)
+            trade_type = "BUY"
             
             st.write(f"🟩 **Entry ගන්න ඕන මිල (Entry Price):** `${current_price:.4f}`")
             st.write(f"🎯 **Take Profit (TP / ටාගට් එක):** `${tp_price:.4f}`")
             st.write(f"🛑 **Stop Loss (SL / අලාභ සීමාව):** `${sl_price:.4f}`")
             if is_bull_fvg_present: st.info("💡 **SMC Confluence:** Bullish Fair Value Gap එකක් තියෙනවා!")
         else:
-            trade_label = "AI SELL / SHORT"
             st.error(f"🚨 **HIGH-CONFIDENCE SIGNAL: SELL / SHORT** (සුවර් එක: {ai_confidence:.1f}%)")
             tp_price = current_price - (volatility * 2)
             sl_price = current_price + (volatility * 1.5)
+            trade_type = "SELL"
             
             st.write(f"🟥 **Entry ගන්න ඕන මිල (Entry Price):** `${current_price:.4f}`")
             st.write(f"🎯 **Take Profit (TP / ටාගට් එක):** `${tp_price:.4f}`")
             st.write(f"🛑 **Stop Loss (SL / අලාභ සීමාව):** `${sl_price:.4f}`")
             if is_bear_fvg_present: st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා!")
                 
-    # --- 8. LIVE INTERACTIVE AUTO-ANALYSIS CHART WITH PRICE LINES ---
+    # --- 8. 🔥 CUSTOM AUTO-DRAW LEVELS CANDLESTICK CHART ---
     st.write("---")
-    st.subheader(f"📈 සජීවී ස්වයංක්‍රීය ඇනලයිස් ප්‍රස්ථාරය (Live Auto-Analysis Chart):")
-    st.write("💡 *මෙහි Entry, Take Profit, Stop Loss මට්ටම් සහ Trend එකට අදාළ දර්ශකයන් (BB & SMA) චාර්ට් එක මතම ඔටෝමැටිකව ඇඳී පෙන්වයි.*")
+    st.subheader(f"📈 ස්වයංක්‍රීය ඇනලයිස් ප්‍රස්ථාරය (Auto-Analysis Chart):")
     
-    # චාර්ට් එක උඩට Indicators සහ Lines දැමීමේ සැකසුම
-    chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
+    # මෑතකාලීන කැන්ඩල්ස් 40ක් පමණක් ලස්සනට පෙන්වීමට වෙන් කිරීම
+    plot_df = df.tail(40)
     
-    tradingview_html = f"""
-    <div class="tradingview-widget-container" style="height:550px;">
-      <div id="tradingview_chart"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
-      new TradingView.widget({{
-        "width": "100%",
-        "height": 550,
-        "symbol": "{tv_symbol}",
-        "interval": "{selected_tf['tv']}",
-        "timezone": "Etc/UTC",
-        "theme": "dark",
-        "style": "1",
-        "locale": "en",
-        "toolbar_bg": "#f1f3f6",
-        "enable_publishing": false,
-        "withdateranges": true,
-        "hide_side_toolbar": false,
-        "allow_symbol_change": true,
-        "studies": {chart_studies},
-        "container_id": "tradingview_chart",
-        "overrides": {{
-            "mainSeriesProperties.style": 1
-        }}
-      }});
-      </script>
-    </div>
-    """
-    components.html(tradingview_html, height=560)
-
-    # චාර්ට් එකට අමතරව මිල මට්ටම් පැහැදිලිව වෙනම කුඩා Dashboard එකක් ලෙස පෙන්වීම
-    if trade_label != "NO SIGNAL":
-        st.info(f"📊 **චාර්ට් එකෙහි ඇඳිය ​​යුතු නිවැරදි ට්‍රේඩින් කලාපයන් (Visual Levels Dashboard):**\n\n"
-                f"🏷️ **Direction:** {trade_label} | "
-                f"🔵 **Entry Line:** ${current_price:.4f} | "
-                f"🟢 **Take Profit Line:** ${tp_price:.4f} | "
-                f"🔴 **Stop Loss Line:** ${sl_price:.4f}")
+    fig = go.Figure()
+    
+    # 1. Candlestick Chart එක ඇඳීම
+    fig.add_trace(go.Candlestick(
+        x=plot_df.index,
+        open=plot_df['Open'], high=plot_df['High'],
+        low=plot_df['Low'], close=plot_df['Close'],
+        name="Market Price"
+    ))
+    
+    # 2. Bollinger Bands (BB) ඉරි දෙක ඇඳීම
+    fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['BB_Upper'], line=dict(color='rgba(173, 216, 230, 0.6)', width=1), name="BB Upper (Res)"))
+    fig.add_trace(go.Scatter(x=plot_df.index, y=plot_df['BB_Lower'], line=dict(color='rgba(173, 216, 230, 0.6)', width=1), name="BB Lower (Sup)"))
+    
+    # 3. සිග්නල් එකක් තිබේ නම් පමණක් Entry/TP/SL ඉරි චාර්ට් එක මත කෙලින්ම ඇඳීම
+    if has_signal:
+        # Entry Line (🔵 නිල් පාට)
+        fig.add_hline(y=current_price, line_dash="dash", line_color="#00E5FF", line_width=2, 
+                      annotation_text=f"ENTRY: ${current_price:.4f}", annotation_position="top left")
+        # Take Profit Line (🟢 කොළ පාට)
+        fig.add_hline(y=tp_price, line_dash="solid", line_color="#00E676", line_width=2.5, 
+                      annotation_text=f"🎯 TAKE PROFIT: ${tp_price:.4f}", annotation_position="top left")
+        # Stop Loss Line (🔴 රතු පාට)
+        fig.add_hline(y=sl_price, line_dash="solid", line_color="#FF1744", line_width=2.5, 
+                      annotation_text=f"🛑 STOP LOSS: ${sl_price:.4f}", annotation_position="top left")
+    
+    # චාර්ට් එකේ පෙනුම (Dark Theme Layout) සැකසීම
+    fig.update_layout(
+        template="plotly_dark",
+        xaxis_rangeslider_visible=False,
+        height=500,
+        margin=dict(l=10, r=10, t=20, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    # චාර්ට් එක ස්ක්‍රීන් එක මත පෙන්වීම
+    st.plotly_chart(fig, use_container_width=True)
 
     # --- 9. DATA TABLE ---
     st.write("---")
@@ -225,4 +212,4 @@ if not df.empty and len(df) > 30:
     
     st.dataframe(table_df.tail(5))
 else:
-    st.error("තෝරාගත් කුඩා කාල රාමුව (Small Timeframe) සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් කාසියක් හෝ '5 min' වලට වඩා වැඩි Timeframe එකක් තෝරන්න.")
+    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් කාසියක් හෝ වෙනත් Timeframe එකක් තෝරන්න.")
