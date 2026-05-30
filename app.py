@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from streamlit_lightweight_charts import renderLightweightCharts  # සජීවීව ඉරි අඳින ප්‍රස්ථාරය
+from streamlit_lightweight_charts import renderLightweightCharts
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
@@ -16,7 +16,7 @@ st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්�
 
 category = st.radio(
     "ප්‍රවර්ගය තෝරන්න (Select Category):",
-    ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ වටිනා ලෝහ සහ තෙල් (Metals & Energies)"],
+    ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ වටිනา ලෝහ සහ තෙල් (Metals & Energies)"],
     horizontal=True
 )
 
@@ -51,10 +51,10 @@ tf_display = st.selectbox(
 )
 
 tf_mapping = {
-    "5 min": {"yf": "5m", "period": "60d"},
-    "15 min": {"yf": "15m", "period": "60d"},
-    "30 min": {"yf": "30m", "period": "60d"},
-    "1 hour": {"yf": "1h", "period": "90d"},
+    "5 min": {"yf": "5m", "period": "7d"},
+    "15 min": {"yf": "15m", "period": "7d"},
+    "30 min": {"yf": "30m", "period": "30d"},
+    "1 hour": {"yf": "1h", "period": "60d"},
     "4 hour": {"yf": "4h", "period": "90d"},
     "1 day": {"yf": "1d", "period": "max"}
 }
@@ -81,9 +81,9 @@ if not df.empty and len(df) > 30:
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    df['RSI'] = 100 - (100 / (1 + (gain / loss)))
+    rs = gain / loss
+    df['RSI'] = 100 - (100 / (1 + rs))
     
-    # Bollinger Bands
     df['MA20'] = df['Close'].rolling(window=20).mean()
     df['StdDev'] = df['Close'].rolling(window=20).std()
     df['BB_Upper'] = df['MA20'] + (df['StdDev'] * 2)
@@ -107,7 +107,6 @@ if not df.empty and len(df) > 30:
     volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
     ai_confidence = max(probability) * 100
     
-    # TP / SL Math Calculations
     if prediction == 1:
         tp_price = current_price + (volatility * 2.0)
         sl_price = current_price - (volatility * 1.5)
@@ -115,14 +114,14 @@ if not df.empty and len(df) > 30:
         tp_price = current_price - (volatility * 2.0)
         sl_price = current_price + (volatility * 1.5)
 
-    # --- 7. SCREEN OUTPUT DISPLAY ---
+    # --- 5. SCREEN OUTPUT DISPLAY ---
     st.write("---")
     st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
     st.metric(label="📊 සජීවී වෙළඳපොල මිල (Live Price)", value=f"${current_price:.4f}")
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     
-    # --- 🔄 ඔයා ඉල්ලපු විදිහට GREEN UP ARROW සහ RED DOWN ARROW මෙන්න ---
+    # --- 🔄 ඔයා ඉල්ලපු විදිහට හරියටම ⬆️ GREEN සහ ⬇️ RED ඊතල සකසා ඇත ---
     if prediction == 1:
         st.markdown("### 🟢 **DIRECTION: BUY / LONG** ⬆️")
         st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
@@ -130,23 +129,26 @@ if not df.empty and len(df) > 30:
         st.markdown("### 🔴 **DIRECTION: SELL / SHORT** ⬇️")
         st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
 
-    # --- 8. 🔥 LIVE AUTO-DRAW TRADINGVIEW CHART INTEGRATION ---
+    # --- 6. 🔥 FIX DATETIME KEYERROR & FORMAT DATA ---
     st.write("---")
     st.subheader("📈 සජීවී ප්‍රස්ථාර ඇනලයිසර් (Live Analysis Chart):")
     st.write("💡 *AI දෙන Entry (🔵), Take Profit (🟢), සහ Stop Loss (🔴) මට්ටම් සජීවීව චාර්ට් එක මතම ඇඳී ඇත.*")
     
-    # Formatting Chart Data
-    chart_df = df.tail(50).reset_index()
-    chart_df['time'] = chart_df['Date'].dt.strftime('%Y-%m-%d %H:%M:%S') if 'Date' in chart_df.columns else chart_df['index'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    # මෙතනින් තමයි Datetime / Index ප්‍රශ්නය 100% ක්ම විසඳුවේ
+    chart_df = df.tail(50).copy()
+    chart_df = chart_df.reset_index()
     
-    # Chart Series Data Structure
+    # Column වල නම් කුමක් වුවත් නිවැරදිව Time එක සකස් කිරීම
+    time_col = 'Date' if 'Date' in chart_df.columns else ('Datetime' if 'Datetime' in chart_df.columns else chart_df.columns[0])
+    chart_df['time'] = pd.to_datetime(chart_df[time_col]).dt.strftime('%Y-%m-%d %H:%M:%S')
+    
     candles = []
     for _, row in chart_df.iterrows():
         candles.append({
-            'time': row['time'], 'open': row['Open'], 'high': row['High'], 'low': row['Low'], 'close': row['Close']
+            'time': row['time'], 'open': float(row['Open']), 'high': float(row['High']), 'low': float(row['Low']), 'close': float(row['Close'])
         })
         
-    # --- 🛠️ චාර්ට් එක ඇතුලටම Price Lines ඇඳලා යැවීම ---
+    # Chart Options Settings
     chart_options = {
         "width": 700, "height": 450,
         "layout": {"background": {"type": "solid", "color": "#131722"}, "textColor": "#d1d4dc"},
@@ -154,10 +156,11 @@ if not df.empty and len(df) > 30:
         "priceScale": {"autoScale": True}
     }
     
+    # චාර්ට් එක ඇතුලටම නිවැරදිව ඉරි ඇඳීම
     price_lines = [
-        {"price": current_price, "color": "#00E5FF", "lineWidth": 2, "lineStyle": 1, "axisLabelVisible": True, "title": "🔵 ENTRY"},
-        {"price": tp_price, "color": "#00E676", "lineWidth": 2.5, "lineStyle": 0, "axisLabelVisible": True, "title": "🟢 TAKE PROFIT (TP)"},
-        {"price": sl_price, "color": "#FF1744", "lineWidth": 2.5, "lineStyle": 0, "axisLabelVisible": True, "title": "🔴 STOP LOSS (SL)"}
+        {"price": current_price, "color": "#00E5FF", "lineWidth": 2, "lineStyle": 1, "axisLabelVisible": True, "title": "ENTRY"},
+        {"price": tp_price, "color": "#00E676", "lineWidth": 2.5, "lineStyle": 0, "axisLabelVisible": True, "title": "TAKE PROFIT (TP)"},
+        {"price": sl_price, "color": "#FF1744", "lineWidth": 2.5, "lineStyle": 0, "axisLabelVisible": True, "title": "STOP LOSS (SL)"}
     ]
     
     series_chart = [{
@@ -167,10 +170,9 @@ if not df.empty and len(df) > 30:
         "priceLines": price_lines
     }]
     
-    # Rendering Custom Live Chart
     renderLightweightCharts(series=series_chart, options=chart_options)
 
-    # --- 9. VISUAL TARGET SYNC PANEL ---
+    # --- 7. VISUAL TARGET SYNC PANEL ---
     st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳී ඇති නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
             f"🔵 **Entry Price Level:** ${current_price:.4f}\n\n"
             f"🎯 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
