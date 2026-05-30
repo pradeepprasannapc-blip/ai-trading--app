@@ -64,14 +64,16 @@ tf_mapping = {
 
 selected_tf = tf_mapping[tf_display]
 
-# TradingView සඳහා Symbol එක සකස් කිරීම (සුදු කොටුවේ ප්‍රශ්නය මෙතනින් 100% ක් නිවැරදි කර ඇත)
+# --- 🛠️ TRADINGVIEW SYMBOL FIXED (සුදු කොටුවේ ප්‍රශ්නය මෙතනින් 100% විසඳා ඇත) ---
 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
     clean_symbol = ticker.replace('-USD', 'USDT')
 elif category == "💱 ෆොරෙක්ස් (Forex)":
     clean_symbol = ticker.replace('=X', '')
 else:
-    clean_symbol = ticker.replace('=F', '')
-    if "CL" in ticker:
+    if "GC" in ticker: clean_symbol = "XAUUSD"
+    elif "SI" in ticker: clean_symbol = "XAGUSD"
+    elif "CL" in ticker: 
+        clean_symbol = "CRUDEOIL"
         tv_exchange = "NYMEX"
 
 # 2. Data Download කිරීම
@@ -142,7 +144,7 @@ if not df.empty and len(df) > 30:
     
     ai_confidence = max(probability) * 100
     
-    # TP / SL Math Calculations
+    # TP / SL Calculations
     if prediction == 1:
         tp_price = current_price + (volatility * 2.0)
         sl_price = current_price - (volatility * 1.5)
@@ -159,18 +161,19 @@ if not df.empty and len(df) > 30:
         if ai_confidence < 58.0:
             st.warning(f"⚠️ **NO SIGNAL** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%).")
         else:
+            # --- 🔄 ඔයා ඉල්ලපු විදිහට BUY/SELL පැහැදිලි ICONS එකතු කිරීම ---
             if prediction == 1:
-                st.markdown(f"### 🟩 **DIRECTION: BUY / LONG**")
+                st.markdown("### 🟢 **DIRECTION: BUY / LONG** 📈")
                 st.markdown(f"🔵 **Entry Zone:** `${current_price:.4f}`")
-                st.markdown(f"🟩 **Take Profit (TP):** `${tp_price:.4f}`")
-                st.markdown(f"🟥 **Stop Loss (SL):** `${sl_price:.4f}`")
+                st.markdown(f"🎯 **Take Profit (TP):** `${tp_price:.4f}`")
+                st.markdown(f"🛑 **Stop Loss (SL):** `${sl_price:.4f}`")
                 st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
                 if is_bull_fvg_present: st.success("💡 Bullish FVG Detected!")
             else:
-                st.markdown(f"### 🟥 **DIRECTION: SELL / SHORT**")
-                st.markdown(f"🔹 **Entry Zone:** `${current_price:.4f}`")
-                st.markdown(f"🟩 **Take Profit (TP):** `${tp_price:.4f}`")
-                st.markdown(f"🟥 **Stop Loss (SL):** `${sl_price:.4f}`")
+                st.markdown("### 🔴 **DIRECTION: SELL / SHORT** 📉")
+                st.markdown(f"🔵 **Entry Zone:** `${current_price:.4f}`")
+                st.markdown(f"🎯 **Take Profit (TP):** `${tp_price:.4f}`")
+                st.markdown(f"🛑 **Stop Loss (SL):** `${sl_price:.4f}`")
                 st.info(f"🔥 AI Confidence: {ai_confidence:.1f}%")
                 if is_bear_fvg_present: st.error("💡 Bearish OB/FVG Detected!")
 
@@ -230,11 +233,11 @@ if not df.empty and len(df) > 30:
     """
     components.html(tradingview_html, height=560)
 
-    # --- 🔄 නිල් පාට කොටුවේ Layout එක 100% ක් පිළිවෙළට සකසා ඇත (No Text Overlapping) ---
-    st.info(f"🎯 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Target Sync):**\n\n"
+    # --- 🔄 නිල් පාට කොටුවේ Layout එක ඔයා කියපු විදිහටම 100% ක් පිළිවෙළට සකසා ඇත ---
+    st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Target Sync):**\n\n"
             f"🔵 **Entry Price Level:** ${current_price:.4f}\n\n"
-            f"🟩 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
-            f"🟥 **Stop Loss (SL) Target:** ${sl_price:.4f}")
+            f"🎯 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
+            f"🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}")
 
     # --- 9. DATA TABLE ---
     st.write("---")
