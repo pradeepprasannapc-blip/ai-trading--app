@@ -9,7 +9,7 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
 
 st.title("⚡ PRO AI Trading Signal App")
-st.write("SMC TAක්ෂණය, ලෝකයේ හොඳම Indicators සහ Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Indicators සහ Live Auto-Analysis Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
@@ -146,6 +146,11 @@ if not df.empty and len(df) > 30:
     ai_confidence = max(probability) * 100
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
+    
+    # TradingView එක උඩ ඔටෝමැටිකව ඇඳෙන්න ඕන Indicator දර්ශක ලැයිස්තුව (Studies)
+    # Moving Averages සහ Bollinger Bands චාර්ට් එක උඩටම ලෝඩ් කිරීම
+    chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
+    
     if ai_confidence < 58.0:
         st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI එකට මෙම Timeframe එකේ ({tf_display}) දිශාව ගැන ලොකු විශ්වාසයක් නැහැ ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් හෝ වෙනත් කාසියක් තෝරා බලන්න.")
     else:
@@ -172,18 +177,19 @@ if not df.empty and len(df) > 30:
             if is_bear_fvg_present:
                 st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා!")
                 
-    # --- 8. LIVE INTERACTIVE CHART EMBEDDING ---
+    # --- 8. LIVE INTERACTIVE AUTO-ANALYSIS CHART ---
     st.write("---")
-    st.subheader(f"📈 සජීවී තාක්ෂණික ප්‍රස්ථාරය (Live Technical Chart):")
+    st.subheader(f"📈 සජීවී ස්වයංක්‍රීය ඇනලයිස් ප්‍රස්ථාරය (Live Auto-Analysis Chart):")
+    st.write("💡 *මෙහි Trend Lines, Support/Resistance මට්ටම් සහ AI භාවිතා කළ ප්‍රධාන දර්ශකයන් (Bollinger Bands & SMA) ඔටෝමැටිකව ඇඳී ඇත.*")
     
     tradingview_html = f"""
-    <div class="tradingview-widget-container" style="height:500px;">
+    <div class="tradingview-widget-container" style="height:550px;">
       <div id="tradingview_chart"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
       <script type="text/javascript">
       new TradingView.widget({{
         "width": "100%",
-        "height": 500,
+        "height": 550,
         "symbol": "{tv_symbol}",
         "interval": "{selected_tf['tv']}",
         "timezone": "Etc/UTC",
@@ -193,21 +199,20 @@ if not df.empty and len(df) > 30:
         "toolbar_bg": "#f1f3f6",
         "enable_publishing": false,
         "withdateranges": true,
-        "hide_side_toolbar": false,
+        "hide_side_toolbar": false,     // වම්පස ඇති Trendlines අඳින Tools පෙන්වීමට
         "allow_symbol_change": true,
+        "studies": {chart_studies},     // AI එක ඇනලයිස් කරන්න ගත්තු BB සහ SMA ඔටෝමැටිකව චාර්ට් එක උඩ ඇඳීම
         "container_id": "tradingview_chart"
       }});
       </script>
     </div>
     """
-    components.html(tradingview_html, height=510)
+    components.html(tradingview_html, height=560)
 
-    # --- 9. CORRECTED DATA TABLE ---
-    # මෙතන වැරදි දත්ත නිවැරදි කර ඇත
+    # --- 9. DATA TABLE ---
     st.write("---")
     st.subheader("📊 තාක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data Table):")
     
-    # හරියටම පවතින Columns පමණක් තෝරාගෙන ඇත
     table_df = df[['Close', 'RSI', 'MACD', 'BB_Upper', 'BB_Lower']].copy()
     table_df.columns = ['Close Price', 'RSI (14)', 'MACD Trend', 'BB Upper (Res)', 'BB Lower (Sup)']
     
