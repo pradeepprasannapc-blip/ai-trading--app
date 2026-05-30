@@ -61,8 +61,8 @@ if not df.empty:
     df['Returns'] = df['Close'].pct_change()
     
     # Moving Averages (Trend)
-    df['EMA_9'] = df['Close'].ewm(span=9, adjust=false).mean()
-    df['EMA_21'] = df['Close'].ewm(span=21, adjust=false).mean()
+    df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
+    df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
     
     # RSI (Momentum)
     delta = df['Close'].diff()
@@ -72,10 +72,10 @@ if not df.empty:
     df['RSI'] = 100 - (100 / (1 + rs))
     
     # MACD (Trend Momentum)
-    exp1 = df['Close'].ewm(span=12, adjust=false).mean()
-    exp2 = df['Close'].ewm(span=26, adjust=false).mean()
+    exp1 = df['Close'].ewm(span=12, adjust=False).mean()
+    exp2 = df['Close'].ewm(span=26, adjust=False).mean()
     df['MACD'] = exp1 - exp2
-    df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=false).mean()
+    df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
     
     # Bollinger Bands (Volatility & Liquidity Zones)
     df['MA20'] = df['Close'].rolling(window=20).mean()
@@ -109,7 +109,6 @@ if not df.empty:
     probability = model.predict_proba(last_market_state)[0]
     
     current_price = float(df['Close'].to_numpy()[-1])
-    current_rsi = float(df['RSI'].to_numpy()[-1])
     is_bull_fvg_present = bool(df['Bullish_FVG'].to_numpy()[-1])
     is_bear_fvg_present = bool(df['Bearish_FVG'].to_numpy()[-1])
     
@@ -122,46 +121,5 @@ if not df.empty:
     
     st.write("---")
     
-    # සුවර් සිග්නල් Filter එක (Probability එක 60% ට වඩා වැඩි වෙන්න ඕනෙ)
-    ai_confidence = max(probability) * 100
-    
-    if ai_confidence < 58.0:
-        st.warning(f"⚠️ **AI SIGNAL: NO SIGNAL (මාකට් එක සුවර් නැත)** \n\nවිශ්වාසවන්තභාවය ඉතා අඩුයි ({ai_confidence:.1f}%). කරුණාකර වෙනත් කාසියක් තෝරන්න.")
-    else:
-        if prediction == 1:
-            st.success(f"🔥 **🔥 HIGH-CONFIDENCE SIGNAL: BUY / LONG** (සුවර් එක: {ai_confidence:.1f}%)")
-            
-            # SMC Smart Entry & Targets
-            tp_price = current_price + (volatility * 2)
-            sl_price = current_price - (volatility * 1.5)
-            
-            if is_bull_fvg_present:
-                st.info("💡 **SMC Confluence:** Bullish Fair Value Gap එකක් හමු විය! මිල තවත් ඉහළ යා හැක.")
-                
-            st.write(f"🎯 **Take Profit (TP):** `${tp_price:.4f}`")
-            st.write(f"🛑 **Stop Loss (SL):** `${sl_price:.4f}`")
-        else:
-            st.error(f"🚨 **🚨 HIGH-CONFIDENCE SIGNAL: SELL / SHORT** (සුවර් එක: {ai_confidence:.1f}%)")
-            
-            # SMC Smart Entry & Targets
-            tp_price = current_price - (volatility * 2)
-            sl_price = current_price + (volatility * 1.5)
-            
-            if is_bear_fvg_present:
-                st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් හමු විය! විකිණුම්කරුවන් බලවත් වේ.")
-                
-            st.write(f"🎯 **Take Profit (TP):** `${tp_price:.4f}`")
-            st.write(f"🛑 **Stop Loss (SL):** `${sl_price:.4f}`")
-            
-    st.write("---")
-    st.write("📈 **භාවිතා කළ ප්‍රධාන තාක්ෂණික දර්ශක (Advanced Historical View):**")
-    display_df = pd.DataFrame({
-        'Close Price': df['Close'],
-        'RSI (Momentum)': df['RSI'],
-        'MACD': df['MACD'],
-        'BB Upper (Resistance)': df['BB_Upper'],
-        'BB Lower (Support)': df['BB_Lower']
-    })
-    st.dataframe(display_df.tail(6))
-else:
-    st.error("දත්ත ලබාගැනීමට අපොහොසත් විය. කරුණාකර ඉන්ටර්නෙට් සම්බන්ධතාවය පරීක්ෂා කරන්න.")
+    # සුවර් සිග්නල් Filter එක (Probability එක 58% ට වඩා වැඩි වෙන්න ඕනෙ)
+    ai_confidence = max(probability) * 1
