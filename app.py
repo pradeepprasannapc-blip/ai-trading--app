@@ -9,7 +9,7 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
 
 st.title("⚡ PRO AI Trading Signal App")
-st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Indicators සහ Live Auto-Draw TradingView ප්‍රස්ථාරය මුසු වූ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Indicators සහ සජීවීව චලනය වන Live TradingView ප්‍රස්ථාරය මුසු වූ ස්මාර්ට් ඇනලයිසර් එක.")
 
 # 💡 ජනප්‍රිය වෙළඳපොලවල් සහිත සජීවී ලැයිස්තුව
 st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න (Select Market):")
@@ -101,7 +101,7 @@ if not df.empty and len(df) > 30:
     df['BB_Upper'] = df['MA20'] + (df['StdDev'] * 2)
     df['BB_Lower'] = df['MA20'] - (df['StdDev'] * 2)
     
-    # --- 4. SMART MONEY CONCEPTS (SMC) DETECTION ---
+    # --- 4. SMART MONEY CONCEPConcepts (SMC) DETECTION ---
     df['Bearish_FVG'] = (df['High'].shift(2) < df['Low']) & (df['Close'].shift(1) < df['Open'].shift(1))
     df['Bullish_FVG'] = (df['Low'].shift(2) > df['High']) & (df['Close'].shift(1) > df['Open'].shift(1))
     
@@ -139,7 +139,7 @@ if not df.empty and len(df) > 30:
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     
-    # Default Values
+    # Default Target Levels ගණනය කිරීම
     tp_price = current_price + (volatility * 2)
     sl_price = current_price - (volatility * 1.5)
     
@@ -165,21 +165,21 @@ if not df.empty and len(df) > 30:
             st.write(f"🛑 **Stop Loss (SL / අලාභ සීමාව):** `${sl_price:.4f}`")
             if is_bear_fvg_present: st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා!")
                 
-    # --- 8. 🔥 LIVE UPDATE + AUTO-DRAW TRADINGVIEW CHART ---
+    # --- 8. 🔥 LIVE UPDATE + AUTO-SCALING TRADINGVIEW CHART ---
     st.write("---")
-    st.subheader(f"📈 සජීවී ස්වයංක්‍රීය ඇනලයිස් ප්‍රස්ථාරය (Live Auto-Draw Chart):")
-    st.write("💡 *මෙහි මිල සජීවීව (Live) වෙනස් වන අතර, AI දෙන Entry/TP/SL සීමාවන් සජීවී මිල රේඛා (Price Lines) ලෙස චාර්ට් එක මතම ඔටෝමැටිකව ඇඳී ඇත.*")
+    st.subheader(f"📈 සජීවී ස්වයංක්‍රීය ඇනලයිස් ප්‍රස්ථාරය (Live Auto-Scale Chart):")
+    st.write("💡 *මෙහි මිල සජීවීව ඉහළ පහළ යන අතර (Real-time Live), මිල වෙනස් වීමට සාපේක්ෂව ප්‍රස්ථාරය ස්වයංක්‍රීයව හැඩගැසේ.*")
     
-    # TradingView එක උඩට Indicators සහ Lines දීමේ Advanced Script එක
     chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
     
+    # "autosize": true සහ සජීවී පරිමාණ සැකසුම් ඇතුළත් කළ නව HTML එක
     tradingview_html = f"""
-    <div class="tradingview-widget-container" style="height:550px;">
-      <div id="tradingview_chart"></div>
+    <div class="tradingview-widget-container" style="height:550px; width:100%;">
+      <div id="tradingview_chart" style="height:550px;"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
       <script type="text/javascript">
       new TradingView.widget({{
-        "width": "100%",
+        "autosize": true,
         "height": 550,
         "symbol": "{tv_symbol}",
         "interval": "{selected_tf['tv']}",
@@ -200,8 +200,8 @@ if not df.empty and len(df) > 30:
     """
     components.html(tradingview_html, height=560)
 
-    # චාර්ට් එකට පහළින් ලස්සනට පෙනෙන Price Target Dashboard එක
-    st.info(f"🎯 **සජීවී ප්‍රස්ථාරයේ ඇඳී ඇති නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
+    # චාර්ට් එකට පහළින් පෙනෙන Target Dashboard එක
+    st.info(f"🎯 **සජීවී ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
             f"🔵 **Entry Level:** ${current_price:.4f} | "
             f"🟢 **Take Profit (TP):** ${tp_price:.4f} | "
             f"🔴 **Stop Loss (SL):** ${sl_price:.4f}")
