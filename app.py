@@ -51,7 +51,32 @@ if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
         "Ethereum (ETH/USD)": "ETH-USD",
         "Solana (SOL/USD)": "SOL-USD",
         "Binance Coin (BNB/USD)": "BNB-USD",
-        "Dogecoin (DOGE/USD)": "DOGE-USD"
+        "Ripple (XRP/USD)": "XRP-USD",
+        "Cardano (ADA/USD)": "ADA-USD",
+        "Dogecoin (DOGE/USD)": "DOGE-USD",
+        "Shiba Inu (SHIB/USD)": "SHIB-USD",
+        "Pepe (PEPE/USD)": "PEPE-USD",
+        "Avalanche (AVAX/USD)": "AVAX-USD",
+        "Chainlink (LINK/USD)": "LINK-USD",
+        "Polkadot (DOT/USD)": "DOT-USD",
+        "Polygon (MATIC/USD)": "MATIC-USD",
+        "Litecoin (LTC/USD)": "LTC-USD",
+        "Bitcoin Cash (BCH/USD)": "BCH-USD",
+        "Uniswap (UNI/USD)": "UNI-USD",
+        "Cosmos (ATOM/USD)": "ATOM-USD",
+        "Monero (XMR/USD)": "XMR-USD",
+        "Stellar (XLM/USD)": "XLM-USD",
+        "TRON (TRX/USD)": "TRX-USD",
+        "VeChain (VET/USD)": "VET-USD",
+        "Filecoin (FIL/USD)": "FIL-USD",
+        "Aptos (APT/USD)": "APT-USD",
+        "NEAR Protocol (NEAR/USD)": "NEAR-USD",
+        "Arbitrum (ARB/USD)": "ARB-USD",
+        "Optimism (OP/USD)": "OP-USD",
+        "Injective (INJ/USD)": "INJ-USD",
+        "Fetch.ai (FET/USD)": "FET-USD",
+        "Gala (FTM/USD)": "FTM-USD",
+        "Sui (SUI/USD)": "SUI-USD"
     }
     selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
     ticker = market_options[selected_display_name]
@@ -62,7 +87,10 @@ elif category == "💱 ෆොරෙක්ස්":
     market_options = {
         "Euro / US Dollar (EUR/USD)": "EURUSD=X",
         "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X",
-        "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X"
+        "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X",
+        "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X",
+        "US Dollar / Canadian Dollar (USD/CAD)": "USDCAD=X",
+        "US Dollar / Swiss Franc (USD/CHF)": "USDCHF=X"
     }
     selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
     ticker = market_options[selected_display_name]
@@ -72,12 +100,17 @@ elif category == "💱 ෆොරෙක්ස්":
 elif category == "✨ ලෝහ සහ තෙල්":
     market_options = {
         "රන් / Gold (XAU/USD)": "GC=F",
-        "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"
+        "රීදි / Silver (XAG/USD)": "SI=F",
+        "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F",
+        "ස්වාභාවික වායු / Natural Gas": "NG=F"
     }
     selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
     ticker = market_options[selected_display_name]
     clean_symbol = ticker.replace('=F', '')
-    full_tv_ticker = f"COMEX:{clean_symbol}" if "GC" in ticker else f"NYMEX:{clean_symbol}"
+    tv_exchange = "COMEX"
+    if "CL" in ticker or "NG" in ticker:
+        tv_exchange = "NYMEX"
+    full_tv_ticker = f"{tv_exchange}:{clean_symbol}"
 
 else:
     st.info("💡 **ඔබට අවශ්‍ය ඕනෑම කාසියක් මෙහි ඇතුළත් කළ හැක.**")
@@ -193,36 +226,3 @@ if not df.empty and len(df) > 35:
         "style": "1",
         "locale": "en",
         "toolbar_bg": "#f1f3f6",
-        "enable_publishing": false,
-        "withdateranges": true,
-        "hide_side_toolbar": false,
-        "allow_symbol_change": true,
-        "studies": {chart_studies},
-        "container_id": "tradingview_chart"
-      }});
-      </script>
-    </div>
-    """
-    components.html(tradingview_html, height=510)
-
-    st.write("---")
-    if has_valid_signal:
-        dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
-        target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
-        st.info(target_msg)
-        
-        st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
-        if st.button("Send Signal to Telegram 🚀"):
-            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n\n🔵 *Entry Price:* `${current_price:.4f}`\n🎯 *Take Profit (TP):* `${tp_price:.4f}`\n🛑 *Stop Loss (SL):* `${sl_price:.4f}`\n\n📊 _Analyzed by PRO AI Trading System_"
-            
-            with st.spinner("Telegram වෙත යවමින් පවතී..."):
-                success = send_telegram_message(telegram_text)
-                
-            if success:
-                st.success("✅ Signal එක සාර්ථකව Telegram Group එකට යවන ලදී!")
-            else:
-                st.error("❌ Signal එක යැවීම අසාර්ථකයි. කරුණාකර Bot Token සහ Chat ID පරීක්ෂා කරන්න.")
-    else:
-        st.info("ℹ️ **AI එකට මාකට් එක සුවර් නැති නිසා, Entry, TP, සහ SL මට්ටම් මෙහි ලබා දී නොමැත.**")
-else:
-    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත.")
