@@ -125,6 +125,7 @@ if not df.empty and len(df) > 35:
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
         
+    # --- 3. ADVANCED INDICATORS ENGINEERING ---
     df['Returns'] = df['Close'].pct_change()
     df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
     df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
@@ -142,93 +143,3 @@ if not df.empty and len(df) > 35:
     
     df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
     df.dropna(inplace=True)
-    
-    features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
-    X = df[features]
-    y = df['Target']
-    
-    split = int(0.85 * len(df))
-    X_train, y_train = X[:split], y[:split]
-    
-    model = RandomForestClassifier(n_estimators=150, max_depth=8, min_samples_leaf=3, random_state=42)
-    model.fit(X_train, y_train)
-    
-    last_market_state = X.iloc[[-1]]
-    prediction = model.predict(last_market_state)[0]
-    probability = model.predict_proba(last_market_state)[0]
-    
-    current_price = float(df['Close'].to_numpy()[-1])
-    volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
-    ai_confidence = max(probability) * 100
-    
-    if prediction == 1:
-        tp_price = current_price + (volatility * 2.0)
-        sl_price = current_price - (volatility * 1.5)
-    else:
-        tp_price = current_price - (volatility * 2.0)
-        sl_price = current_price + (volatility * 1.5)
-
-    # --- 6. SCREEN OUTPUT DISPLAY ---
-    st.write("---")
-    st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
-    
-    st.metric(label="🎯 AI නිර්දේශිත Limit Entry මිල (AI Evaluated Entry Price)", value=f"${current_price:.4f}")
-    
-    st.write("### 🚨 AI තීරණය (AI Signal Output):")
-    
-    has_valid_signal = False
-    
-    if ai_confidence < 60.0:
-        st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් බලන්න.")
-    else:
-        has_valid_signal = True
-        if prediction == 1:
-            st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
-        else:
-            st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
-
-    # --- 7. VISUAL TARGET SYNC PANEL (චාර්ට් එකට උඩින්, අලුත් Direction එකත් එක්කම) ---
-    if has_valid_signal:
-        dir_text = "🟢 **BUY / LONG** 📈 ⬆️" if prediction == 1 else "🔴 **SELL / SHORT** 📉 ⬇️"
-        target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
-        st.info(target_msg)
-    else:
-        st.info("ℹ️ **AI එකට මාකට් එක සුවර් නැති නිසා, අලාභ වළක්වා ගැනීමට Entry, TP, සහ SL මට්ටම් මෙහි ලබා දී නොමැත.**")
-
-    st.info("💡 **සටහන:** පහත ප්‍රස්ථාරයෙන් (Chart) සජීවී මිල පරීක්ෂා කර, ඉහත Entry මිලට Limit Order එකක් සකසන්න.")
-
-    # --- 8. 100% LIVE TRADINGVIEW CHART (පහළට ගෙන ගොස් ඇත) ---
-    st.write("---")
-    st.subheader("📈 සජීවී ප්‍රස්ථාර ඇනලයිසර් (Live Analysis Chart):")
-    
-    chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
-    
-    tradingview_html = f"""
-    <div class="tradingview-widget-container" style="height:500px; width:100%;">
-      <div id="tradingview_chart" style="height:500px;"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
-      new TradingView.widget({{
-        "autosize": true,
-        "height": 500,
-        "symbol": "{full_tv_ticker}",
-        "interval": "{selected_tf['tv']}",
-        "timezone": "Etc/UTC",
-        "theme": "dark",
-        "style": "1",
-        "locale": "en",
-        "toolbar_bg": "#f1f3f6",
-        "enable_publishing": false,
-        "withdateranges": true,
-        "hide_side_toolbar": false,
-        "allow_symbol_change": true,
-        "studies": {chart_studies},
-        "container_id": "tradingview_chart"
-      }});
-      </script>
-    </div>
-    """
-    components.html(tradingview_html, height=510)
-
-else:
-    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරන්න.")
