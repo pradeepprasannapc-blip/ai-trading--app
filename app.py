@@ -146,7 +146,7 @@ if not df.empty and len(df) > 35:
     st.write("---")
     st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
     
-    # ⚠️ මෙතනයි වෙනස් කළේ: "සජීවී මිල" වෙනුවට "AI Entry මිල" යෙදීම
+    # නිවැරදි කළ Entry Price ලේබලය
     st.metric(label="🎯 AI නිර්දේශිත Limit Entry මිල (AI Evaluated Entry Price)", value=f"${current_price:.4f}")
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
@@ -162,7 +162,7 @@ if not df.empty and len(df) > 35:
         else:
             st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
 
-    # ⚠️ යූසර්ට පැහැදිලි කිරීමේ අලුත් සටහන
+    # යූසර්ට පැහැදිලි කිරීමේ අලුත් සටහන
     st.info("💡 **සටහන:** පහත ප්‍රස්ථාරයේ (Chart) පෙන්වන්නේ තත්පරයෙන් තත්පරයට වෙනස් වන සජීවී මිලයි. AI විසින් ඉහළින් නිර්දේශ කර ඇති Entry මිලට **Limit Order** එකක් සකසා වෙළඳපොල එම මිලට එනතුරු රැඳී සිටින්න.")
 
     # --- 7. 100% LIVE TRADINGVIEW CHART ---
@@ -198,6 +198,10 @@ if not df.empty and len(df) > 35:
     """
     components.html(tradingview_html, height=510)
 
-    # --- 8. VISUAL TARGET SYNC PANEL ---
+    # --- 8. VISUAL TARGET SYNC PANEL (Copy-Paste Error එක නැති කිරීමට ත්‍රිත්ව උඩුකමා යොදා ඇත) ---
     if has_valid_signal:
-        st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි
+        target_text = f"""📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**
+
+🔵 **Entry Limit Price:** ${current_price:.4f}
+
+🎯 **Take Profit (TP) Target:** ${tp_price
