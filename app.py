@@ -96,7 +96,6 @@ if not df.empty and len(df) > 35:
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
         
-    # --- 3. ADVANCED INDICATORS ENGINEERING ---
     df['Returns'] = df['Close'].pct_change()
     df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
     df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
@@ -115,7 +114,6 @@ if not df.empty and len(df) > 35:
     df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
     df.dropna(inplace=True)
     
-    # 4. Machine Learning Model Training 
     features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
     X = df[features]
     y = df['Target']
@@ -126,7 +124,6 @@ if not df.empty and len(df) > 35:
     model = RandomForestClassifier(n_estimators=150, max_depth=8, min_samples_leaf=3, random_state=42)
     model.fit(X_train, y_train)
     
-    # 5. Prediction & Probabilities
     last_market_state = X.iloc[[-1]]
     prediction = model.predict(last_market_state)[0]
     probability = model.predict_proba(last_market_state)[0]
@@ -142,28 +139,32 @@ if not df.empty and len(df) > 35:
         tp_price = current_price - (volatility * 2.0)
         sl_price = current_price + (volatility * 1.5)
 
-    # --- 6. SCREEN OUTPUT DISPLAY ---
+    # --- 6. SCREEN OUTPUT DISPLAY (Text Changes Here) ---
     st.write("---")
     st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
-    st.metric(label="📊 සජීවී වෙළඳපොල මිල (Live Price)", value=f"${current_price:.4f}")
+    
+    # වෙනස් කළ ස්ථානය: "සජීවී මිල" වෙනුවට "AI Entry මිල" යෙදීම
+    st.metric(label="🎯 AI නිර්දේශිත Limit Entry මිල (AI Evaluated Entry Price)", value=f"${current_price:.4f}")
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     
-    has_valid_signal = False # සිග්නල් එකක් තියෙනවාද නැද්ද යන්න හඳුනාගැනීමට
+    has_valid_signal = False
     
     if ai_confidence < 60.0:
         st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් බලන්න.")
     else:
-        has_valid_signal = True # සිග්නල් එක සාර්ථකයි
+        has_valid_signal = True
         if prediction == 1:
             st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
         else:
             st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
 
-    # --- 7. 100% LIVE TRADINGVIEW CHART WITH AUTO-SCALE ---
+    # යූසර්ට පැහැදිලි කිරීමේ සටහන
+    st.info("💡 **සටහන:** ප්‍රස්ථාරයේ (Chart) පෙන්වන්නේ තත්පරයෙන් තත්පරයට වෙනස් වන සජීවී මිලයි. AI විසින් නිර්දේශ කර ඇති Entry මිලට **Limit Order** එකක් සකසා වෙළඳපොල එම මිලට එනතුරු රැඳී සිටින්න.")
+
+    # --- 7. 100% LIVE TRADINGVIEW CHART ---
     st.write("---")
     st.subheader("📈 සජීවී ප්‍රස්ථාර ඇනලයිසර් (Live Analysis Chart):")
-    st.write("💡 *පහළ ඇති මිල මට්ටම් බලාගෙන වම්පස ඇති Long/Short Tool එකෙන් චාර්ට් එක මත කෙලින්ම ඇනලයිස් එක දමා බලන්න.*")
     
     chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
     
@@ -194,10 +195,10 @@ if not df.empty and len(df) > 35:
     """
     components.html(tradingview_html, height=510)
 
-    # --- 8. VISUAL TARGET SYNC PANEL (ලොජික් දෝෂය නිවැරදි කර ඇත) ---
+    # --- 8. VISUAL TARGET SYNC PANEL ---
     if has_valid_signal:
         st.info(f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
-                f"🔵 **Entry Price Level:** ${current_price:.4f}\n\n"
+                f"🔵 **Entry Limit Price:** ${current_price:.4f}\n\n"
                 f"🎯 **Take Profit (TP) Target:** ${tp_price:.4f}\n\n"
                 f"🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}")
     else:
