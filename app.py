@@ -20,13 +20,39 @@ category = st.radio(
     horizontal=True
 )
 
+# --- 🔄 ජනප්‍රිය Top 30+ ක්‍රිප්ටෝ කාසි ලැයිස්තුව ---
 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
     market_options = {
         "Bitcoin (BTC/USD)": "BTC-USD",
         "Ethereum (ETH/USD)": "ETH-USD",
         "Solana (SOL/USD)": "SOL-USD",
+        "Binance Coin (BNB/USD)": "BNB-USD",
         "Ripple (XRP/USD)": "XRP-USD",
-        "Binance Coin (BNB/USD)": "BNB-USD"
+        "Cardano (ADA/USD)": "ADA-USD",
+        "Dogecoin (DOGE/USD)": "DOGE-USD",
+        "Shiba Inu (SHIB/USD)": "SHIB-USD",
+        "Pepe (PEPE/USD)": "PEPE-USD",
+        "Avalanche (AVAX/USD)": "AVAX-USD",
+        "Chainlink (LINK/USD)": "LINK-USD",
+        "Polkadot (DOT/USD)": "DOT-USD",
+        "Polygon (MATIC/USD)": "MATIC-USD",
+        "Litecoin (LTC/USD)": "LTC-USD",
+        "Bitcoin Cash (BCH/USD)": "BCH-USD",
+        "Uniswap (UNI/USD)": "UNI-USD",
+        "Cosmos (ATOM/USD)": "ATOM-USD",
+        "Monero (XMR/USD)": "XMR-USD",
+        "Stellar (XLM/USD)": "XLM-USD",
+        "TRON (TRX/USD)": "TRX-USD",
+        "VeChain (VET/USD)": "VET-USD",
+        "Filecoin (FIL/USD)": "FIL-USD",
+        "Aptos (APT/USD)": "APT-USD",
+        "NEAR Protocol (NEAR/USD)": "NEAR-USD",
+        "Arbitrum (ARB/USD)": "ARB-USD",
+        "Optimism (OP/USD)": "OP-USD",
+        "Injective (INJ/USD)": "INJ-USD",
+        "Fetch.ai (FET/USD)": "FET-USD",
+        "Gala (FTM/USD)": "FTM-USD",
+        "Sui (SUI/USD)": "SUI-USD"
     }
     selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
     ticker = market_options[selected_display_name]
@@ -37,7 +63,10 @@ elif category == "💱 ෆොරෙක්ස්":
     market_options = {
         "Euro / US Dollar (EUR/USD)": "EURUSD=X",
         "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X",
-        "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X"
+        "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X",
+        "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X",
+        "US Dollar / Canadian Dollar (USD/CAD)": "USDCAD=X",
+        "US Dollar / Swiss Franc (USD/CHF)": "USDCHF=X"
     }
     selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Pair):", list(market_options.keys()))
     ticker = market_options[selected_display_name]
@@ -48,13 +77,14 @@ elif category == "✨ ලෝහ සහ තෙල්":
     market_options = {
         "රන් / Gold (XAU/USD)": "GC=F",
         "රීදි / Silver (XAG/USD)": "SI=F",
-        "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"
+        "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F",
+        "ස්වාභාවික වායු / Natural Gas": "NG=F"
     }
     selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Commodity):", list(market_options.keys()))
     ticker = market_options[selected_display_name]
     clean_symbol = ticker.replace('=F', '')
     tv_exchange = "COMEX"
-    if "CL" in ticker:
+    if "CL" in ticker or "NG" in ticker:
         tv_exchange = "NYMEX"
     full_tv_ticker = f"{tv_exchange}:{clean_symbol}"
 
@@ -196,7 +226,7 @@ if not df.empty and len(df) > 35:
     """
     components.html(tradingview_html, height=510)
 
-    # --- 8. VISUAL TARGET SYNC PANEL (Copy-Paste Error එක නැති කිරීමට එක පේළියට සකසා ඇත) ---
+    # --- 8. VISUAL TARGET SYNC PANEL ---
     if has_valid_signal:
         target_msg = f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
         st.info(target_msg)
