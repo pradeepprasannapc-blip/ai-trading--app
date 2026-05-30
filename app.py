@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-import streamlit.components.v1 as components  # Live Chart එක Embed කිරීමට
+import streamlit.components.v1 as components
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
@@ -28,7 +28,6 @@ if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popul
         "Ripple (XRP/USD)": "XRP-USD",
         "Binance Coin (BNB/USD)": "BNB-USD"
     }
-    tv_symbol = f"BINANCE:{ticker.replace('-USD', 'USDT')}" if 'ticker' in locals() else "BINANCE:BTCUSDT"
 elif category == "💱 ෆොරෙක්ස් (Forex)":
     market_options = {
         "Euro / US Dollar (EUR/USD)": "EURUSD=X",
@@ -45,6 +44,27 @@ else:
 selected_display_name = st.selectbox("කාසිය තෝරන්න (Select Coin/Pair):", list(market_options.keys()))
 ticker = market_options[selected_display_name]
 
+# --- 🔄 නවීකරණය කරන ලද TIMEFRAME SELECTOR ---
+# විනාඩි 1 සිට දින/සති දක්වා තෝරාගැනීමේ හැකියාව
+tf_display = st.selectbox(
+    "Timeframe එක තෝරන්න (Select Timeframe):", 
+    ["1 min", "5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day", "1 week"]
+)
+
+# yfinance සහ TradingView සඳහා ගැළපෙන කේතයන් සිතියම්ගත කිරීම (Mapping)
+tf_mapping = {
+    "1 min": {"yf": "1m", "tv": "1", "period": "7d"},
+    "5 min": {"yf": "5m", "tv": "5", "period": "60d"},
+    "15 min": {"yf": "15m", "tv": "15", "period": "60d"},
+    "30 min": {"yf": "30m", "tv": "30", "period": "60d"},
+    "1 hour": {"yf": "1h", "tv": "60", "period": "90d"},
+    "4 hour": {"yf": "4h", "tv": "240", "period": "90d"},
+    "1 day": {"yf": "1d", "tv": "D", "period": "max"},
+    "1 week": {"yf": "1wk", "tv": "W", "period": "max"}
+}
+
+selected_tf = tf_mapping[tf_display]
+
 # TradingView සජීවී චාර්ට් එක සඳහා නිවැරදි Symbol එක සැකසීම
 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Popular Crypto)":
     tv_symbol = f"BINANCE:{ticker.replace('-USD', 'USDT')}"
@@ -53,17 +73,15 @@ elif category == "💱 ෆොරෙක්ස් (Forex)":
 else:
     tv_symbol = f"COMEX:{ticker.replace('=F', '1!')}" if "GC" in ticker or "SI" in ticker else f"NYMEX:{ticker.replace('=F', '1!')}"
 
-timeframe = st.selectbox("Timeframe එක තෝරන්න (SMC සඳහා 1h හෝ 4h වඩාත් සුදුසුයි):", ["1h", "4h", "1d"])
-
 # 2. Data Download කිරීම
 @st.cache_data
-def get_market_data(symbol, tf):
-    df = yf.download(symbol, period="90d", interval=tf, auto_adjust=True)
+def get_market_data(symbol, tf, prd):
+    df = yf.download(symbol, period=prd, interval=tf, auto_adjust=True)
     return df
 
-df = get_market_data(ticker, timeframe)
+df = get_market_data(ticker, selected_tf["yf"], selected_tf["period"])
 
-if not df.empty:
+if not df.empty and len(df) > 30: # ප්‍රමාණවත් දත්ත ප්‍රමාණයක් තිබේදැයි බැලීම
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
         
@@ -124,19 +142,18 @@ if not df.empty:
     
     # 7. Screen එක මත පෙන්වීම
     st.write("---")
-    st.subheader(f"📊 {selected_display_name} සඳහා PRO AI විශ්ලේෂණය:")
+    st.subheader(f"📊 {selected_display_name} ({tf_display}) සඳහා PRO AI විශ්ලේෂණය:")
     st.metric(label="සජීවී වෙළඳපොල මිල (Current Entry Price)", value=f"${current_price:.4f}")
     
-    # සුවර් සිග්නල් Filter එක (Probability එක බැලීම)
+    # සුවර් සිග්නල් Filter එක
     ai_confidence = max(probability) * 100
     
     st.write("### 🚨 AI තීරණය (AI Signal Output):")
     if ai_confidence < 58.0:
-        st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI එකට මේ වෙලාවේ දිශාව ගැන ලොකු විශ්වාසයක් නැහැ ({ai_confidence:.1f}%). අවදානම අඩු කිරීමට කරුණාකර වෙනත් Timeframe එකක් හෝ වෙනත් කාසියක් (Coin) තෝරා බලන්න.")
+        st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI එකට මෙම Timeframe එකේ ({tf_display}) දිශාව ගැන ලොකු විශ්වාසයක් නැහැ ({ai_confidence:.1f}%). කරුණාකර වෙනත් Timeframe එකක් තෝරා බලන්න.")
     else:
         if prediction == 1:
             st.success(f"🔥 **HIGH-CONFIDENCE SIGNAL: BUY / LONG** (සුවර් එක: {ai_confidence:.1f}%)")
-            
             tp_price = current_price + (volatility * 2)
             sl_price = current_price - (volatility * 1.5)
             
@@ -145,10 +162,9 @@ if not df.empty:
             st.write(f"🛑 **Stop Loss (SL / අලාභ සීමාව):** `${sl_price:.4f}`")
             
             if is_bull_fvg_present:
-                st.info("💡 **SMC Confluence:** Bullish Fair Value Gap එකක් තියෙනවා. මිල තවත් ඉහළට යන්න ලොකු ඉඩක් තියෙනවා.")
+                st.info("💡 **SMC Confluence:** Bullish Fair Value Gap එකක් තියෙනවා!")
         else:
             st.error(f"🚨 **HIGH-CONFIDENCE SIGNAL: SELL / SHORT** (සුවර් එක: {ai_confidence:.1f}%)")
-            
             tp_price = current_price - (volatility * 2)
             sl_price = current_price + (volatility * 1.5)
             
@@ -157,50 +173,40 @@ if not df.empty:
             st.write(f"🛑 **Stop Loss (SL / අලාභ සීමාව):** `${sl_price:.4f}`")
             
             if is_bear_fvg_present:
-                st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා. විකිණුම්කරුවන් (Sellers) ප්‍රබලයි.")
+                st.info("💡 **SMC Confluence:** Bearish Order Block/FVG එකක් තියෙනවා!")
                 
-    # --- 8. LIVE INTERACTIVE CHART EMBEDDING ---
+    # --- 8. LIVE INTERACTIVE CHART EMBEDDING (WITH EXTENDED TIMEFRAMES) ---
     st.write("---")
     st.subheader(f"📈 සජීවී තාක්ෂණික ප්‍රස්ථාරය (Live Technical Chart):")
     
-    # Timeframe එක TradingView එකට ගැළපෙන සේ හැඩගැස්වීම
-    tv_tf = "60" if timeframe == "1h" else "240" if timeframe == "4h" else "D"
-    
     tradingview_html = f"""
-    <div class="tradingview-widget-container" style="height:450px;">
+    <div class="tradingview-widget-container" style="height:500px;">
       <div id="tradingview_chart"></div>
       <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
       <script type="text/javascript">
       new TradingView.widget({{
         "width": "100%",
-        "height": 450,
+        "height": 500,
         "symbol": "{tv_symbol}",
-        "interval": "{tv_tf}",
+        "interval": "{selected_tf['tv']}",
         "timezone": "Etc/UTC",
         "theme": "dark",
         "style": "1",
         "locale": "en",
         "toolbar_bg": "#f1f3f6",
         "enable_publishing": false,
-        "hide_side_toolbar": false,
+        "withdateranges": true,        // පල්ලෙහා දින පරාසයන් පෙන්වීමට
+        "hide_side_toolbar": false,     // චාර්ට් එකේ Tools බලාගන්න
         "allow_symbol_change": true,
         "container_id": "tradingview_chart"
       }});
       </script>
     </div>
     """
-    # HTML Component එක ඇප් එක ඇතුලට දැමීම
-    components.html(tradingview_html, height=460)
+    components.html(tradingview_html, height=510)
 
     st.write("---")
     st.write("📊 **තාක්ෂණික දර්ශක දත්ත පුවරුව (Technical Indicators Data Table):**")
-    display_df = pd.DataFrame({
-        'Close Price': df['Close'],
-        'RSI (Momentum)': df['RSI'],
-        'MACD': df['MACD'],
-        'BB Upper (Resistance)': df['BB_Upper'],
-        'BB Lower (Support)': df['BB_Lower']
-    })
-    st.dataframe(display_df.tail(5))
+    st.dataframe(df[['Close', 'RSI', 'MAC', 'BB_Upper', 'BB_Lower']].rename(columns={'Close': 'Close Price', 'MACD': 'MACD Trend'}).tail(5))
 else:
-    st.error("දත්ත ලබාගැනීමට අපොහොසත් විය. කරුණාකර ඉන්ටර්නෙට් සම්බන්ධතාවය පරීක්ෂා කරන්න.")
+    st.error("තෝරාගත් කුඩා කාල රාමුව (Small Timeframe) සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර '5 min' හෝ ඊට වැඩි Timeframe එකක් තෝරන්න.")
