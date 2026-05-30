@@ -20,7 +20,6 @@ category = st.radio(
     horizontal=True
 )
 
-# --- 🔄 ජනප්‍රිය Top 30+ ක්‍රිප්ටෝ කාසි ලැයිස්තුව ---
 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
     market_options = {
         "Bitcoin (BTC/USD)": "BTC-USD",
@@ -226,12 +225,4 @@ if not df.empty and len(df) > 35:
     """
     components.html(tradingview_html, height=510)
 
-    # --- 8. VISUAL TARGET SYNC PANEL ---
-    if has_valid_signal:
-        target_msg = f"📊 **ප්‍රස්ථාරයේ ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
-        st.info(target_msg)
-    else:
-        st.info("ℹ️ **AI එකට මාකට් එක සුවර් නැති නිසා (NO SIGNAL), අලාභ වළක්වා ගැනීමට Entry, TP, සහ SL මට්ටම් මෙහි ලබා දී නොමැත.**")
-
-else:
-    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරන්න.")
+    # --- 8. VISUAL TARGET SYNC PANEL (අලුතින් Direction එක මෙතනටත් එකතු කර ඇත) ---
