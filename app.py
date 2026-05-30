@@ -226,3 +226,43 @@ if not df.empty and len(df) > 35:
         "style": "1",
         "locale": "en",
         "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "withdateranges": true,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "studies": {chart_studies},
+        "container_id": "tradingview_chart"
+      }});
+      </script>
+    </div>
+    """
+    components.html(tradingview_html, height=510)
+
+    st.write("---")
+    if has_valid_signal:
+        dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
+        target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
+        st.info(target_msg)
+        
+        st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
+        if st.button("Send Signal to Telegram 🚀"):
+            
+            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
+            telegram_text += f"මම {selected_display_name} ({tf_display}) මාකට් එක හොඳට analyze කළා. මේ තියෙන්නේ මගේ සිග්නල් එක:\n\n"
+            telegram_text += f"🔥 *Buy or Sell (දිශාව):* {dir_text}\n"
+            telegram_text += f"🔵 *Start Entry (ඇතුල් වන මිල):* `${current_price:.4f}`\n"
+            telegram_text += f"🎯 *Take Profit (ටාගට් එක):* `${tp_price:.4f}`\n"
+            telegram_text += f"🛑 *Stop Loss (අලාභය නවත්වන මිල):* `${sl_price:.4f}`\n\n"
+            telegram_text += f"📈 *විශ්ලේෂණය කළ චාර්ට් එක:* සජීවී ටාගට් සහ චාර්ට් විශ්ලේෂණය App එක මතින් නිරීක්ෂණය කර ඇත."
+            
+            with st.spinner("Telegram වෙත යවමින් පවතී..."):
+                success = send_telegram_message(telegram_text)
+                
+            if success:
+                st.success("✅ Signal එක සාර්ථකව Telegram Group එකට යවන ලදී!")
+            else:
+                st.error("❌ Signal එක යැවීම අසාර්ථකයි. කරුණාකර Bot Token සහ Chat ID පරීක්ෂා කරන්න.")
+    else:
+        st.info("ℹ️ **AI එකට මාකට් එක සුවර් නැති නිසා, Entry, TP, සහ SL මට්ටම් මෙහි ලබා දී නොමැත.**")
+else:
+    st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් සජීවී දත්ත නොමැත.")
