@@ -260,7 +260,7 @@ with tab1:
                         "TP2": [tp2_price],
                         "TP3": [tp3_price],
                         "SL": [sl_price],
-                        "Status": ["⏳ Pending Entry"] # අලුත් Pending Entry Status එක
+                        "Status": ["⏳ Pending Entry"]
                     }
                     df_new = pd.DataFrame(data)
                     if os.path.exists(HISTORY_FILE):
@@ -305,28 +305,22 @@ with tab2:
                         current_live_price = float(df_hist['Close'].dropna().iloc[-1])
                         live_prices_dict[index] = current_live_price
                         
-                        # --- අලුත් Auto Status Checker Logic එක ---
-                        
                         entry_val = float(row['Entry'])
                         tp1_val = float(row['TP1'])
                         tp2_val = float(row['TP2'])
                         tp3_val = float(row['TP3'])
                         sl_val = float(row['SL'])
                         
-                        new_status = row['Status']
+                        new_status = str(row['Status'])
                         
-                        # 1. Pending Entry එකක් නම්, Entry එකට ආවද බලනවා
-                        if new_status == "⏳ Pending Entry":
+                        if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
-                                # BUY එකකට Limit Price එකට එන්න නම් මිල අඩුවෙන්න ඕනේ
                                 if current_live_price <= entry_val:
                                     new_status = "🟢 Active"
                             else: # SELL
-                                # SELL එකකට Limit Price එකට එන්න නම් මිල වැඩිවෙන්න ඕනේ
                                 if current_live_price >= entry_val:
                                     new_status = "🟢 Active"
                                     
-                        # 2. Active වෙලා නම්, TP හෝ SL වැදුනද බලනවා
                         if new_status == "🟢 Active":
                             if row['Direction'] == 'BUY':
                                 if current_live_price <= sl_val:
@@ -348,7 +342,7 @@ with tab2:
                                 elif current_live_price <= tp1_val:
                                     new_status = "✅ TP1 HIT"
                                     
-                        if new_status != row['Status']:
+                        if new_status != str(row['Status']):
                             history_df.at[index, 'Status'] = new_status
                             updated = True
                             
@@ -374,15 +368,14 @@ with tab2:
             
         display_df.drop(columns=['Ticker'], inplace=True)
         
-        # Table එක පෙන්වීම
         st.dataframe(display_df, use_container_width=True)
         
         # --- TELEGRAM යැවීම ---
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        # Pending හෝ Active ඒවා අයින් කර, Result එක ආපු (TP/SL) ඒවා විතරක් තේරීම
-        completed_signals = history_df[~history_df['Status'].isin(["⏳ Pending Entry", "🟢 Active"])]
+        # 🟢 මෙහි වෙනසක් කළා: "HIT" සහ "Active" කියන Status දෙකම පෙන්නනවා
+        completed_signals = history_df[history_df['Status'].str.contains("HIT|Active", na=False, case=False)]
         
         if not completed_signals.empty:
             options = []
@@ -395,7 +388,16 @@ with tab2:
                 selected_idx = options.index(selected_sig)
                 sel_row = completed_signals.iloc[selected_idx]
                 
-                if "TP" in sel_row['Status']:
+                # Active වුණාම යවන අලුත් මැසේජ් එක
+                if "Active" in sel_row['Status']:
+                    entry_val = float(sel_row['Entry'])
+                    dp_val = 8 if entry_val < 0.01 else 4
+                    if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
+                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥"
+                        if send_telegram_message(msg):
+                            st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                
+                elif "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
                     tp_val = float(sel_row[hit_level])
                     tp_dp = 8 if tp_val < 0.01 else 4
@@ -404,20 +406,20 @@ with tab2:
                         msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
                             st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
-                else:
+                
+                elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
                         msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
                         if send_telegram_message(msg):
                             st.success("🛑 Stop Loss මැසේජ් එක යැව්වා!")
         else:
-            st.info("තවම TP හෝ SL වුණු සිග්නල් කිසිවක් නැත.")
+            st.info("තවම Active, TP, හෝ SL වුණු සිග්නල් කිසිවක් නැත.")
                         
         st.write("---")
         if st.button("🗑️ History එක මකන්න (Clear All)"):
             os.remove(HISTORY_FILE)
             st.success("History එක සම්පූර්ණයෙන්ම මකා දැමුවා! කරුණාකර App එක Refresh කරන්න.")
             
-        # Streamlit Soft Refresh Logic
         if auto_refresh:
             time.sleep(15)
             try:
