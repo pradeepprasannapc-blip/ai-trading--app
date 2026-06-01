@@ -372,97 +372,22 @@ with tab2:
         display_df.drop(columns=['Ticker'], inplace=True)
         
         # =========================================================
-        # 🟢 0, 1, 2 අංක සහිතව, Status එක පැත්තට ඇදෙන අලුත් HTML TABLE එක
+        # 🟢 HTML හිස්තැන් අයින් කළ නිවැරදි කෝඩ් එක (Wick-Catcher + Marquee)
         # =========================================================
-        html_table = """
-        <style>
-        .trading-history-container {
-            overflow-x: auto;
-            margin: 10px 0;
-            border-radius: 8px;
-            border: 1px solid #31333f;
-        }
-        .trading-table {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: #0e1117;
-            color: #ffffff;
-            font-size: 13px;
-            text-align: center;
-        }
-        .trading-table th {
-            background-color: #1f2937;
-            color: #ff4b4b;
-            padding: 12px 8px;
-            border: 1px solid #31333f;
-            font-weight: bold;
-        }
-        .trading-table td {
-            padding: 10px 6px;
-            border: 1px solid #31333f;
-            white-space: nowrap;
-        }
-        /* Running Text (Marquee) Animation Logic */
-        .marquee-container {
-            width: 95px;
-            overflow: hidden;
-            margin: 0 auto;
-            white-space: nowrap;
-        }
-        .marquee-scroll {
-            display: inline-block;
-            animation: marqueeEffect 6s linear infinite;
-        }
-        @keyframes marqueeEffect {
-            0% { transform: translate(10%, 0); }
-            50% { transform: translate(-100%, 0); }
-            100% { transform: translate(10%, 0); }
-        }
-        </style>
-        <div class="trading-history-container">
-        <table class="trading-table">
-            <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Coin</th>
-                <th>Direction</th>
-                <th>Entry</th>
-                <th>TP1</th>
-                <th>TP2</th>
-                <th>TP3</th>
-                <th>SL</th>
-                <th>Status</th>
-                <th>Live Price</th>
-            </tr>
-        """
+        html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}}</style>"
+        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
         
         for idx, row in display_df.iterrows():
             status_text = str(row['Status'])
-            
-            # ඉඩ මදි වෙන "Pending Entry" වචනයට විතරක් Running Text Animation එක දැමීම
             if "Pending Entry" in status_text:
-                status_td = f'<td><div class="marquee-container"><div class="marquee-scroll">{status_text}</div></div></td>'
+                status_td = f"<td><div class='marquee-container'><div class='marquee-scroll'>{status_text}</div></div></td>"
             else:
-                status_td = f'<td>{status_text}</td>'
+                status_td = f"<td>{status_text}</td>"
                 
-            html_table += f"""
-            <tr>
-                <td style="font-weight:bold; color:#888;">{idx}</td>
-                <td>{row['Date']}</td>
-                <td>{row['Coin']}</td>
-                <td>{row['Direction']}</td>
-                <td>{row['Entry']}</td>
-                <td>{row['TP1']}</td>
-                <td>{row['TP2']}</td>
-                <td>{row['TP3']}</td>
-                <td>{row['SL']}</td>
-                {status_td}
-                <td style="color:#00ffcc; font-weight:bold;">{row['Live Price']}</td>
-            </tr>
-            """
+            html_table += f"<tr><td style='font-weight:bold; color:#888;'>{idx}</td><td>{row['Date']}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
+            
         html_table += "</table></div>"
         
-        # ඇප් එකට Custom Table එක එකතු කිරීම
         st.markdown(html_table, unsafe_allow_html=True)
         # =========================================================
 
