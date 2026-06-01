@@ -297,14 +297,12 @@ with tab2:
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
                 try:
-                    # විනාඩි 5 කාල රාමුවක් සහිතව දත්ත ලබා ගැනීම (Wick එක අල්ලගන්න)
                     df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
                     if not df_hist.empty:
                         if isinstance(df_hist.columns, pd.MultiIndex):
                             df_hist.columns = df_hist.columns.get_level_values(0)
                         
                         current_live_price = float(df_hist['Close'].dropna().iloc[-1])
-                        # Wick එකක් (Shadow) ආවදැයි බැලීමට අලුත් එකතු කිරීම
                         current_low = float(df_hist['Low'].dropna().iloc[-1])
                         current_high = float(df_hist['High'].dropna().iloc[-1])
                         
@@ -320,7 +318,6 @@ with tab2:
                         
                         if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
-                                # Wick එකක් හරි Entry එකේ වැදුනදැයි බලනවා
                                 if current_low <= entry_val:
                                     new_status = "🟢 Active"
                             else: # SELL
@@ -393,11 +390,18 @@ with tab2:
                 selected_idx = options.index(selected_sig)
                 sel_row = completed_signals.iloc[selected_idx]
                 
+                # 🟢 Direction එකට අදාළ ලස්සන Icons (Emojis) සෑදීම
+                if sel_row['Direction'] == 'BUY':
+                    dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️"
+                else:
+                    dir_text_with_icons = "🔴 SELL / SHORT 📉 ⬇️"
+                
                 if "Active" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
-                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥"
+                        # මෙහි Direction එක dir_text_with_icons ලෙස මාරු කළා
+                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥"
                         if send_telegram_message(msg):
                             st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                 
@@ -407,13 +411,15 @@ with tab2:
                     tp_dp = 8 if tp_val < 0.01 else 4
                     
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
-                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
+                        # මෙහි Direction එක dir_text_with_icons ලෙස මාරු කළා
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
                             st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
-                        msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
+                        # මෙහි Direction එක dir_text_with_icons ලෙස මාරු කළා
+                        msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
                         if send_telegram_message(msg):
                             st.success("🛑 Stop Loss මැසේජ් එක යැව්වා!")
         else:
