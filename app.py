@@ -6,6 +6,7 @@ from sklearn.ensemble import RandomForestClassifier
 import streamlit.components.v1 as components
 import requests
 import os
+import time
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
@@ -218,7 +219,6 @@ with tab1:
         if has_valid_signal:
             dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
             
-            # නිල් පාට කොටුව ලස්සනට පේළි කැඩී පෙනීමට ද්විත්ව newlines ( \n\n ) යොදා ඇත.
             target_msg = (
                 f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
                 f"🪙 **Coin:** {selected_display_name}\n\n"
@@ -281,6 +281,21 @@ with tab2:
     st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
     st.write("මාකට් එකේ සජීවී මිල මෙහි යාවත්කාලීන වේ. TP 1, 2, හෝ 3 Hit වූ විට Status එක Auto වෙනස් වෙනවා!")
     
+    # --- AUTO REFRESH FEATURE ---
+    auto_refresh = st.checkbox("🔄 Auto Refresh Live Prices (සෑම තත්පර 30කට වරක් ස්වයංක්‍රීයව අලුත් වීමට මෙහි ටික් එකක් දාන්න)")
+    if auto_refresh:
+        components.html(
+            """
+            <script>
+            setTimeout(function(){
+                window.parent.location.reload();
+            }, 30000);
+            </script>
+            """,
+            height=0
+        )
+    # ----------------------------
+
     if os.path.exists(HISTORY_FILE):
         try:
             history_df = pd.read_csv(HISTORY_FILE)
@@ -297,19 +312,17 @@ with tab2:
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
                 try:
-                    # N/A ගැටළුව විසඳීමට දෛනික (1d) දත්ත ලබා ගැනීම
-                    df_hist = yf.download(row['Ticker'], period="1d", progress=False)
+                    df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
                     if not df_hist.empty:
                         if isinstance(df_hist.columns, pd.MultiIndex):
                             df_hist.columns = df_hist.columns.get_level_values(0)
                         
-                        # අන්තිමටම තියෙන නිවැරදි Live Price එක සහ High/Low අගයන්
+                        # වත්මන් සජීවී මිල ගැනීම
                         current_live_price = float(df_hist['Close'].dropna().iloc[-1])
                         live_prices_dict[index] = current_live_price
                         
+                        # SL වැදීමේ දෝෂය මඟහරවා ගැනීමට Current Live Price එකෙන් පමණක් Check කිරීම
                         if "SL HIT" not in row['Status'] and "TP3 HIT" not in row['Status']:
-                            max_price = float(df_hist['High'].dropna().max())
-                            min_price = float(df_hist['Low'].dropna().min())
                             tp1_val = float(row['TP1'])
                             tp2_val = float(row['TP2'])
                             tp3_val = float(row['TP3'])
@@ -318,23 +331,23 @@ with tab2:
                             new_status = row['Status']
                             
                             if row['Direction'] == 'BUY':
-                                if min_price <= sl_val:
+                                if current_live_price <= sl_val:
                                     new_status = "🛑 SL HIT"
-                                elif max_price >= tp3_val:
+                                elif current_live_price >= tp3_val:
                                     new_status = "✅ TP3 HIT"
-                                elif max_price >= tp2_val:
+                                elif current_live_price >= tp2_val:
                                     new_status = "✅ TP2 HIT"
-                                elif max_price >= tp1_val:
+                                elif current_live_price >= tp1_val:
                                     new_status = "✅ TP1 HIT"
                                     
                             else: # SELL
-                                if max_price >= sl_val:
+                                if current_live_price >= sl_val:
                                     new_status = "🛑 SL HIT"
-                                elif min_price <= tp3_val:
+                                elif current_live_price <= tp3_val:
                                     new_status = "✅ TP3 HIT"
-                                elif min_price <= tp2_val:
+                                elif current_live_price <= tp2_val:
                                     new_status = "✅ TP2 HIT"
-                                elif min_price <= tp1_val:
+                                elif current_live_price <= tp1_val:
                                     new_status = "✅ TP1 HIT"
                                     
                             if new_status != row['Status']:
@@ -364,7 +377,6 @@ with tab2:
         
         st.dataframe(display_df, use_container_width=True)
         
-        # --- TELEGRAM යැවීම ---
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
@@ -384,7 +396,6 @@ with tab2:
                 if "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
                     tp_val = float(sel_row[hit_level])
-                    
                     tp_dp = 8 if tp_val < 0.01 else 4
                     
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
