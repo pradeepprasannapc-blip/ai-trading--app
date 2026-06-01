@@ -210,10 +210,14 @@ with tab1:
         if has_valid_signal:
             dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
             
+            # --- මගහැරුණු Visual Targets (නිල් පාට කොටුව) ආපසු එක් කිරීම ---
+            target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
+            st.info(target_msg)
+            # -------------------------------------------------------------
+            
             st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
             if st.button("Send Signal to Telegram 🚀"):
                 
-                # English Message format
                 telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
                 telegram_text += f"🪙 *Coin/Pair:* {selected_display_name}\n"
                 telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
