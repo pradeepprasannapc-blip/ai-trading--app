@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -371,8 +371,101 @@ with tab2:
             
         display_df.drop(columns=['Ticker'], inplace=True)
         
-        st.dataframe(display_df, use_container_width=True)
+        # =========================================================
+        # 🟢 0, 1, 2 අංක සහිතව, Status එක පැත්තට ඇදෙන අලුත් HTML TABLE එක
+        # =========================================================
+        html_table = """
+        <style>
+        .trading-history-container {
+            overflow-x: auto;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #31333f;
+        }
+        .trading-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #0e1117;
+            color: #ffffff;
+            font-size: 13px;
+            text-align: center;
+        }
+        .trading-table th {
+            background-color: #1f2937;
+            color: #ff4b4b;
+            padding: 12px 8px;
+            border: 1px solid #31333f;
+            font-weight: bold;
+        }
+        .trading-table td {
+            padding: 10px 6px;
+            border: 1px solid #31333f;
+            white-space: nowrap;
+        }
+        /* Running Text (Marquee) Animation Logic */
+        .marquee-container {
+            width: 95px;
+            overflow: hidden;
+            margin: 0 auto;
+            white-space: nowrap;
+        }
+        .marquee-scroll {
+            display: inline-block;
+            animation: marqueeEffect 6s linear infinite;
+        }
+        @keyframes marqueeEffect {
+            0% { transform: translate(10%, 0); }
+            50% { transform: translate(-100%, 0); }
+            100% { transform: translate(10%, 0); }
+        }
+        </style>
+        <div class="trading-history-container">
+        <table class="trading-table">
+            <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Coin</th>
+                <th>Direction</th>
+                <th>Entry</th>
+                <th>TP1</th>
+                <th>TP2</th>
+                <th>TP3</th>
+                <th>SL</th>
+                <th>Status</th>
+                <th>Live Price</th>
+            </tr>
+        """
         
+        for idx, row in display_df.iterrows():
+            status_text = str(row['Status'])
+            
+            # ඉඩ මදි වෙන "Pending Entry" වචනයට විතරක් Running Text Animation එක දැමීම
+            if "Pending Entry" in status_text:
+                status_td = f'<td><div class="marquee-container"><div class="marquee-scroll">{status_text}</div></div></td>'
+            else:
+                status_td = f'<td>{status_text}</td>'
+                
+            html_table += f"""
+            <tr>
+                <td style="font-weight:bold; color:#888;">{idx}</td>
+                <td>{row['Date']}</td>
+                <td>{row['Coin']}</td>
+                <td>{row['Direction']}</td>
+                <td>{row['Entry']}</td>
+                <td>{row['TP1']}</td>
+                <td>{row['TP2']}</td>
+                <td>{row['TP3']}</td>
+                <td>{row['SL']}</td>
+                {status_td}
+                <td style="color:#00ffcc; font-weight:bold;">{row['Live Price']}</td>
+            </tr>
+            """
+        html_table += "</table></div>"
+        
+        # ඇප් එකට Custom Table එක එකතු කිරීම
+        st.markdown(html_table, unsafe_allow_html=True)
+        # =========================================================
+
         # --- TELEGRAM යැවීම ---
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
@@ -390,7 +483,6 @@ with tab2:
                 selected_idx = options.index(selected_sig)
                 sel_row = completed_signals.iloc[selected_idx]
                 
-                # 🟢 Direction එකට අදාළ ලස්සන Icons (Emojis) සෑදීම
                 if sel_row['Direction'] == 'BUY':
                     dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️"
                 else:
@@ -400,7 +492,6 @@ with tab2:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
-                        # මෙහි Direction එක dir_text_with_icons ලෙස මාරු කළා
                         msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥"
                         if send_telegram_message(msg):
                             st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
@@ -411,14 +502,12 @@ with tab2:
                     tp_dp = 8 if tp_val < 0.01 else 4
                     
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
-                        # මෙහි Direction එක dir_text_with_icons ලෙස මාරු කළා
                         msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
                             st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
-                        # මෙහි Direction එක dir_text_with_icons ලෙස මාරු කළා
                         msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
                         if send_telegram_message(msg):
                             st.success("🛑 Stop Loss මැසේජ් එක යැව්වා!")
