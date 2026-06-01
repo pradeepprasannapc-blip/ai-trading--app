@@ -297,12 +297,17 @@ with tab2:
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
                 try:
-                    df_hist = yf.download(row['Ticker'], period="1d", progress=False)
+                    # විනාඩි 5 කාල රාමුවක් සහිතව දත්ත ලබා ගැනීම (Wick එක අල්ලගන්න)
+                    df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
                     if not df_hist.empty:
                         if isinstance(df_hist.columns, pd.MultiIndex):
                             df_hist.columns = df_hist.columns.get_level_values(0)
                         
                         current_live_price = float(df_hist['Close'].dropna().iloc[-1])
+                        # Wick එකක් (Shadow) ආවදැයි බැලීමට අලුත් එකතු කිරීම
+                        current_low = float(df_hist['Low'].dropna().iloc[-1])
+                        current_high = float(df_hist['High'].dropna().iloc[-1])
+                        
                         live_prices_dict[index] = current_live_price
                         
                         entry_val = float(row['Entry'])
@@ -315,31 +320,32 @@ with tab2:
                         
                         if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
-                                if current_live_price <= entry_val:
+                                # Wick එකක් හරි Entry එකේ වැදුනදැයි බලනවා
+                                if current_low <= entry_val:
                                     new_status = "🟢 Active"
                             else: # SELL
-                                if current_live_price >= entry_val:
+                                if current_high >= entry_val:
                                     new_status = "🟢 Active"
                                     
                         if new_status == "🟢 Active":
                             if row['Direction'] == 'BUY':
-                                if current_live_price <= sl_val:
+                                if current_low <= sl_val:
                                     new_status = "🛑 SL HIT"
-                                elif current_live_price >= tp3_val:
+                                elif current_high >= tp3_val:
                                     new_status = "✅ TP3 HIT"
-                                elif current_live_price >= tp2_val:
+                                elif current_high >= tp2_val:
                                     new_status = "✅ TP2 HIT"
-                                elif current_live_price >= tp1_val:
+                                elif current_high >= tp1_val:
                                     new_status = "✅ TP1 HIT"
                                     
                             else: # SELL
-                                if current_live_price >= sl_val:
+                                if current_high >= sl_val:
                                     new_status = "🛑 SL HIT"
-                                elif current_live_price <= tp3_val:
+                                elif current_low <= tp3_val:
                                     new_status = "✅ TP3 HIT"
-                                elif current_live_price <= tp2_val:
+                                elif current_low <= tp2_val:
                                     new_status = "✅ TP2 HIT"
-                                elif current_live_price <= tp1_val:
+                                elif current_low <= tp1_val:
                                     new_status = "✅ TP1 HIT"
                                     
                         if new_status != str(row['Status']):
@@ -374,7 +380,6 @@ with tab2:
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        # 🟢 මෙහි වෙනසක් කළා: "HIT" සහ "Active" කියන Status දෙකම පෙන්නනවා
         completed_signals = history_df[history_df['Status'].str.contains("HIT|Active", na=False, case=False)]
         
         if not completed_signals.empty:
@@ -388,7 +393,6 @@ with tab2:
                 selected_idx = options.index(selected_sig)
                 sel_row = completed_signals.iloc[selected_idx]
                 
-                # Active වුණාම යවන අලුත් මැසේජ් එක
                 if "Active" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
