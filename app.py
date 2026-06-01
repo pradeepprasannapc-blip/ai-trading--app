@@ -159,10 +159,8 @@ with tab1:
         volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
         ai_confidence = max(probability) * 100
         
-        # 🟢 Dynamic Decimal Places 
         dp = 8 if current_price < 0.01 else 4
         
-        # --- TP 3ක් සහ SL ගණනය කිරීම ---
         if prediction == 1:
             tp1_price = current_price + (volatility * 1.2)
             tp2_price = current_price + (volatility * 2.0)
@@ -281,20 +279,7 @@ with tab2:
     st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
     st.write("මාකට් එකේ සජීවී මිල මෙහි යාවත්කාලීන වේ. TP 1, 2, හෝ 3 Hit වූ විට Status එක Auto වෙනස් වෙනවා!")
     
-    # --- AUTO REFRESH FEATURE ---
-    auto_refresh = st.checkbox("🔄 Auto Refresh Live Prices (සෑම තත්පර 30කට වරක් ස්වයංක්‍රීයව අලුත් වීමට මෙහි ටික් එකක් දාන්න)")
-    if auto_refresh:
-        components.html(
-            """
-            <script>
-            setTimeout(function(){
-                window.parent.location.reload();
-            }, 30000);
-            </script>
-            """,
-            height=0
-        )
-    # ----------------------------
+    auto_refresh = st.checkbox("🔄 Auto Refresh (සෑම තත්පර 15කට වරක් සජීවී මිල සහ Status පමණක් යාවත්කාලීන වීමට මෙහි ටික් එකක් දාන්න)")
 
     if os.path.exists(HISTORY_FILE):
         try:
@@ -309,54 +294,54 @@ with tab2:
         updated = False
         live_prices_dict = {}
         
-        with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
-            for index, row in history_df.iterrows():
-                try:
-                    df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
-                    if not df_hist.empty:
-                        if isinstance(df_hist.columns, pd.MultiIndex):
-                            df_hist.columns = df_hist.columns.get_level_values(0)
+        # දත්ත ලබාගැනීම
+        for index, row in history_df.iterrows():
+            try:
+                df_hist = yf.download(row['Ticker'], period="1d", progress=False)
+                if not df_hist.empty:
+                    if isinstance(df_hist.columns, pd.MultiIndex):
+                        df_hist.columns = df_hist.columns.get_level_values(0)
+                    
+                    current_live_price = float(df_hist['Close'].dropna().iloc[-1])
+                    live_prices_dict[index] = current_live_price
+                    
+                    if "SL HIT" not in row['Status'] and "TP3 HIT" not in row['Status']:
+                        max_price = float(df_hist['High'].dropna().max())
+                        min_price = float(df_hist['Low'].dropna().min())
+                        tp1_val = float(row['TP1'])
+                        tp2_val = float(row['TP2'])
+                        tp3_val = float(row['TP3'])
+                        sl_val = float(row['SL'])
                         
-                        # වත්මන් සජීවී මිල ගැනීම
-                        current_live_price = float(df_hist['Close'].dropna().iloc[-1])
-                        live_prices_dict[index] = current_live_price
+                        new_status = row['Status']
                         
-                        # SL වැදීමේ දෝෂය මඟහරවා ගැනීමට Current Live Price එකෙන් පමණක් Check කිරීම
-                        if "SL HIT" not in row['Status'] and "TP3 HIT" not in row['Status']:
-                            tp1_val = float(row['TP1'])
-                            tp2_val = float(row['TP2'])
-                            tp3_val = float(row['TP3'])
-                            sl_val = float(row['SL'])
-                            
-                            new_status = row['Status']
-                            
-                            if row['Direction'] == 'BUY':
-                                if current_live_price <= sl_val:
-                                    new_status = "🛑 SL HIT"
-                                elif current_live_price >= tp3_val:
-                                    new_status = "✅ TP3 HIT"
-                                elif current_live_price >= tp2_val:
-                                    new_status = "✅ TP2 HIT"
-                                elif current_live_price >= tp1_val:
-                                    new_status = "✅ TP1 HIT"
-                                    
-                            else: # SELL
-                                if current_live_price >= sl_val:
-                                    new_status = "🛑 SL HIT"
-                                elif current_live_price <= tp3_val:
-                                    new_status = "✅ TP3 HIT"
-                                elif current_live_price <= tp2_val:
-                                    new_status = "✅ TP2 HIT"
-                                elif current_live_price <= tp1_val:
-                                    new_status = "✅ TP1 HIT"
-                                    
-                            if new_status != row['Status']:
-                                history_df.at[index, 'Status'] = new_status
-                                updated = True
-                    else:
-                        live_prices_dict[index] = np.nan
-                except Exception:
+                        if row['Direction'] == 'BUY':
+                            if current_live_price <= sl_val:
+                                new_status = "🛑 SL HIT"
+                            elif current_live_price >= tp3_val:
+                                new_status = "✅ TP3 HIT"
+                            elif current_live_price >= tp2_val:
+                                new_status = "✅ TP2 HIT"
+                            elif current_live_price >= tp1_val:
+                                new_status = "✅ TP1 HIT"
+                                
+                        else: # SELL
+                            if current_live_price >= sl_val:
+                                new_status = "🛑 SL HIT"
+                            elif current_live_price <= tp3_val:
+                                new_status = "✅ TP3 HIT"
+                            elif current_live_price <= tp2_val:
+                                new_status = "✅ TP2 HIT"
+                            elif current_live_price <= tp1_val:
+                                new_status = "✅ TP1 HIT"
+                                
+                        if new_status != row['Status']:
+                            history_df.at[index, 'Status'] = new_status
+                            updated = True
+                else:
                     live_prices_dict[index] = np.nan
+            except Exception:
+                live_prices_dict[index] = np.nan
         
         if updated:
             history_df.to_csv(HISTORY_FILE, index=False)
@@ -375,8 +360,10 @@ with tab2:
             
         display_df.drop(columns=['Ticker'], inplace=True)
         
+        # Table එක පෙන්වීම
         st.dataframe(display_df, use_container_width=True)
         
+        # --- TELEGRAM යැවීම ---
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
@@ -414,5 +401,13 @@ with tab2:
         if st.button("🗑️ History එක මකන්න (Clear All)"):
             os.remove(HISTORY_FILE)
             st.success("History එක සම්පූර්ණයෙන්ම මකා දැමුවා! කරුණාකර App එක Refresh කරන්න.")
+            
+        # Streamlit Soft Refresh Logic
+        if auto_refresh:
+            time.sleep(15)
+            try:
+                st.rerun()
+            except AttributeError:
+                st.experimental_rerun()
     else:
         st.info("දැනට කිසිම Signal එකක් Save වෙලා නෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
