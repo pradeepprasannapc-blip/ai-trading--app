@@ -6,6 +6,7 @@ from sklearn.ensemble import RandomForestClassifier
 import streamlit.components.v1 as components
 import requests
 import os
+import time
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
@@ -40,7 +41,7 @@ def send_telegram_message(message):
 HISTORY_FILE = "signal_history.csv"
 
 # --- TABS සෑදීම (පිටු 2ක්) ---
-tab1, tab2 = st.tabs(["⚡ Live AI Signals", "📂 Signal History & Results"])
+tab1, tab2 = st.tabs(["⚡ Live AI Signals", "📂 Auto Signal History & Results"])
 
 # ==========================================
 # TAB 1: LIVE SIGNALS 
@@ -210,10 +211,8 @@ with tab1:
         if has_valid_signal:
             dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
             
-            # --- මගහැරුණු Visual Targets (නිල් පාට කොටුව) ආපසු එක් කිරීම ---
             target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
             st.info(target_msg)
-            # -------------------------------------------------------------
             
             st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
             if st.button("Send Signal to Telegram 🚀"):
@@ -233,14 +232,17 @@ with tab1:
                 if success:
                     st.success("✅ Signal එක සාර්ථකව යැව්වා! (History එකටත් Save වුණා)")
                     
-                    # History එකට සේව් කිරීම
+                    # Auto History එකට දත්ත ඇතුළත් කිරීම (අලුත් Format එක)
                     date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                     data = {
                         "Date": [date_str], 
+                        "Ticker": [ticker],
                         "Coin": [selected_display_name.split()[0]], 
                         "Direction": ["BUY" if prediction == 1 else "SELL"], 
-                        "Entry": [f"${current_price:.4f}"], 
-                        "TP": [f"${tp_price:.4f}"]
+                        "Entry": [current_price], 
+                        "TP": [tp_price],
+                        "SL": [sl_price],
+                        "Status": ["⏳ Pending"]
                     }
                     df_new = pd.DataFrame(data)
                     if os.path.exists(HISTORY_FILE):
@@ -253,41 +255,99 @@ with tab1:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
 # ==========================================
-# TAB 2: SIGNAL HISTORY & RESULTS
+# TAB 2: SIGNAL HISTORY & RESULTS (AUTO CHECKER)
 # ==========================================
 with tab2:
-    st.subheader("📂 ගත්තු Signals වල History එක සහ Results")
-    st.write("ඔයා යවපු සිග්නල් මෙතන සේව් වෙනවා. ටාගට් එක Hit වුණාට පස්සේ මෙතනින් Group එකට Proof එකක් යවන්න පුළුවන්!")
+    st.subheader("📂 ගත්තු Signals වල History එක (Auto Check)")
+    st.write("ඔයා යවපු සිග්නල් TP එකට හරි SL එකට හරි ගියාම මෙතන Status එක ස්වයංක්‍රීයව වෙනස් වෙනවා!")
     
     if os.path.exists(HISTORY_FILE):
-        history_df = pd.read_csv(HISTORY_FILE)
-        st.dataframe(history_df, use_container_width=True)
+        try:
+            history_df = pd.read_csv(HISTORY_FILE)
+            # පැරණි Format එක නම් Auto Delete කර අලුත් එකට ඉඩ හැදීම
+            if "Status" not in history_df.columns:
+                os.remove(HISTORY_FILE)
+                st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
+                st.stop()
+        except Exception:
+            pass
+            
+        # 1. පෙන්ඩින් (Pending) ට්‍රේඩ්ස් චෙක් කිරීම
+        updated = False
+        with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
+            for index, row in history_df.iterrows():
+                if row['Status'] == "⏳ Pending":
+                    # අදාළ කාසියේ අද දවසේ මිල ගණන් ගැනීම
+                    df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
+                    if not df_hist.empty:
+                        if isinstance(df_hist.columns, pd.MultiIndex):
+                            df_hist.columns = df_hist.columns.get_level_values(0)
+                        
+                        max_price = float(df_hist['High'].max())
+                        min_price = float(df_hist['Low'].min())
+                        tp_val = float(row['TP'])
+                        sl_val = float(row['SL'])
+                        
+                        if row['Direction'] == 'BUY':
+                            if max_price >= tp_val:
+                                history_df.at[index, 'Status'] = "✅ TP HIT"
+                                updated = True
+                            elif min_price <= sl_val:
+                                history_df.at[index, 'Status'] = "🛑 SL HIT"
+                                updated = True
+                        else: # SELL
+                            if min_price <= tp_val:
+                                history_df.at[index, 'Status'] = "✅ TP HIT"
+                                updated = True
+                            elif max_price >= sl_val:
+                                history_df.at[index, 'Status'] = "🛑 SL HIT"
+                                updated = True
         
+        # 2. අලුත් Status ටික CSV එකට Save කිරීම
+        if updated:
+            history_df.to_csv(HISTORY_FILE, index=False)
+            
+        # 3. ලස්සනට පෙන්වීම සඳහා දත්ත සකස් කිරීම
+        display_df = history_df.copy()
+        display_df['Entry'] = display_df['Entry'].apply(lambda x: f"${float(x):.4f}")
+        display_df['TP'] = display_df['TP'].apply(lambda x: f"${float(x):.4f}")
+        display_df['SL'] = display_df['SL'].apply(lambda x: f"${float(x):.4f}")
+        # Ticker column එක User ට පෙන්නන්න අවශ්‍ය නැති නිසා අයින් කරනවා
+        display_df.drop(columns=['Ticker'], inplace=True)
+        
+        # Table එක පෙන්වීම
+        st.dataframe(display_df, use_container_width=True)
+        
+        # --- TELEGRAM යැවීම ---
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        options = []
-        for index, row in history_df.iterrows():
-            options.append(f"{row['Date']} | {row['Coin']} | {row['Direction']}")
-            
-        selected_sig = st.selectbox("Update කරන්න අවශ්‍ය Signal එක තෝරන්න:", options)
+        # ✅ TP HIT වුණු ඒවා පමණක් තේරීමට දීම
+        completed_signals = history_df[history_df['Status'] != "⏳ Pending"]
         
-        if selected_sig:
-            selected_idx = options.index(selected_sig)
-            sel_row = history_df.iloc[selected_idx]
+        if not completed_signals.empty:
+            options = []
+            for index, row in completed_signals.iterrows():
+                options.append(f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})")
+                
+            selected_sig = st.selectbox("Update කරන්න අවශ්‍ය Signal එක තෝරන්න:", options)
             
-            col_a, col_b = st.columns(2)
-            with col_a:
-                if st.button("✅ TP HIT (Profit) යවන්න"):
-                    msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🎯 *Target Reached:* {sel_row['TP']}\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
-                    if send_telegram_message(msg):
-                        st.success("✅ Profit මැසේජ් එක සාර්ථකව යැව්වා!")
-            
-            with col_b:
-                if st.button("🛑 SL HIT (Loss) යවන්න"):
-                    msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
-                    if send_telegram_message(msg):
-                        st.success("🛑 Stop Loss මැසේජ් එක යැව්වා!")
+            if selected_sig:
+                selected_idx = options.index(selected_sig)
+                sel_row = completed_signals.iloc[selected_idx]
+                
+                if "TP HIT" in sel_row['Status']:
+                    if st.button("✅ Profit මැසේජ් එක යවන්න 🚀"):
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🎯 *Target Reached:* {sel_row['TP']}\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
+                        if send_telegram_message(msg):
+                            st.success("✅ Profit මැසේජ් එක සාර්ථකව යැව්වා!")
+                else:
+                    if st.button("🛑 Loss මැසේජ් එක යවන්න"):
+                        msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
+                        if send_telegram_message(msg):
+                            st.success("🛑 Stop Loss මැසේජ් එක යැව්වා!")
+        else:
+            st.info("තවම TP හෝ SL වුණු සිග්නල් කිසිවක් නැත.")
                         
         st.write("---")
         if st.button("🗑️ History එක මකන්න (Clear All)"):
