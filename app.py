@@ -159,7 +159,7 @@ with tab1:
         volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
         ai_confidence = max(probability) * 100
         
-        # 🟢 Dynamic Decimal Places (මිල අඩු කාසි වලට දශමස්ථාන 8ක්)
+        # 🟢 Dynamic Decimal Places 
         dp = 8 if current_price < 0.01 else 4
         
         # --- TP 3ක් සහ SL ගණනය කිරීම ---
@@ -219,8 +219,7 @@ with tab1:
         if has_valid_signal:
             dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
             
-            # Visual Targets with 3 TPs & Coin Name & Proper Spacing
-            target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🪙 **Coin:** {selected_display_name} \n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.{dp}f} \n\n🎯 **TP 1:** ${tp1_price:.{dp}f} \n\n🎯 **TP 2:** ${tp2_price:.{dp}f} \n\n🎯 **TP 3:** ${tp3_price:.{dp}f} \n\n🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
+            target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🪙 **Coin:** {selected_display_name} \n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.{dp}f} \n\n🎯 **TP 1:** ${tp1_price:.{dp}f} \n🎯 **TP 2:** ${tp2_price:.{dp}f} \n🎯 **TP 3:** ${tp3_price:.{dp}f} \n\n🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
             st.info(target_msg)
             
             st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
@@ -243,7 +242,6 @@ with tab1:
                 if success:
                     st.success("✅ Signal එක සාර්ථකව යැව්වා! (History එකටත් Save වුණා)")
                     
-                    # History එකට සේව් කිරීම 
                     date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                     data = {
                         "Date": [date_str], 
@@ -268,7 +266,7 @@ with tab1:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
 # ==========================================
-# TAB 2: SIGNAL HISTORY & RESULTS (AUTO CHECKER & LIVE TRACKER)
+# TAB 2: SIGNAL HISTORY & RESULTS 
 # ==========================================
 with tab2:
     st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
@@ -289,58 +287,58 @@ with tab2:
         
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
-                # සජීවී දත්ත ගැනීම
-                df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
-                if not df_hist.empty:
-                    if isinstance(df_hist.columns, pd.MultiIndex):
-                        df_hist.columns = df_hist.columns.get_level_values(0)
-                    
-                    # දැනට තියෙන Live Price එක
-                    current_live_price = float(df_hist['Close'].iloc[-1])
-                    live_prices_dict[index] = current_live_price
-                    
-                    # Pending හෝ Partially Hit නම් විතරක් Check කිරීම
-                    if "SL HIT" not in row['Status'] and "TP3 HIT" not in row['Status']:
-                        max_price = float(df_hist['High'].max())
-                        min_price = float(df_hist['Low'].min())
-                        tp1_val = float(row['TP1'])
-                        tp2_val = float(row['TP2'])
-                        tp3_val = float(row['TP3'])
-                        sl_val = float(row['SL'])
+                try:
+                    # සජීවී දත්ත ගැනීම (N/A එන එක නතර කිරීමට .dropna() භාවිතය)
+                    df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
+                    if not df_hist.empty:
+                        if isinstance(df_hist.columns, pd.MultiIndex):
+                            df_hist.columns = df_hist.columns.get_level_values(0)
                         
-                        new_status = row['Status']
+                        # අන්තිමටම තියෙන නිවැරදි Live Price එක ගන්නවා
+                        current_live_price = float(df_hist['Close'].dropna().iloc[-1])
+                        live_prices_dict[index] = current_live_price
                         
-                        if row['Direction'] == 'BUY':
-                            if min_price <= sl_val:
-                                new_status = "🛑 SL HIT"
-                            elif max_price >= tp3_val:
-                                new_status = "✅ TP3 HIT"
-                            elif max_price >= tp2_val:
-                                new_status = "✅ TP2 HIT"
-                            elif max_price >= tp1_val:
-                                new_status = "✅ TP1 HIT"
-                                
-                        else: # SELL
-                            if max_price >= sl_val:
-                                new_status = "🛑 SL HIT"
-                            elif min_price <= tp3_val:
-                                new_status = "✅ TP3 HIT"
-                            elif min_price <= tp2_val:
-                                new_status = "✅ TP2 HIT"
-                            elif min_price <= tp1_val:
-                                new_status = "✅ TP1 HIT"
-                                
-                        if new_status != row['Status']:
-                            history_df.at[index, 'Status'] = new_status
-                            updated = True
-                else:
+                        if "SL HIT" not in row['Status'] and "TP3 HIT" not in row['Status']:
+                            max_price = float(df_hist['High'].dropna().max())
+                            min_price = float(df_hist['Low'].dropna().min())
+                            tp1_val = float(row['TP1'])
+                            tp2_val = float(row['TP2'])
+                            tp3_val = float(row['TP3'])
+                            sl_val = float(row['SL'])
+                            
+                            new_status = row['Status']
+                            
+                            if row['Direction'] == 'BUY':
+                                if min_price <= sl_val:
+                                    new_status = "🛑 SL HIT"
+                                elif max_price >= tp3_val:
+                                    new_status = "✅ TP3 HIT"
+                                elif max_price >= tp2_val:
+                                    new_status = "✅ TP2 HIT"
+                                elif max_price >= tp1_val:
+                                    new_status = "✅ TP1 HIT"
+                                    
+                            else: # SELL
+                                if max_price >= sl_val:
+                                    new_status = "🛑 SL HIT"
+                                elif min_price <= tp3_val:
+                                    new_status = "✅ TP3 HIT"
+                                elif min_price <= tp2_val:
+                                    new_status = "✅ TP2 HIT"
+                                elif min_price <= tp1_val:
+                                    new_status = "✅ TP1 HIT"
+                                    
+                            if new_status != row['Status']:
+                                history_df.at[index, 'Status'] = new_status
+                                updated = True
+                    else:
+                        live_prices_dict[index] = np.nan
+                except Exception:
                     live_prices_dict[index] = np.nan
         
-        # අලුත් Status ටික CSV එකට Save කිරීම
         if updated:
             history_df.to_csv(HISTORY_FILE, index=False)
             
-        # ලස්සනට පෙන්වීම සඳහා දත්ත සකස් කිරීම සහ Dynamic Decimals
         display_df = history_df.copy()
         display_df['Live Price'] = display_df.index.map(live_prices_dict)
         
@@ -379,7 +377,6 @@ with tab2:
                     hit_level = sel_row['Status'].split()[1] # TP1, TP2, or TP3
                     tp_val = float(sel_row[hit_level])
                     
-                    # ඩයිනමික් දශමස්ථාන Telegram Result එකටත්
                     tp_dp = 8 if tp_val < 0.01 else 4
                     
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
