@@ -6,7 +6,6 @@ from sklearn.ensemble import RandomForestClassifier
 import streamlit.components.v1 as components
 import requests
 import os
-import time
 
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
@@ -219,7 +218,17 @@ with tab1:
         if has_valid_signal:
             dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
             
-            target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🪙 **Coin:** {selected_display_name} \n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.{dp}f} \n\n🎯 **TP 1:** ${tp1_price:.{dp}f} \n🎯 **TP 2:** ${tp2_price:.{dp}f} \n🎯 **TP 3:** ${tp3_price:.{dp}f} \n\n🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
+            # නිල් පාට කොටුව ලස්සනට පේළි කැඩී පෙනීමට ද්විත්ව newlines ( \n\n ) යොදා ඇත.
+            target_msg = (
+                f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
+                f"🪙 **Coin:** {selected_display_name}\n\n"
+                f"🔥 **Signal Direction:** {dir_text}\n\n"
+                f"🔵 **Entry Limit Price:** ${current_price:.{dp}f}\n\n"
+                f"🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n"
+                f"🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n"
+                f"🎯 **TP 3:** ${tp3_price:.{dp}f}\n\n"
+                f"🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
+            )
             st.info(target_msg)
             
             st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
@@ -266,7 +275,7 @@ with tab1:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
 # ==========================================
-# TAB 2: SIGNAL HISTORY & RESULTS 
+# TAB 2: SIGNAL HISTORY & RESULTS (AUTO CHECKER & LIVE TRACKER)
 # ==========================================
 with tab2:
     st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
@@ -288,13 +297,13 @@ with tab2:
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
                 try:
-                    # සජීවී දත්ත ගැනීම (N/A එන එක නතර කිරීමට .dropna() භාවිතය)
-                    df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
+                    # N/A ගැටළුව විසඳීමට දෛනික (1d) දත්ත ලබා ගැනීම
+                    df_hist = yf.download(row['Ticker'], period="1d", progress=False)
                     if not df_hist.empty:
                         if isinstance(df_hist.columns, pd.MultiIndex):
                             df_hist.columns = df_hist.columns.get_level_values(0)
                         
-                        # අන්තිමටම තියෙන නිවැරදි Live Price එක ගන්නවා
+                        # අන්තිමටම තියෙන නිවැරදි Live Price එක සහ High/Low අගයන්
                         current_live_price = float(df_hist['Close'].dropna().iloc[-1])
                         live_prices_dict[index] = current_live_price
                         
@@ -353,7 +362,6 @@ with tab2:
             
         display_df.drop(columns=['Ticker'], inplace=True)
         
-        # Table එක පෙන්වීම
         st.dataframe(display_df, use_container_width=True)
         
         # --- TELEGRAM යැවීම ---
@@ -374,7 +382,7 @@ with tab2:
                 sel_row = completed_signals.iloc[selected_idx]
                 
                 if "TP" in sel_row['Status']:
-                    hit_level = sel_row['Status'].split()[1] # TP1, TP2, or TP3
+                    hit_level = sel_row['Status'].split()[1]
                     tp_val = float(sel_row[hit_level])
                     
                     tp_dp = 8 if tp_val < 0.01 else 4
