@@ -260,7 +260,7 @@ with tab1:
                         "TP2": [tp2_price],
                         "TP3": [tp3_price],
                         "SL": [sl_price],
-                        "Status": ["⏳ Pending"]
+                        "Status": ["⏳ Pending Entry"] # අලුත් Pending Entry Status එක
                     }
                     df_new = pd.DataFrame(data)
                     if os.path.exists(HISTORY_FILE):
@@ -294,20 +294,20 @@ with tab2:
         updated = False
         live_prices_dict = {}
         
-        # දත්ත ලබාගැනීම
-        for index, row in history_df.iterrows():
-            try:
-                df_hist = yf.download(row['Ticker'], period="1d", progress=False)
-                if not df_hist.empty:
-                    if isinstance(df_hist.columns, pd.MultiIndex):
-                        df_hist.columns = df_hist.columns.get_level_values(0)
-                    
-                    current_live_price = float(df_hist['Close'].dropna().iloc[-1])
-                    live_prices_dict[index] = current_live_price
-                    
-                    if "SL HIT" not in row['Status'] and "TP3 HIT" not in row['Status']:
-                        max_price = float(df_hist['High'].dropna().max())
-                        min_price = float(df_hist['Low'].dropna().min())
+        with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
+            for index, row in history_df.iterrows():
+                try:
+                    df_hist = yf.download(row['Ticker'], period="1d", progress=False)
+                    if not df_hist.empty:
+                        if isinstance(df_hist.columns, pd.MultiIndex):
+                            df_hist.columns = df_hist.columns.get_level_values(0)
+                        
+                        current_live_price = float(df_hist['Close'].dropna().iloc[-1])
+                        live_prices_dict[index] = current_live_price
+                        
+                        # --- අලුත් Auto Status Checker Logic එක ---
+                        
+                        entry_val = float(row['Entry'])
                         tp1_val = float(row['TP1'])
                         tp2_val = float(row['TP2'])
                         tp3_val = float(row['TP3'])
@@ -315,33 +315,47 @@ with tab2:
                         
                         new_status = row['Status']
                         
-                        if row['Direction'] == 'BUY':
-                            if current_live_price <= sl_val:
-                                new_status = "🛑 SL HIT"
-                            elif current_live_price >= tp3_val:
-                                new_status = "✅ TP3 HIT"
-                            elif current_live_price >= tp2_val:
-                                new_status = "✅ TP2 HIT"
-                            elif current_live_price >= tp1_val:
-                                new_status = "✅ TP1 HIT"
-                                
-                        else: # SELL
-                            if current_live_price >= sl_val:
-                                new_status = "🛑 SL HIT"
-                            elif current_live_price <= tp3_val:
-                                new_status = "✅ TP3 HIT"
-                            elif current_live_price <= tp2_val:
-                                new_status = "✅ TP2 HIT"
-                            elif current_live_price <= tp1_val:
-                                new_status = "✅ TP1 HIT"
-                                
+                        # 1. Pending Entry එකක් නම්, Entry එකට ආවද බලනවා
+                        if new_status == "⏳ Pending Entry":
+                            if row['Direction'] == 'BUY':
+                                # BUY එකකට Limit Price එකට එන්න නම් මිල අඩුවෙන්න ඕනේ
+                                if current_live_price <= entry_val:
+                                    new_status = "🟢 Active"
+                            else: # SELL
+                                # SELL එකකට Limit Price එකට එන්න නම් මිල වැඩිවෙන්න ඕනේ
+                                if current_live_price >= entry_val:
+                                    new_status = "🟢 Active"
+                                    
+                        # 2. Active වෙලා නම්, TP හෝ SL වැදුනද බලනවා
+                        if new_status == "🟢 Active":
+                            if row['Direction'] == 'BUY':
+                                if current_live_price <= sl_val:
+                                    new_status = "🛑 SL HIT"
+                                elif current_live_price >= tp3_val:
+                                    new_status = "✅ TP3 HIT"
+                                elif current_live_price >= tp2_val:
+                                    new_status = "✅ TP2 HIT"
+                                elif current_live_price >= tp1_val:
+                                    new_status = "✅ TP1 HIT"
+                                    
+                            else: # SELL
+                                if current_live_price >= sl_val:
+                                    new_status = "🛑 SL HIT"
+                                elif current_live_price <= tp3_val:
+                                    new_status = "✅ TP3 HIT"
+                                elif current_live_price <= tp2_val:
+                                    new_status = "✅ TP2 HIT"
+                                elif current_live_price <= tp1_val:
+                                    new_status = "✅ TP1 HIT"
+                                    
                         if new_status != row['Status']:
                             history_df.at[index, 'Status'] = new_status
                             updated = True
-                else:
+                            
+                    else:
+                        live_prices_dict[index] = np.nan
+                except Exception:
                     live_prices_dict[index] = np.nan
-            except Exception:
-                live_prices_dict[index] = np.nan
         
         if updated:
             history_df.to_csv(HISTORY_FILE, index=False)
@@ -367,7 +381,8 @@ with tab2:
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        completed_signals = history_df[history_df['Status'] != "⏳ Pending"]
+        # Pending හෝ Active ඒවා අයින් කර, Result එක ආපු (TP/SL) ඒවා විතරක් තේරීම
+        completed_signals = history_df[~history_df['Status'].isin(["⏳ Pending Entry", "🟢 Active"])]
         
         if not completed_signals.empty:
             options = []
