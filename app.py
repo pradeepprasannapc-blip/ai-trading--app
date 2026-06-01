@@ -9,7 +9,7 @@ import os
 import time
 
 # 1. App පෙනුම සහ Title සැකසීම
-st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="centered")
+st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 st.title("⚡ PRO AI Trading Signal App")
 st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ 100% Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
@@ -40,8 +40,8 @@ def send_telegram_message(message):
 
 HISTORY_FILE = "signal_history.csv"
 
-# --- TABS සෑදීම (පිටු 2ක්) ---
-tab1, tab2 = st.tabs(["⚡ Live AI Signals", "📂 Auto Signal History & Results"])
+# --- TABS සෑදීම ---
+tab1, tab2 = st.tabs(["⚡ Live AI Signals", "📂 Auto Signal History & Live Tracker"])
 
 # ==========================================
 # TAB 1: LIVE SIGNALS 
@@ -159,11 +159,16 @@ with tab1:
         volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
         ai_confidence = max(probability) * 100
         
+        # --- TP 3ක් සහ SL ගණනය කිරීම ---
         if prediction == 1:
-            tp_price = current_price + (volatility * 2.0)
+            tp1_price = current_price + (volatility * 1.2)
+            tp2_price = current_price + (volatility * 2.0)
+            tp3_price = current_price + (volatility * 3.0)
             sl_price = current_price - (volatility * 1.5)
         else:
-            tp_price = current_price - (volatility * 2.0)
+            tp1_price = current_price - (volatility * 1.2)
+            tp2_price = current_price - (volatility * 2.0)
+            tp3_price = current_price - (volatility * 3.0)
             sl_price = current_price + (volatility * 1.5)
 
         st.write("---")
@@ -211,7 +216,8 @@ with tab1:
         if has_valid_signal:
             dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
             
-            target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **Take Profit (TP) Target:** ${tp_price:.4f} \n\n🛑 **Stop Loss (SL) Target:** ${sl_price:.4f}"
+            # Visual Targets with 3 TPs
+            target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **TP 1:** ${tp1_price:.4f} \n🎯 **TP 2:** ${tp2_price:.4f} \n🎯 **TP 3:** ${tp3_price:.4f} \n\n🛑 **Stop Loss (SL):** ${sl_price:.4f}"
             st.info(target_msg)
             
             st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
@@ -222,7 +228,9 @@ with tab1:
                 telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
                 telegram_text += f"🔥 *Direction:* {dir_text}\n\n"
                 telegram_text += f"🔵 *Entry Price:* `${current_price:.4f}`\n"
-                telegram_text += f"🎯 *Take Profit (TP):* `${tp_price:.4f}`\n"
+                telegram_text += f"🎯 *TP 1:* `${tp1_price:.4f}`\n"
+                telegram_text += f"🎯 *TP 2:* `${tp2_price:.4f}`\n"
+                telegram_text += f"🎯 *TP 3:* `${tp3_price:.4f}`\n"
                 telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.4f}`\n\n"
                 telegram_text += f"📊 _Analyzed by PRO AI Trading System_"
                 
@@ -232,7 +240,7 @@ with tab1:
                 if success:
                     st.success("✅ Signal එක සාර්ථකව යැව්වා! (History එකටත් Save වුණා)")
                     
-                    # Auto History එකට දත්ත ඇතුළත් කිරීම (අලුත් Format එක)
+                    # History එකට සේව් කිරීම (අලුත් Format එක)
                     date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                     data = {
                         "Date": [date_str], 
@@ -240,7 +248,9 @@ with tab1:
                         "Coin": [selected_display_name.split()[0]], 
                         "Direction": ["BUY" if prediction == 1 else "SELL"], 
                         "Entry": [current_price], 
-                        "TP": [tp_price],
+                        "TP1": [tp1_price],
+                        "TP2": [tp2_price],
+                        "TP3": [tp3_price],
                         "SL": [sl_price],
                         "Status": ["⏳ Pending"]
                     }
@@ -255,53 +265,74 @@ with tab1:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
 # ==========================================
-# TAB 2: SIGNAL HISTORY & RESULTS (AUTO CHECKER)
+# TAB 2: SIGNAL HISTORY & RESULTS (AUTO CHECKER & LIVE TRACKER)
 # ==========================================
 with tab2:
-    st.subheader("📂 ගත්තු Signals වල History එක (Auto Check)")
-    st.write("ඔයා යවපු සිග්නල් TP එකට හරි SL එකට හරි ගියාම මෙතන Status එක ස්වයංක්‍රීයව වෙනස් වෙනවා!")
+    st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
+    st.write("මාකට් එකේ සජීවී මිල මෙහි යාවත්කාලීන වේ. TP 1, 2, හෝ 3 Hit වූ විට Status එක Auto වෙනස් වෙනවා!")
     
     if os.path.exists(HISTORY_FILE):
         try:
             history_df = pd.read_csv(HISTORY_FILE)
             # පැරණි Format එක නම් Auto Delete කර අලුත් එකට ඉඩ හැදීම
-            if "Status" not in history_df.columns:
+            if "TP1" not in history_df.columns:
                 os.remove(HISTORY_FILE)
-                st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
+                st.warning("🔄 පද්ධතිය යාවත්කාලීන විය (TP 3ක් එකතු කරන ලදී). කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
                 st.stop()
         except Exception:
             pass
             
-        # 1. පෙන්ඩින් (Pending) ට්‍රේඩ්ස් චෙක් කිරීම
         updated = False
+        live_prices_dict = {}
+        
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
-                if row['Status'] == "⏳ Pending":
-                    # අදාළ කාසියේ අද දවසේ මිල ගණන් ගැනීම
-                    df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
-                    if not df_hist.empty:
-                        if isinstance(df_hist.columns, pd.MultiIndex):
-                            df_hist.columns = df_hist.columns.get_level_values(0)
-                        
+                # සජීවී දත්ත ගැනීම
+                df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
+                if not df_hist.empty:
+                    if isinstance(df_hist.columns, pd.MultiIndex):
+                        df_hist.columns = df_hist.columns.get_level_values(0)
+                    
+                    # දැනට තියෙන Live Price එක
+                    current_live_price = float(df_hist['Close'].iloc[-1])
+                    live_prices_dict[index] = current_live_price
+                    
+                    # Pending හෝ Partially Hit නම් විතරක් Check කිරීම
+                    if "SL HIT" not in row['Status'] and "TP3 HIT" not in row['Status']:
                         max_price = float(df_hist['High'].max())
                         min_price = float(df_hist['Low'].min())
-                        tp_val = float(row['TP'])
+                        tp1_val = float(row['TP1'])
+                        tp2_val = float(row['TP2'])
+                        tp3_val = float(row['TP3'])
                         sl_val = float(row['SL'])
                         
+                        new_status = row['Status']
+                        
                         if row['Direction'] == 'BUY':
-                            if max_price >= tp_val:
-                                history_df.at[index, 'Status'] = "✅ TP HIT"
-                                updated = True
-                            elif min_price <= sl_val:
-                                history_df.at[index, 'Status'] = "🛑 SL HIT"
-                                updated = True
+                            if min_price <= sl_val:
+                                new_status = "🛑 SL HIT"
+                            elif max_price >= tp3_val:
+                                new_status = "✅ TP3 HIT"
+                            elif max_price >= tp2_val:
+                                new_status = "✅ TP2 HIT"
+                            elif max_price >= tp1_val:
+                                new_status = "✅ TP1 HIT"
+                                
                         else: # SELL
-                            if min_price <= tp_val:
-                                history_df.at[index, 'Status'] = "✅ TP HIT"
-                                updated = True
-                            elif max_price >= sl_val:
-                                history_df.at[index, 'Status'] = "🛑 SL HIT"
-                                updated = True
+                            if max_price >= sl_val:
+                                new_status = "🛑 SL HIT"
+                            elif min_price <= tp3_val:
+                                new_status = "✅ TP3 HIT"
+                            elif min_price <= tp2_val:
+                                new_status = "✅ TP2 HIT"
+                            elif min_price <= tp1_val:
+                                new_status = "✅ TP1 HIT"
+                                
+                        if new_status != row['Status']:
+                            history_df.at[index, 'Status'] = new_status
+                            updated = True
+                else:
+                    live_prices_dict[index] = np.nan
         
         # 2. අලුත් Status ටික CSV එකට Save කිරීම
         if updated:
@@ -309,10 +340,13 @@ with tab2:
             
         # 3. ලස්සනට පෙන්වීම සඳහා දත්ත සකස් කිරීම
         display_df = history_df.copy()
-        display_df['Entry'] = display_df['Entry'].apply(lambda x: f"${float(x):.4f}")
-        display_df['TP'] = display_df['TP'].apply(lambda x: f"${float(x):.4f}")
-        display_df['SL'] = display_df['SL'].apply(lambda x: f"${float(x):.4f}")
-        # Ticker column එක User ට පෙන්නන්න අවශ්‍ය නැති නිසා අයින් කරනවා
+        display_df['Live Price'] = display_df.index.map(live_prices_dict)
+        
+        # Formats
+        cols_to_format = ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']
+        for col in cols_to_format:
+            display_df[col] = display_df[col].apply(lambda x: f"${float(x):.4f}" if pd.notnull(x) else "N/A")
+            
         display_df.drop(columns=['Ticker'], inplace=True)
         
         # Table එක පෙන්වීම
@@ -322,7 +356,7 @@ with tab2:
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        # ✅ TP HIT වුණු ඒවා පමණක් තේරීමට දීම
+        # Result එකක් ඇවිත් තියෙන ඒවා පමණක් තේරීමට දීම
         completed_signals = history_df[history_df['Status'] != "⏳ Pending"]
         
         if not completed_signals.empty:
@@ -336,11 +370,15 @@ with tab2:
                 selected_idx = options.index(selected_sig)
                 sel_row = completed_signals.iloc[selected_idx]
                 
-                if "TP HIT" in sel_row['Status']:
-                    if st.button("✅ Profit මැසේජ් එක යවන්න 🚀"):
-                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🎯 *Target Reached:* {sel_row['TP']}\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
+                if "TP" in sel_row['Status']:
+                    # කුමන TP එකද Hit වුණේ යන්න සොයාගැනීම
+                    hit_level = sel_row['Status'].split()[1] # TP1, TP2, or TP3
+                    tp_val = sel_row[hit_level]
+                    
+                    if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🎯 *{hit_level} Reached:* `${tp_val:.4f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
-                            st.success("✅ Profit මැසේජ් එක සාර්ථකව යැව්වා!")
+                            st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 else:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
                         msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
