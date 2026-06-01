@@ -159,6 +159,9 @@ with tab1:
         volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
         ai_confidence = max(probability) * 100
         
+        # 🟢 Dynamic Decimal Places (මිල අඩු කාසි වලට දශමස්ථාන 8ක්)
+        dp = 8 if current_price < 0.01 else 4
+        
         # --- TP 3ක් සහ SL ගණනය කිරීම ---
         if prediction == 1:
             tp1_price = current_price + (volatility * 1.2)
@@ -216,8 +219,8 @@ with tab1:
         if has_valid_signal:
             dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
             
-            # Visual Targets with 3 TPs
-            target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.4f} \n\n🎯 **TP 1:** ${tp1_price:.4f} \n🎯 **TP 2:** ${tp2_price:.4f} \n🎯 **TP 3:** ${tp3_price:.4f} \n\n🛑 **Stop Loss (SL):** ${sl_price:.4f}"
+            # Visual Targets with 3 TPs & Coin Name & Proper Spacing
+            target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):** \n\n🪙 **Coin:** {selected_display_name} \n🔥 **Signal Direction:** {dir_text} \n\n🔵 **Entry Limit Price:** ${current_price:.{dp}f} \n\n🎯 **TP 1:** ${tp1_price:.{dp}f} \n\n🎯 **TP 2:** ${tp2_price:.{dp}f} \n\n🎯 **TP 3:** ${tp3_price:.{dp}f} \n\n🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
             st.info(target_msg)
             
             st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
@@ -227,11 +230,11 @@ with tab1:
                 telegram_text += f"🪙 *Coin/Pair:* {selected_display_name}\n"
                 telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
                 telegram_text += f"🔥 *Direction:* {dir_text}\n\n"
-                telegram_text += f"🔵 *Entry Price:* `${current_price:.4f}`\n"
-                telegram_text += f"🎯 *TP 1:* `${tp1_price:.4f}`\n"
-                telegram_text += f"🎯 *TP 2:* `${tp2_price:.4f}`\n"
-                telegram_text += f"🎯 *TP 3:* `${tp3_price:.4f}`\n"
-                telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.4f}`\n\n"
+                telegram_text += f"🔵 *Entry Price:* `${current_price:.{dp}f}`\n"
+                telegram_text += f"🎯 *TP 1:* `${tp1_price:.{dp}f}`\n"
+                telegram_text += f"🎯 *TP 2:* `${tp2_price:.{dp}f}`\n"
+                telegram_text += f"🎯 *TP 3:* `${tp3_price:.{dp}f}`\n"
+                telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
                 telegram_text += f"📊 _Analyzed by PRO AI Trading System_"
                 
                 with st.spinner("Telegram වෙත යවමින් පවතී..."):
@@ -240,7 +243,7 @@ with tab1:
                 if success:
                     st.success("✅ Signal එක සාර්ථකව යැව්වා! (History එකටත් Save වුණා)")
                     
-                    # History එකට සේව් කිරීම (අලුත් Format එක)
+                    # History එකට සේව් කිරීම 
                     date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                     data = {
                         "Date": [date_str], 
@@ -274,10 +277,9 @@ with tab2:
     if os.path.exists(HISTORY_FILE):
         try:
             history_df = pd.read_csv(HISTORY_FILE)
-            # පැරණි Format එක නම් Auto Delete කර අලුත් එකට ඉඩ හැදීම
             if "TP1" not in history_df.columns:
                 os.remove(HISTORY_FILE)
-                st.warning("🔄 පද්ධතිය යාවත්කාලීන විය (TP 3ක් එකතු කරන ලදී). කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
+                st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
                 st.stop()
         except Exception:
             pass
@@ -334,18 +336,22 @@ with tab2:
                 else:
                     live_prices_dict[index] = np.nan
         
-        # 2. අලුත් Status ටික CSV එකට Save කිරීම
+        # අලුත් Status ටික CSV එකට Save කිරීම
         if updated:
             history_df.to_csv(HISTORY_FILE, index=False)
             
-        # 3. ලස්සනට පෙන්වීම සඳහා දත්ත සකස් කිරීම
+        # ලස්සනට පෙන්වීම සඳහා දත්ත සකස් කිරීම සහ Dynamic Decimals
         display_df = history_df.copy()
         display_df['Live Price'] = display_df.index.map(live_prices_dict)
         
-        # Formats
+        def format_price(x):
+            if pd.isnull(x): return "N/A"
+            val = float(x)
+            return f"${val:.8f}" if val < 0.01 else f"${val:.4f}"
+
         cols_to_format = ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']
         for col in cols_to_format:
-            display_df[col] = display_df[col].apply(lambda x: f"${float(x):.4f}" if pd.notnull(x) else "N/A")
+            display_df[col] = display_df[col].apply(format_price)
             
         display_df.drop(columns=['Ticker'], inplace=True)
         
@@ -356,7 +362,6 @@ with tab2:
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        # Result එකක් ඇවිත් තියෙන ඒවා පමණක් තේරීමට දීම
         completed_signals = history_df[history_df['Status'] != "⏳ Pending"]
         
         if not completed_signals.empty:
@@ -371,12 +376,14 @@ with tab2:
                 sel_row = completed_signals.iloc[selected_idx]
                 
                 if "TP" in sel_row['Status']:
-                    # කුමන TP එකද Hit වුණේ යන්න සොයාගැනීම
                     hit_level = sel_row['Status'].split()[1] # TP1, TP2, or TP3
-                    tp_val = sel_row[hit_level]
+                    tp_val = float(sel_row[hit_level])
+                    
+                    # ඩයිනමික් දශමස්ථාන Telegram Result එකටත්
+                    tp_dp = 8 if tp_val < 0.01 else 4
                     
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
-                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🎯 *{hit_level} Reached:* `${tp_val:.4f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {sel_row['Direction']}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
                             st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 else:
