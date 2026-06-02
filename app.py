@@ -143,134 +143,141 @@ with tab1:
         df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
         df.dropna(inplace=True)
         
-        features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
-        X = df[features]
-        y = df['Target']
-        
-        split = int(0.85 * len(df))
-        X_train, y_train = X[:split], y[:split]
-        
-        model = RandomForestClassifier(n_estimators=150, max_depth=8, min_samples_leaf=3, random_state=42)
-        model.fit(X_train, y_train)
-        
-        last_market_state = X.iloc[[-1]]
-        prediction = model.predict(last_market_state)[0]
-        probability = model.predict_proba(last_market_state)[0]
-        
-        current_price = float(df['Close'].to_numpy()[-1])
-        volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
-        ai_confidence = max(probability) * 100
-        
-        dp = 8 if current_price < 0.01 else 4
-        
-        if prediction == 1:
-            tp1_price = current_price + (volatility * 1.2)
-            tp2_price = current_price + (volatility * 2.0)
-            tp3_price = current_price + (volatility * 3.0)
-            sl_price = current_price - (volatility * 1.5)
+        # 🟢 AI Model Error එක විසඳීමට එකතු කළ කොටස 🟢
+        if len(df) < 20:
+            st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
         else:
-            tp1_price = current_price - (volatility * 1.2)
-            tp2_price = current_price - (volatility * 2.0)
-            tp3_price = current_price - (volatility * 3.0)
-            sl_price = current_price + (volatility * 1.5)
-
-        st.write("---")
-        st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
-        
-        has_valid_signal = False
-        if ai_confidence < 60.0:
-            st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%).")
-        else:
-            has_valid_signal = True
-            if prediction == 1:
-                st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
-            else:
-                st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
-
-        chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
-        tradingview_html = f"""
-        <div class="tradingview-widget-container" style="height:500px; width:100%;">
-          <div id="tradingview_chart" style="height:500px;"></div>
-          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-          <script type="text/javascript">
-          new TradingView.widget({{
-            "autosize": true,
-            "height": 500,
-            "symbol": "{full_tv_ticker}",
-            "interval": "{selected_tf['tv']}",
-            "timezone": "Etc/UTC",
-            "theme": "dark",
-            "style": "1",
-            "locale": "en",
-            "toolbar_bg": "#f1f3f6",
-            "enable_publishing": false,
-            "withdateranges": true,
-            "hide_side_toolbar": false,
-            "allow_symbol_change": true,
-            "studies": {chart_studies},
-            "container_id": "tradingview_chart"
-          }});
-          </script>
-        </div>
-        """
-        components.html(tradingview_html, height=510)
-
-        st.write("---")
-        if has_valid_signal:
-            dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
-            
-            target_msg = (
-                f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
-                f"🪙 **Coin:** {selected_display_name}\n\n"
-                f"🔥 **Signal Direction:** {dir_text}\n\n"
-                f"🔵 **Entry Limit Price:** ${current_price:.{dp}f}\n\n"
-                f"🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n"
-                f"🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n"
-                f"🎯 **TP 3:** ${tp3_price:.{dp}f}\n\n"
-                f"🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
-            )
-            st.info(target_msg)
-            
-            st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
-            if st.button("Send Signal to Telegram 🚀"):
+            try:
+                features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
+                X = df[features]
+                y = df['Target']
                 
-                telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
-                telegram_text += f"🪙 *Coin/Pair:* {selected_display_name}\n"
-                telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
-                telegram_text += f"🔥 *Direction:* {dir_text}\n\n"
-                telegram_text += f"🔵 *Entry Price:* `${current_price:.{dp}f}`\n"
-                telegram_text += f"🎯 *TP 1:* `${tp1_price:.{dp}f}`\n"
-                telegram_text += f"🎯 *TP 2:* `${tp2_price:.{dp}f}`\n"
-                telegram_text += f"🎯 *TP 3:* `${tp3_price:.{dp}f}`\n"
-                telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
-                telegram_text += f"💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                split = int(0.85 * len(df))
+                X_train, y_train = X[:split], y[:split]
                 
-                with st.spinner("Telegram වෙත යවමින් පවතී..."):
-                    success = send_telegram_message(telegram_text)
-                    
-                if success:
-                    st.success("✅ Signal එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
-                    
-                    date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                    data = {
-                        "Date": [date_str], 
-                        "Ticker": [ticker],
-                        "Coin": [selected_display_name.split()[0]], 
-                        "Direction": ["BUY" if prediction == 1 else "SELL"], 
-                        "Entry": [current_price], 
-                        "TP1": [tp1_price],
-                        "TP2": [tp2_price],
-                        "TP3": [tp3_price],
-                        "SL": [sl_price],
-                        "Status": ["⏳ Pending Entry"]
-                    }
-                    df_new = pd.DataFrame(data)
-                    if os.path.exists(HISTORY_FILE):
-                        df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
-                    else:
-                        df_new.to_csv(HISTORY_FILE, index=False)
+                model = RandomForestClassifier(n_estimators=150, max_depth=8, min_samples_leaf=3, random_state=42)
+                model.fit(X_train, y_train)
+                
+                last_market_state = X.iloc[[-1]]
+                prediction = model.predict(last_market_state)[0]
+                probability = model.predict_proba(last_market_state)[0]
+                
+                current_price = float(df['Close'].to_numpy()[-1])
+                volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
+                ai_confidence = max(probability) * 100
+                
+                dp = 8 if current_price < 0.01 else 4
+                
+                if prediction == 1:
+                    tp1_price = current_price + (volatility * 1.2)
+                    tp2_price = current_price + (volatility * 2.0)
+                    tp3_price = current_price + (volatility * 3.0)
+                    sl_price = current_price - (volatility * 1.5)
                 else:
-                    st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
+                    tp1_price = current_price - (volatility * 1.2)
+                    tp2_price = current_price - (volatility * 2.0)
+                    tp3_price = current_price - (volatility * 3.0)
+                    sl_price = current_price + (volatility * 1.5)
+        
+                st.write("---")
+                st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
+                
+                has_valid_signal = False
+                if ai_confidence < 60.0:
+                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%).")
+                else:
+                    has_valid_signal = True
+                    if prediction == 1:
+                        st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
+                    else:
+                        st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
+        
+                chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
+                tradingview_html = f"""
+                <div class="tradingview-widget-container" style="height:500px; width:100%;">
+                  <div id="tradingview_chart" style="height:500px;"></div>
+                  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                  <script type="text/javascript">
+                  new TradingView.widget({{
+                    "autosize": true,
+                    "height": 500,
+                    "symbol": "{full_tv_ticker}",
+                    "interval": "{selected_tf['tv']}",
+                    "timezone": "Etc/UTC",
+                    "theme": "dark",
+                    "style": "1",
+                    "locale": "en",
+                    "toolbar_bg": "#f1f3f6",
+                    "enable_publishing": false,
+                    "withdateranges": true,
+                    "hide_side_toolbar": false,
+                    "allow_symbol_change": true,
+                    "studies": {chart_studies},
+                    "container_id": "tradingview_chart"
+                  }});
+                  </script>
+                </div>
+                """
+                components.html(tradingview_html, height=510)
+        
+                st.write("---")
+                if has_valid_signal:
+                    dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
+                    
+                    target_msg = (
+                        f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
+                        f"🪙 **Coin:** {selected_display_name}\n\n"
+                        f"🔥 **Signal Direction:** {dir_text}\n\n"
+                        f"🔵 **Entry Limit Price:** ${current_price:.{dp}f}\n\n"
+                        f"🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n"
+                        f"🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n"
+                        f"🎯 **TP 3:** ${tp3_price:.{dp}f}\n\n"
+                        f"🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
+                    )
+                    st.info(target_msg)
+                    
+                    st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
+                    if st.button("Send Signal to Telegram 🚀"):
+                        
+                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
+                        telegram_text += f"🪙 *Coin/Pair:* {selected_display_name}\n"
+                        telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
+                        telegram_text += f"🔥 *Direction:* {dir_text}\n\n"
+                        telegram_text += f"🔵 *Entry Price:* `${current_price:.{dp}f}`\n"
+                        telegram_text += f"🎯 *TP 1:* `${tp1_price:.{dp}f}`\n"
+                        telegram_text += f"🎯 *TP 2:* `${tp2_price:.{dp}f}`\n"
+                        telegram_text += f"🎯 *TP 3:* `${tp3_price:.{dp}f}`\n"
+                        telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
+                        telegram_text += f"💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        
+                        with st.spinner("Telegram වෙත යවමින් පවතී..."):
+                            success = send_telegram_message(telegram_text)
+                            
+                        if success:
+                            st.success("✅ Signal එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
+                            
+                            date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
+                            data = {
+                                "Date": [date_str], 
+                                "Ticker": [ticker],
+                                "Coin": [selected_display_name.split()[0]], 
+                                "Direction": ["BUY" if prediction == 1 else "SELL"], 
+                                "Entry": [current_price], 
+                                "TP1": [tp1_price],
+                                "TP2": [tp2_price],
+                                "TP3": [tp3_price],
+                                "SL": [sl_price],
+                                "Status": ["⏳ Pending Entry"]
+                            }
+                            df_new = pd.DataFrame(data)
+                            if os.path.exists(HISTORY_FILE):
+                                df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                            else:
+                                df_new.to_csv(HISTORY_FILE, index=False)
+                        else:
+                            st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
+            except Exception as e:
+                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න.")
     else:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
@@ -298,7 +305,6 @@ with tab2:
         
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
-                # Status එක Cancelled නම් ඒක පරීක්ෂා කරන්නේ නෑ
                 if "Cancelled" in str(row['Status']):
                     live_prices_dict[index] = np.nan
                     continue
@@ -386,7 +392,6 @@ with tab2:
             
         display_df.drop(columns=['Ticker'], inplace=True)
         
-        # අලුත් සිග්නල් උඩින්ම පෙන්වීමට වගුව ආපසු හැරවීම
         display_df = display_df.iloc[::-1]
         
         # =========================================================
