@@ -340,16 +340,20 @@ with tab2:
                         
                         new_status = str(row['Status'])
                         
-                        # 🟢 Entry එකට කලින් TP හෝ SL ඇල්ලුවොත් Setup එක Invalid වන Logic එක 🟢
+                        # 🟢 TP එකට හෝ SL එකට වෙන වෙනම Invalid/Missed වෙන Logic එක 🟢
                         if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
-                                if current_high >= tp1_val or current_low <= sl_val:
-                                    new_status = "⚠️ Missed / Invalid"
+                                if current_high >= tp1_val:
+                                    new_status = "⚠️ Missed (Hit TP)"
+                                elif current_low <= sl_val:
+                                    new_status = "🚫 Invalid (Hit SL)"
                                 elif current_low <= entry_val:
                                     new_status = "🟢 Active"
                             else: # SELL
-                                if current_low <= tp1_val or current_high >= sl_val:
-                                    new_status = "⚠️ Missed / Invalid"
+                                if current_low <= tp1_val:
+                                    new_status = "⚠️ Missed (Hit TP)"
+                                elif current_high >= sl_val:
+                                    new_status = "🚫 Invalid (Hit SL)"
                                 elif current_high >= entry_val:
                                     new_status = "🟢 Active"
                                     
@@ -424,7 +428,8 @@ with tab2:
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active|Missed", na=False, case=False)].iloc[::-1]
+        # 'Missed (Hit TP)' සහ 'Invalid (Hit SL)' ඒවාත් Dropdown එකට ගන්නවා
+        completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active|Missed|Invalid", na=False, case=False)].iloc[::-1]
         
         if not completed_signals.empty:
             options = []
@@ -456,7 +461,7 @@ with tab2:
                     
                     with col_pend2:
                         if st.button("🚫 Signal එක Cancel කරන්න"):
-                            msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට ආවේ නැහැ. මේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             if send_telegram_message(msg):
                                 st.success("🚫 Cancel මැසේජ් එක යැව්වා! මේ Signal එක දැන් History එකේ Cancelled කියලා වැටෙයි.")
                                 history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
@@ -466,11 +471,25 @@ with tab2:
                                     st.rerun()
                                 except AttributeError:
                                     st.experimental_rerun()
-                                    
-                # 🟢 Telegram මැසේජ් එක SL සහ TP දෙකටම ගැළපෙන පරිදි වෙනස් කර ඇත 🟢
-                elif "Missed" in sel_row['Status']:
-                    if st.button("🚫 Setup Invalid මැසේජ් එක යවන්න 🚀"):
-                        msg = f"🚫 *SETUP INVALID / CANCELLED* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට එන්නේ නැතුව වෙනත් දිශාවකට (TP හෝ SL වෙත) ගමන් කර ඇත. ඒ නිසා මේ Setup එක දැන් අවලංගුයි (Invalid). කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+
+                # 🟢 TP එකට ගිය විට යවන මැසේජ් එක (Missed Trade) 🟢
+                elif "Missed (Hit TP)" in sel_row['Status']:
+                    if st.button("⚠️ Missed Setup මැසේජ් එක යවන්න 🚀"):
+                        msg = f"⚠️ *MISSED TRADE (HIT TP)* ⚠️\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nඅපේ Analysis එක 100% ක් නිවැරදියි! නමුත් මාකට් එක අපේ Entry එකට එන්නේ නැතුව කෙලින්ම Target (TP) එකට ගියා. Setup එක සම්පූර්ණයි, ඒ නිසා Limit Order එක අයින් කරගන්න. ඊළඟ Trade එකෙන් අල්ලමු! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        if send_telegram_message(msg):
+                            st.success("⚠️ Missed Setup මැසේජ් එක සාර්ථකව යැව්වා!")
+                            history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
+                            history_df.to_csv(HISTORY_FILE, index=False)
+                            time.sleep(1)
+                            try:
+                                st.rerun()
+                            except AttributeError:
+                                st.experimental_rerun()
+
+                # 🟢 SL එකට ගිය විට යවන මැසේජ් එක (Invalid Setup) 🟢
+                elif "Invalid (Hit SL)" in sel_row['Status']:
+                    if st.button("🚫 Invalid Setup මැසේජ් එක යවන්න 🚀"):
+                        msg = f"🚫 *SETUP INVALID (HIT SL)* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට කලින්ම Stop Loss (SL) මට්ටම කඩාගෙන ගියා. Market Structure එක වෙනස් වුණු නිසා මේ Setup එක දැන් අවලංගුයි. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg):
                             st.success("🚫 Setup Invalid මැසේජ් එක සාර්ථකව යැව්වා!")
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
