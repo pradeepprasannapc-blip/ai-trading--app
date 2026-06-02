@@ -14,27 +14,44 @@ st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layo
 st.title("⚡ PRO AI Trading Signal App")
 st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ 100% Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
-# Secrets හරහා Token ලබා ගැනීම
+# Secrets හරහා Token සහ IDs ලබා ගැනීම (Group සහ Channel දෙකටම)
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
-    TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
+    TELEGRAM_GROUP_ID = st.secrets["TELEGRAM_GROUP_ID"]
+    TELEGRAM_CHANNEL_ID = st.secrets["TELEGRAM_CHANNEL_ID"]
 except KeyError:
     st.error("⚠️ රහස්‍ය දත්ත (Secrets) සොයාගත නොහැක. කරුණාකර Streamlit Cloud හි Secrets සකසන්න.")
     TELEGRAM_BOT_TOKEN = ""
-    TELEGRAM_CHAT_ID = ""
+    TELEGRAM_GROUP_ID = ""
+    TELEGRAM_CHANNEL_ID = ""
 
+# Telegram මැසේජ් යවන Function එක (Group එකටයි Channel එකටයි දෙකටම යවන්න හැදුවා)
 def send_telegram_message(message):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
         return False
+        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+    
+    payload_group = {
+        "chat_id": TELEGRAM_GROUP_ID,
         "text": message,
         "parse_mode": "Markdown"
     }
+    
+    payload_channel = {
+        "chat_id": TELEGRAM_CHANNEL_ID,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    
     try:
-        response = requests.post(url, json=payload)
-        return response.status_code == 200
+        # Group එකට යැවීම
+        response_group = requests.post(url, json=payload_group)
+        # Channel එකට යැවීම
+        response_channel = requests.post(url, json=payload_channel)
+        
+        # දෙකටම සාර්ථකව ගියා නම් පමණක් True ලබා දීම
+        return response_group.status_code == 200 and response_channel.status_code == 200
     except:
         return False
 
@@ -247,7 +264,7 @@ with tab1:
                     success = send_telegram_message(telegram_text)
                     
                 if success:
-                    st.success("✅ Signal එක සාර්ථකව යැව්වා! (History එකටත් Save වුණා)")
+                    st.success("✅ Signal එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
                     
                     date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                     data = {
@@ -268,7 +285,7 @@ with tab1:
                     else:
                         df_new.to_csv(HISTORY_FILE, index=False)
                 else:
-                    st.error("❌ Signal එක යැවීම අසාර්ථකයි.")
+                    st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
     else:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
@@ -419,7 +436,7 @@ with tab2:
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
                         msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥"
                         if send_telegram_message(msg):
-                            st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                            st.success("🟢 Active Alert මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
                 
                 elif "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
@@ -429,13 +446,13 @@ with tab2:
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
                         msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
-                            st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
+                            st.success(f"✅ {hit_level} Profit මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
                 
                 elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
                         msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
                         if send_telegram_message(msg):
-                            st.success("🛑 Stop Loss මැසේජ් එක යැව්වා!")
+                            st.success("🛑 Stop Loss මැසේජ් එක Group සහ Channel දෙකටම යැව්වා!")
         else:
             st.info("තවම Active, TP, හෝ SL වුණු සිග්නල් කිසිවක් නැත.")
                         
