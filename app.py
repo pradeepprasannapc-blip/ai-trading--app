@@ -14,7 +14,7 @@ st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layo
 st.title("⚡ PRO AI Trading Signal App")
 st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ 100% Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
-# Secrets හරහා Token සහ IDs ලබා ගැනීම (Group සහ Channel දෙකටම)
+# Secrets හරහා Token සහ IDs ලබා ගැනීම
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
     TELEGRAM_GROUP_ID = st.secrets["TELEGRAM_GROUP_ID"]
@@ -25,33 +25,18 @@ except KeyError:
     TELEGRAM_GROUP_ID = ""
     TELEGRAM_CHANNEL_ID = ""
 
-# Telegram මැසේජ් යවන Function එක (Group එකටයි Channel එකටයි දෙකටම යවන්න හැදුවා)
 def send_telegram_message(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
         return False
         
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    
-    payload_group = {
-        "chat_id": TELEGRAM_GROUP_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    
-    payload_channel = {
-        "chat_id": TELEGRAM_CHANNEL_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
+    payload_group = {"chat_id": TELEGRAM_GROUP_ID, "text": message, "parse_mode": "Markdown"}
+    payload_channel = {"chat_id": TELEGRAM_CHANNEL_ID, "text": message, "parse_mode": "Markdown"}
     
     try:
-        # Group එකට යැවීම
-        response_group = requests.post(url, json=payload_group)
-        # Channel එකට යැවීම
-        response_channel = requests.post(url, json=payload_channel)
-        
-        # දෙකටම සාර්ථකව ගියා නම් පමණක් True ලබා දීම
-        return response_group.status_code == 200 and response_channel.status_code == 200
+        res_group = requests.post(url, json=payload_group)
+        res_channel = requests.post(url, json=payload_channel)
+        return res_group.status_code == 200 and res_channel.status_code == 200
     except:
         return False
 
@@ -246,7 +231,7 @@ with tab1:
             )
             st.info(target_msg)
             
-            st.write("### 📲 Telegram Group එකට Signal එක යවන්න")
+            st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
             if st.button("Send Signal to Telegram 🚀"):
                 
                 telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
@@ -333,6 +318,7 @@ with tab2:
                         
                         new_status = str(row['Status'])
                         
+                        # 1. Pending එක Active වෙනවද බලමු
                         if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
                                 if current_low <= entry_val:
@@ -341,26 +327,28 @@ with tab2:
                                 if current_high >= entry_val:
                                     new_status = "🟢 Active"
                                     
-                        if new_status == "🟢 Active":
+                        # 2. TP සහ SL ලොජික් එක (මෙහිදී TP වැදුණට පසු නැවත SL වලට යන්නේ නැත)
+                        if new_status in ["🟢 Active", "✅ TP1 HIT", "✅ TP2 HIT"]:
                             if row['Direction'] == 'BUY':
-                                if current_low <= sl_val:
-                                    new_status = "🛑 SL HIT"
-                                elif current_high >= tp3_val:
+                                if current_high >= tp3_val:
                                     new_status = "✅ TP3 HIT"
-                                elif current_high >= tp2_val:
+                                elif current_high >= tp2_val and new_status not in ["✅ TP3 HIT"]:
                                     new_status = "✅ TP2 HIT"
-                                elif current_high >= tp1_val:
+                                elif current_high >= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]:
                                     new_status = "✅ TP1 HIT"
-                                    
+                                # SL බලන්නේ Active තියෙන වෙලාවට විතරයි (TP වැදුණට පස්සේ නැහැ)
+                                elif new_status == "🟢 Active" and current_low <= sl_val:
+                                    new_status = "🛑 SL HIT"
                             else: # SELL
-                                if current_high >= sl_val:
-                                    new_status = "🛑 SL HIT"
-                                elif current_low <= tp3_val:
+                                if current_low <= tp3_val:
                                     new_status = "✅ TP3 HIT"
-                                elif current_low <= tp2_val:
+                                elif current_low <= tp2_val and new_status not in ["✅ TP3 HIT"]:
                                     new_status = "✅ TP2 HIT"
-                                elif current_low <= tp1_val:
+                                elif current_low <= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]:
                                     new_status = "✅ TP1 HIT"
+                                # SL බලන්නේ Active තියෙන වෙලාවට විතරයි
+                                elif new_status == "🟢 Active" and current_high >= sl_val:
+                                    new_status = "🛑 SL HIT"
                                     
                         if new_status != str(row['Status']):
                             history_df.at[index, 'Status'] = new_status
@@ -389,7 +377,7 @@ with tab2:
         display_df.drop(columns=['Ticker'], inplace=True)
         
         # =========================================================
-        # 🟢 HTML හිස්තැන් අයින් කළ නිවැරදි කෝඩ් එක (Wick-Catcher + Marquee)
+        # HTML ඩිසයින් එක
         # =========================================================
         html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}}</style>"
         html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
@@ -412,7 +400,8 @@ with tab2:
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        completed_signals = history_df[history_df['Status'].str.contains("HIT|Active", na=False, case=False)]
+        # Pending සිග්නල් ද ඇතුළුව Dropdown එකට ගැනීම
+        completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active", na=False, case=False)]
         
         if not completed_signals.empty:
             options = []
@@ -430,7 +419,17 @@ with tab2:
                 else:
                     dir_text_with_icons = "🔴 SELL / SHORT 📉 ⬇️"
                 
-                if "Active" in sel_row['Status']:
+                # 1. Pending Alert එක
+                if "Pending" in sel_row['Status']:
+                    entry_val = float(sel_row['Entry'])
+                    dp_val = 8 if entry_val < 0.01 else 4
+                    if st.button("⏳ Pending Alert මැසේජ් එක යවන්න 🚀"):
+                        msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀"
+                        if send_telegram_message(msg):
+                            st.success("⏳ Pending Alert මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
+                            
+                # 2. Active Alert එක
+                elif "Active" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
@@ -438,6 +437,7 @@ with tab2:
                         if send_telegram_message(msg):
                             st.success("🟢 Active Alert මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
                 
+                # 3. TP Alert එක
                 elif "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
                     tp_val = float(sel_row[hit_level])
@@ -448,13 +448,14 @@ with tab2:
                         if send_telegram_message(msg):
                             st.success(f"✅ {hit_level} Profit මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
                 
+                # 4. SL Alert එක
                 elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
                         msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
                         if send_telegram_message(msg):
-                            st.success("🛑 Stop Loss මැසේජ් එක Group සහ Channel දෙකටම යැව්වා!")
+                            st.success("🛑 Stop Loss මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
         else:
-            st.info("තවම Active, TP, හෝ SL වුණු සිග්නල් කිසිවක් නැත.")
+            st.info("තවම Active, Pending, TP, හෝ SL වුණු සිග්නල් කිසිවක් නැත.")
                         
         st.write("---")
         if st.button("🗑️ History එක මකන්න (Clear All)"):
