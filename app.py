@@ -243,7 +243,8 @@ with tab1:
                 telegram_text += f"🎯 *TP 2:* `${tp2_price:.{dp}f}`\n"
                 telegram_text += f"🎯 *TP 3:* `${tp3_price:.{dp}f}`\n"
                 telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
-                telegram_text += f"📊 _Analyzed by PRO AI Trading System_"
+                # 🟢 අලුතින් යාවත්කාලීන කළ බ්‍රෑන්ඩ් නාමය සහිත Signature එක
+                telegram_text += f"💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                 
                 with st.spinner("Telegram වෙත යවමින් පවතී..."):
                     success = send_telegram_message(telegram_text)
@@ -381,7 +382,7 @@ with tab2:
             
         display_df.drop(columns=['Ticker'], inplace=True)
         
-        # 🟢 අලුත් සිග්නල් උඩින්ම පෙන්වීමට වගුව ආපසු හැරවීම
+        # අලුත් සිග්නල් උඩින්ම පෙන්වීමට වගුව ආපසු හැරවීම
         display_df = display_df.iloc[::-1]
         
         # =========================================================
@@ -448,7 +449,8 @@ with tab2:
                     tp_dp = 8 if tp_val < 0.01 else 4
                     
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
-                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
+                        # 🟢 අලුතින් යාවත්කාලීන කළ TP Hit මැසේජ් එක
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
                             st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 
@@ -461,12 +463,11 @@ with tab2:
             st.info("තවම Active, Pending, TP, හෝ SL වුණු සිග්නල් කිසිවක් නැත.")
 
         # =========================================================
-        # 🗑️ HISTORY කළමනාකරණය (අලුතින් එකතු කළ කොටස)
+        # 🗑️ HISTORY කළමනාකරණය
         # =========================================================
         st.write("---")
         st.subheader("🗑️ History කළමනාකරණය (Delete Signals)")
         
-        # මකා දැමීමට අවශ්‍ය සිග්නල් තෝරන්න (අලුත් ඒවා උඩින් පෙන්වීමට Reverse කර ඇත)
         all_delete_options = []
         for index, row in history_df.iterrows():
             all_delete_options.append(f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})")
