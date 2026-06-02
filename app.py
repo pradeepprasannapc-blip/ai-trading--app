@@ -243,8 +243,7 @@ with tab1:
                 telegram_text += f"🎯 *TP 2:* `${tp2_price:.{dp}f}`\n"
                 telegram_text += f"🎯 *TP 3:* `${tp3_price:.{dp}f}`\n"
                 telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
-                # 🟢 අලුතින් යාවත්කාලීන කළ බ්‍රෑන්ඩ් නාමය සහිත Signature එක
-                telegram_text += f"💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                telegram_text += f"💎 _Analyzed by PRO AI Trading System_"
                 
                 with st.spinner("Telegram වෙත යවමින් පවතී..."):
                     success = send_telegram_message(telegram_text)
@@ -299,6 +298,11 @@ with tab2:
         
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
+                # Status එක Cancelled නම් ඒක පරීක්ෂා කරන්නේ නෑ
+                if "Cancelled" in str(row['Status']):
+                    live_prices_dict[index] = np.nan
+                    continue
+
                 try:
                     current_live_price = None
                     current_low = None
@@ -421,6 +425,7 @@ with tab2:
             if selected_sig:
                 selected_idx = options.index(selected_sig)
                 sel_row = completed_signals.iloc[selected_idx]
+                actual_index = sel_row.name # DataFrame එකේ සැබෑ Index එක
                 
                 if sel_row['Direction'] == 'BUY':
                     dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️"
@@ -430,10 +435,27 @@ with tab2:
                 if "Pending" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
-                    if st.button("⏳ Pending Alert මැසේජ් එක යවන්න 🚀"):
-                        msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀"
-                        if send_telegram_message(msg):
-                            st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                    
+                    col_pend1, col_pend2 = st.columns(2)
+                    with col_pend1:
+                        if st.button("⏳ Pending Alert මැසේජ් එක යවන්න 🚀"):
+                            msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀"
+                            if send_telegram_message(msg):
+                                st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                    
+                    # 🟢 අලුතින් දැමූ Cancel බටන් එක
+                    with col_pend2:
+                        if st.button("🚫 Trade එක Cancel කරන්න (යවන්න)"):
+                            msg = f"🚫 *TRADE CANCELLED* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry එකට ආවේ නැහැ. මේ Setup එක පරණ නිසා Trade එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌"
+                            if send_telegram_message(msg):
+                                st.success("🚫 Cancel මැසේජ් එක යැව්වා! මේ Trade එක දැන් History එකේ Cancelled කියලා වැටෙයි.")
+                                history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
+                                history_df.to_csv(HISTORY_FILE, index=False)
+                                time.sleep(1)
+                                try:
+                                    st.rerun()
+                                except AttributeError:
+                                    st.experimental_rerun()
                             
                 elif "Active" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
@@ -449,8 +471,7 @@ with tab2:
                     tp_dp = 8 if tp_val < 0.01 else 4
                     
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
-                        # 🟢 අලුතින් යාවත්කාලීන කළ TP Hit මැසේජ් එක
-                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
                             st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 
