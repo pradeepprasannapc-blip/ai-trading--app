@@ -299,15 +299,25 @@ with tab2:
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
                 try:
-                    df_hist = yf.download(row['Ticker'], period="1d", interval="5m", progress=False)
+                    current_live_price = None
+                    current_low = None
+                    current_high = None
+                    
+                    df_hist = yf.download(row['Ticker'], period="5d", interval="5m", progress=False)
+                    
                     if not df_hist.empty:
                         if isinstance(df_hist.columns, pd.MultiIndex):
                             df_hist.columns = df_hist.columns.get_level_values(0)
-                        
                         current_live_price = float(df_hist['Close'].dropna().iloc[-1])
                         current_low = float(df_hist['Low'].dropna().iloc[-1])
                         current_high = float(df_hist['High'].dropna().iloc[-1])
+                    else:
+                        tkr = yf.Ticker(row['Ticker'])
+                        current_live_price = float(tkr.fast_info['lastPrice'])
+                        current_low = current_live_price
+                        current_high = current_live_price
                         
+                    if current_live_price is not None:
                         live_prices_dict[index] = current_live_price
                         
                         entry_val = float(row['Entry'])
@@ -318,16 +328,14 @@ with tab2:
                         
                         new_status = str(row['Status'])
                         
-                        # 1. Pending එක Active වෙනවද බලමු
                         if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
                                 if current_low <= entry_val:
                                     new_status = "🟢 Active"
-                            else: # SELL
+                            else: 
                                 if current_high >= entry_val:
                                     new_status = "🟢 Active"
                                     
-                        # 2. TP සහ SL ලොජික් එක (මෙහිදී TP වැදුණට පසු නැවත SL වලට යන්නේ නැත)
                         if new_status in ["🟢 Active", "✅ TP1 HIT", "✅ TP2 HIT"]:
                             if row['Direction'] == 'BUY':
                                 if current_high >= tp3_val:
@@ -336,26 +344,23 @@ with tab2:
                                     new_status = "✅ TP2 HIT"
                                 elif current_high >= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]:
                                     new_status = "✅ TP1 HIT"
-                                # SL බලන්නේ Active තියෙන වෙලාවට විතරයි (TP වැදුණට පස්සේ නැහැ)
                                 elif new_status == "🟢 Active" and current_low <= sl_val:
                                     new_status = "🛑 SL HIT"
-                            else: # SELL
+                            else: 
                                 if current_low <= tp3_val:
                                     new_status = "✅ TP3 HIT"
                                 elif current_low <= tp2_val and new_status not in ["✅ TP3 HIT"]:
                                     new_status = "✅ TP2 HIT"
                                 elif current_low <= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]:
                                     new_status = "✅ TP1 HIT"
-                                # SL බලන්නේ Active තියෙන වෙලාවට විතරයි
                                 elif new_status == "🟢 Active" and current_high >= sl_val:
                                     new_status = "🛑 SL HIT"
                                     
                         if new_status != str(row['Status']):
                             history_df.at[index, 'Status'] = new_status
                             updated = True
-                            
                     else:
-                        live_prices_dict[index] = np.nan
+                         live_prices_dict[index] = np.nan
                 except Exception:
                     live_prices_dict[index] = np.nan
         
@@ -375,6 +380,9 @@ with tab2:
             display_df[col] = display_df[col].apply(format_price)
             
         display_df.drop(columns=['Ticker'], inplace=True)
+        
+        # 🟢 අලුත් සිග්නල් උඩින්ම පෙන්වීමට වගුව ආපසු හැරවීම
+        display_df = display_df.iloc[::-1]
         
         # =========================================================
         # HTML ඩිසයින් එක
@@ -400,8 +408,7 @@ with tab2:
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        # Pending සිග්නල් ද ඇතුළුව Dropdown එකට ගැනීම
-        completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active", na=False, case=False)]
+        completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active", na=False, case=False)].iloc[::-1]
         
         if not completed_signals.empty:
             options = []
@@ -419,25 +426,22 @@ with tab2:
                 else:
                     dir_text_with_icons = "🔴 SELL / SHORT 📉 ⬇️"
                 
-                # 1. Pending Alert එක
                 if "Pending" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("⏳ Pending Alert මැසේජ් එක යවන්න 🚀"):
                         msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀"
                         if send_telegram_message(msg):
-                            st.success("⏳ Pending Alert මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
+                            st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                             
-                # 2. Active Alert එක
                 elif "Active" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
                         msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥"
                         if send_telegram_message(msg):
-                            st.success("🟢 Active Alert මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
+                            st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                 
-                # 3. TP Alert එක
                 elif "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
                     tp_val = float(sel_row[hit_level])
@@ -446,21 +450,60 @@ with tab2:
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
                         msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _PRO AI Trading Signal එක 100% සාර්ථකයි!_"
                         if send_telegram_message(msg):
-                            st.success(f"✅ {hit_level} Profit මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
+                            st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 
-                # 4. SL Alert එක
                 elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
                         msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪"
                         if send_telegram_message(msg):
-                            st.success("🛑 Stop Loss මැසේජ් එක Group සහ Channel දෙකටම සාර්ථකව යැව්වා!")
+                            st.success("🛑 Stop Loss මැසේජ් එක සාර්ථකව යැව්වා!")
         else:
             st.info("තවම Active, Pending, TP, හෝ SL වුණු සිග්නල් කිසිවක් නැත.")
-                        
+
+        # =========================================================
+        # 🗑️ HISTORY කළමනාකරණය (අලුතින් එකතු කළ කොටස)
+        # =========================================================
         st.write("---")
-        if st.button("🗑️ History එක මකන්න (Clear All)"):
-            os.remove(HISTORY_FILE)
-            st.success("History එක සම්පූර්ණයෙන්ම මකා දැමුවා! කරුණාකර App එක Refresh කරන්න.")
+        st.subheader("🗑️ History කළමනාකරණය (Delete Signals)")
+        
+        # මකා දැමීමට අවශ්‍ය සිග්නල් තෝරන්න (අලුත් ඒවා උඩින් පෙන්වීමට Reverse කර ඇත)
+        all_delete_options = []
+        for index, row in history_df.iterrows():
+            all_delete_options.append(f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})")
+        all_delete_options.reverse()
+        
+        selected_to_delete = st.multiselect("මකා දැමීමට අවශ්‍ය සිග්නල් තෝරන්න:", all_delete_options)
+        
+        col_del1, col_del2 = st.columns(2)
+        with col_del1:
+            if st.button("🗑️ තෝරාගත් ඒවා පමණක් මකන්න"):
+                if selected_to_delete:
+                    indices_to_drop = []
+                    for index, row in history_df.iterrows():
+                        opt_str = f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})"
+                        if opt_str in selected_to_delete:
+                            indices_to_drop.append(index)
+                    
+                    history_df.drop(indices_to_drop, inplace=True)
+                    history_df.to_csv(HISTORY_FILE, index=False)
+                    st.success("✅ තෝරාගත් සිග්නල් සාර්ථකව මකා දැමුවා!")
+                    time.sleep(1)
+                    try:
+                        st.rerun()
+                    except AttributeError:
+                        st.experimental_rerun()
+                else:
+                    st.warning("⚠️ මකා දැමීමට කිසිවක් තෝරා නැත.")
+                    
+        with col_del2:
+            if st.button("🚨 ඔක්කොම මකන්න (Clear All)"):
+                os.remove(HISTORY_FILE)
+                st.success("✅ History එක සම්පූර්ණයෙන්ම මකා දැමුවා!")
+                time.sleep(1)
+                try:
+                    st.rerun()
+                except AttributeError:
+                    st.experimental_rerun()
             
         if auto_refresh:
             time.sleep(15)
