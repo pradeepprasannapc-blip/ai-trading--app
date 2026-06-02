@@ -65,7 +65,7 @@ with tab1:
             "Dogecoin (DOGE/USD)": "DOGE-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD",
             "Pepe (PEPE/USD)": "PEPE-USD", "Avalanche (AVAX/USD)": "AVAX-USD",
             "Chainlink (LINK/USD)": "LINK-USD", "Polkadot (DOT/USD)": "DOT-USD",
-            "Fantom (FTM/USD)": "FTM-USD"
+            "Fantom (FTM/USD)": "FTM-USD", "Polygon (MATIC/USD)": "MATIC-USD"
         }
         selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
         ticker = market_options[selected_display_name]
@@ -305,6 +305,7 @@ with tab2:
         
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
+                # Status එක Cancelled නම් ඒක පරීක්ෂා කරන්නේ නෑ
                 if "Cancelled" in str(row['Status']):
                     live_prices_dict[index] = np.nan
                     continue
@@ -339,18 +340,18 @@ with tab2:
                         
                         new_status = str(row['Status'])
                         
-                        # Pending Trade එක Invalid/Missed වීම පරීක්ෂා කිරීම
+                        # 🟢 Entry එකට කලින් TP හෝ SL ඇල්ලුවොත් Setup එක Invalid වන Logic එක 🟢
                         if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
-                                if current_low <= entry_val:
-                                    new_status = "🟢 Active"
-                                elif current_high >= tp1_val:
+                                if current_high >= tp1_val or current_low <= sl_val:
                                     new_status = "⚠️ Missed / Invalid"
+                                elif current_low <= entry_val:
+                                    new_status = "🟢 Active"
                             else: # SELL
-                                if current_high >= entry_val:
-                                    new_status = "🟢 Active"
-                                elif current_low <= tp1_val:
+                                if current_low <= tp1_val or current_high >= sl_val:
                                     new_status = "⚠️ Missed / Invalid"
+                                elif current_high >= entry_val:
+                                    new_status = "🟢 Active"
                                     
                         if new_status in ["🟢 Active", "✅ TP1 HIT", "✅ TP2 HIT"]:
                             if row['Direction'] == 'BUY':
@@ -465,10 +466,11 @@ with tab2:
                                     st.rerun()
                                 except AttributeError:
                                     st.experimental_rerun()
-
+                                    
+                # 🟢 Telegram මැසේජ් එක SL සහ TP දෙකටම ගැළපෙන පරිදි වෙනස් කර ඇත 🟢
                 elif "Missed" in sel_row['Status']:
                     if st.button("🚫 Setup Invalid මැසේජ් එක යවන්න 🚀"):
-                        msg = f"🚫 *SETUP INVALID / MISSED* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට එන්නේ නැතුව අපේ ඉලක්කය (Target) වෙත ගියා. ඒ නිසා මේ Setup එක දැන් අවලංගුයි. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"🚫 *SETUP INVALID / CANCELLED* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට එන්නේ නැතුව වෙනත් දිශාවකට (TP හෝ SL වෙත) ගමන් කර ඇත. ඒ නිසා මේ Setup එක දැන් අවලංගුයි (Invalid). කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg):
                             st.success("🚫 Setup Invalid මැසේජ් එක සාර්ථකව යැව්වා!")
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
