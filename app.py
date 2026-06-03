@@ -60,36 +60,83 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
-# 🟢 අලුත් Function එක: mplfinance හරහා සැබෑ Candlestick Chart එකක් සැකසීම
+# 🟢 TradingView Style Chart Generator (VIP Theme)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl):
-    df_plot = df.tail(60).copy()
+    # අවසාන කෑන්ඩල් 80ක් ගනිමු (පැහැදිලිව පෙනෙන්න)
+    df_plot = df.tail(80).copy()
     
-    # mplfinance සඳහා Index එක Datetime විය යුතුමයි
-    if not isinstance(df_plot.index, pd.DatetimeIndex):
-        df_plot.index = pd.to_datetime(df_plot.index)
-        
-    # Entry (Blue), TP3 (Green), SL (Red) රේඛා සැකසීම
-    hlines_levels = [entry, tp3, sl]
-    hlines_colors = ['#3498db', '#2ecc71', '#e74c3c'] 
+    # Moving Averages සකස් කිරීම
+    df_plot['EMA_9'] = df_plot['Close'].ewm(span=9, adjust=False).mean()
+    df_plot['EMA_21'] = df_plot['Close'].ewm(span=21, adjust=False).mean()
     
-    hlines = dict(hlines=hlines_levels, colors=hlines_colors, linestyle='--', linewidths=1.5)
+    # Risk/Reward කොටුව දකුණු පැත්තට දික් කිරීමට හිස් (Empty) කෑන්ඩල් ටිකක් අනාගතයට හදමු
+    freq = df_plot.index.to_series().diff().median()
+    last_date = df_plot.index[-1]
+    future_dates = [last_date + (freq * i) for i in range(1, 21)] # අනාගතයට කෑන්ඩල් 20ක්
+    future_index = pd.DatetimeIndex(future_dates)
+    future_df = pd.DataFrame(index=future_index, columns=df_plot.columns)
+    df_padded = pd.concat([df_plot, future_df])
+    
+    total_len = len(df_padded)
+    
+    # Entry, TP, SL සඳහා Arrays
+    y_entry = np.full(total_len, entry)
+    y_tp = np.full(total_len, tp3)
+    y_sl = np.full(total_len, sl)
+    
+    # කොටුව අඳින්නේ අවසාන කෑන්ඩල් 5 සහ අනාගත කෑන්ඩල් 20 තුළ පමණයි
+    where_mask = np.zeros(total_len, dtype=bool)
+    where_mask[-(20 + 5):] = True 
+    
+    fills = [
+        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), # Profit Box (Green)
+        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25)  # Loss Box (Red)
+    ]
+    
+    # 🟢 TradingView ලස්සන Light Theme එක
+    mc = mpf.make_marketcolors(
+        up='#089981', down='#f23645', # TradingView Green and Red
+        edge='inherit', wick='inherit',
+        volume='in', ohlc='i'
+    )
+    
+    s = mpf.make_mpf_style(
+        marketcolors=mc, 
+        gridcolor='#ebedef', # ලා අළු පාට grid එක
+        gridstyle='-', 
+        facecolor='#ffffff', # සුදු පසුබිම
+        edgecolor='#b2b5be',
+        figcolor='#ffffff',
+        rc={'font.family': 'sans-serif', 'axes.labelsize': 10}
+    )
+    
+    # Entry, TP, SL රේඛා
+    hlines = dict(hlines=[entry, tp3, sl], colors=['#2962ff', '#089981', '#f23645'], linestyle='--', linewidths=1.2, alpha=0.8)
+    
+    # Moving Averages Chart එකට එකතු කිරීම
+    ap = []
+    if not df_padded['EMA_9'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['EMA_9'], color='#2962ff', width=1.5)) # Blue line
+    if not df_padded['EMA_21'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['EMA_21'], color='#ff9800', width=1.5)) # Orange line
     
     buf = io.BytesIO()
     
-    # Dark Mode Pro පෙනුම
-    mc = mpf.make_marketcolors(up='#2ecc71', down='#e74c3c', edge='inherit', wick='inherit', volume='in', ohlc='i')
-    s  = mpf.make_mpf_style(marketcolors=mc, base_mpf_style='nightclouds', gridstyle=':')
-    
     # ප්‍රස්ථාරය ඇඳීම
     mpf.plot(
-        df_plot, 
+        df_padded, 
         type='candle', 
         style=s, 
-        title=f"\n✨ {coin_name} - {direction} SETUP 🚀",
-        hlines=hlines,
+        volume=True,      # Volume Bars එකතු කිරීම
+        addplot=ap,       # Moving Averages
+        fill_between=fills, # Risk/Reward Boxes
+        hlines=hlines,    # Price Lines
+        title=f"\n{coin_name} - {direction} SETUP (PRO VIP)",
         returnfig=False, 
         savefig=dict(fname=buf, dpi=120, bbox_inches='tight'), 
-        figsize=(10, 6)
+        figsize=(12, 6.5), # Wide aspect ratio like TradingView
+        panel_ratios=(4,1), # ප්‍රධාන චාට් එකට 4ක්, Volume එකට 1ක්
+        tight_layout=True
     )
     
     buf.seek(0)
@@ -290,9 +337,9 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        # 🟢 Image Bytes Generate කිරීම (mplfinance හරහා)
+                        # 🟢 අලුත් TradingView Style Chart එක Generate කිරීම
                         chart_image_bytes = generate_candlestick_image_bytes(df, selected_display_name.split()[0], direction, entry_price, tp3_price, sl_price)
-                        st.image(chart_image_bytes, caption="Generated Candlestick setup with mplfinance")
+                        st.image(chart_image_bytes, caption="Generated VIP TradingView Setup")
                         image_generated_successfully = True
                     except Exception as img_err:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
@@ -320,7 +367,6 @@ with tab1:
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                 success = False
                                 if image_generated_successfully:
-                                    # 🟢 Image Bytes යැවීම
                                     success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
                                 
                                 if not success:
@@ -337,7 +383,7 @@ with tab1:
                             else:
                                 st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
             except Exception as e:
-                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න. ({e})")
+                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න.")
     else:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
