@@ -6,3 +6,4 @@ numpy
 plotly
 streamlit-lightweight-charts
 requests
+kaleido
