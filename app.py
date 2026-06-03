@@ -162,22 +162,31 @@ with tab1:
                 prediction = model.predict(last_market_state)[0]
                 probability = model.predict_proba(last_market_state)[0]
                 
-                current_price = float(df['Close'].to_numpy()[-1])
+                try:
+                    tkr_live = yf.Ticker(ticker)
+                    current_price = float(tkr_live.fast_info['lastPrice'])
+                except Exception:
+                    current_price = float(df['Close'].to_numpy()[-1])
+                    
                 volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
                 ai_confidence = max(probability) * 100
-                
                 dp = 8 if current_price < 0.01 else 4
                 
-                if prediction == 1:
-                    tp1_price = current_price + (volatility * 1.2)
-                    tp2_price = current_price + (volatility * 2.0)
-                    tp3_price = current_price + (volatility * 3.0)
-                    sl_price = current_price - (volatility * 1.5)
-                else:
-                    tp1_price = current_price - (volatility * 1.2)
-                    tp2_price = current_price - (volatility * 2.0)
-                    tp3_price = current_price - (volatility * 3.0)
-                    sl_price = current_price + (volatility * 1.5)
+                # 🟢 අලුත් වෙනස: සැබෑ Limit Order එකක් සඳහා "Pullback" (Entry Offset) එකක් සැකසීම 🟢
+                pullback_amount = volatility * 0.4  # සජීවී මිලට වඩා 40% ක දුරක් තබයි
+                
+                if prediction == 1: # BUY
+                    entry_price = current_price - pullback_amount # මිල පහළට එනතෙක් Limit එක තබයි
+                    tp1_price = entry_price + (volatility * 1.2)
+                    tp2_price = entry_price + (volatility * 2.0)
+                    tp3_price = entry_price + (volatility * 3.0)
+                    sl_price = entry_price - (volatility * 1.5)
+                else: # SELL
+                    entry_price = current_price + pullback_amount # මිල ඉහළට එනතෙක් Limit එක තබයි
+                    tp1_price = entry_price - (volatility * 1.2)
+                    tp2_price = entry_price - (volatility * 2.0)
+                    tp3_price = entry_price - (volatility * 3.0)
+                    sl_price = entry_price + (volatility * 1.5)
         
                 st.write("---")
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
@@ -228,7 +237,7 @@ with tab1:
                         f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
                         f"🪙 **Coin:** {selected_display_name}\n\n"
                         f"🔥 **Signal Direction:** {dir_text}\n\n"
-                        f"🔵 **Entry Limit Price:** ${current_price:.{dp}f}\n\n"
+                        f"🔵 **Entry Limit Price:** ${entry_price:.{dp}f}\n\n"
                         f"🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n"
                         f"🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n"
                         f"🎯 **TP 3:** ${tp3_price:.{dp}f}\n\n"
@@ -239,43 +248,61 @@ with tab1:
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
                     if st.button("Send Signal to Telegram 🚀"):
                         
-                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
-                        telegram_text += f"🪙 *Coin/Pair:* {selected_display_name}\n"
-                        telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
-                        telegram_text += f"🔥 *Direction:* {dir_text}\n\n"
-                        telegram_text += f"🔵 *Entry Price:* `${current_price:.{dp}f}`\n"
-                        telegram_text += f"🎯 *TP 1:* `${tp1_price:.{dp}f}`\n"
-                        telegram_text += f"🎯 *TP 2:* `${tp2_price:.{dp}f}`\n"
-                        telegram_text += f"🎯 *TP 3:* `${tp3_price:.{dp}f}`\n"
-                        telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
-                        telegram_text += f"💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                        
-                        with st.spinner("Telegram වෙත යවමින් පවතී..."):
-                            success = send_telegram_message(telegram_text)
+                        # 🟢 අලුත් වෙනස: යවන්න කලින් "Expired" ද කියලා බලන Pre-Check එක 🟢
+                        try:
+                            check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
+                        except:
+                            check_live = current_price
                             
-                        if success:
-                            st.success("✅ Signal එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
-                            
-                            date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                            data = {
-                                "Date": [date_str], 
-                                "Ticker": [ticker],
-                                "Coin": [selected_display_name.split()[0]], 
-                                "Direction": ["BUY" if prediction == 1 else "SELL"], 
-                                "Entry": [current_price], 
-                                "TP1": [tp1_price],
-                                "TP2": [tp2_price],
-                                "TP3": [tp3_price],
-                                "SL": [sl_price],
-                                "Status": ["⏳ Pending Entry"]
-                            }
-                            df_new = pd.DataFrame(data)
-                            if os.path.exists(HISTORY_FILE):
-                                df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
-                            else:
-                                df_new.to_csv(HISTORY_FILE, index=False)
+                        is_safe_to_send = True
+                        if prediction == 1: # BUY check
+                            if check_live >= tp1_price or check_live <= sl_price:
+                                is_safe_to_send = False
+                        else: # SELL check
+                            if check_live <= tp1_price or check_live >= sl_price:
+                                is_safe_to_send = False
+                                
+                        if not is_safe_to_send:
+                            st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                         else:
-                            st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
+                            # අවුලක් නැත්නම් Telegram යවමු
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
+                            telegram_text += f"🪙 *Coin/Pair:* {selected_display_name}\n"
+                            telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
+                            telegram_text += f"🔥 *Direction:* {dir_text}\n\n"
+                            telegram_text += f"🔵 *Entry Price:* `${entry_price:.{dp}f}`\n"
+                            telegram_text += f"🎯 *TP 1:* `${tp1_price:.{dp}f}`\n"
+                            telegram_text += f"🎯 *TP 2:* `${tp2_price:.{dp}f}`\n"
+                            telegram_text += f"🎯 *TP 3:* `${tp3_price:.{dp}f}`\n"
+                            telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
+                            telegram_text += f"💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            
+                            with st.spinner("Telegram වෙත යවමින් පවතී..."):
+                                success = send_telegram_message(telegram_text)
+                                
+                            if success:
+                                st.success("✅ Signal එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
+                                
+                                date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
+                                data = {
+                                    "Date": [date_str], 
+                                    "Ticker": [ticker],
+                                    "Coin": [selected_display_name.split()[0]], 
+                                    "Direction": ["BUY" if prediction == 1 else "SELL"], 
+                                    "Entry": [entry_price], 
+                                    "TP1": [tp1_price],
+                                    "TP2": [tp2_price],
+                                    "TP3": [tp3_price],
+                                    "SL": [sl_price],
+                                    "Status": ["⏳ Pending Entry"]
+                                }
+                                df_new = pd.DataFrame(data)
+                                if os.path.exists(HISTORY_FILE):
+                                    df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                                else:
+                                    df_new.to_csv(HISTORY_FILE, index=False)
+                            else:
+                                st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
             except Exception as e:
                 st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න.")
     else:
@@ -305,7 +332,6 @@ with tab2:
         
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
-                # Status එක Cancelled නම් ඒක පරීක්ෂා කරන්නේ නෑ
                 if "Cancelled" in str(row['Status']):
                     live_prices_dict[index] = np.nan
                     continue
@@ -340,7 +366,6 @@ with tab2:
                         
                         new_status = str(row['Status'])
                         
-                        # 🟢 TP එකට හෝ SL එකට වෙන වෙනම Invalid/Missed වෙන Logic එක 🟢
                         if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
                                 if current_high >= tp1_val:
@@ -428,7 +453,6 @@ with tab2:
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
         
-        # 'Missed (Hit TP)' සහ 'Invalid (Hit SL)' ඒවාත් Dropdown එකට ගන්නවා
         completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active|Missed|Invalid", na=False, case=False)].iloc[::-1]
         
         if not completed_signals.empty:
@@ -472,7 +496,6 @@ with tab2:
                                 except AttributeError:
                                     st.experimental_rerun()
 
-                # 🟢 TP එකට ගිය විට යවන මැසේජ් එක (Missed Trade) 🟢
                 elif "Missed (Hit TP)" in sel_row['Status']:
                     if st.button("⚠️ Missed Setup මැසේජ් එක යවන්න 🚀"):
                         msg = f"⚠️ *MISSED TRADE (HIT TP)* ⚠️\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nඅපේ Analysis එක 100% ක් නිවැරදියි! නමුත් මාකට් එක අපේ Entry එකට එන්නේ නැතුව කෙලින්ම Target (TP) එකට ගියා. Setup එක සම්පූර්ණයි, ඒ නිසා Limit Order එක අයින් කරගන්න. ඊළඟ Trade එකෙන් අල්ලමු! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
@@ -486,7 +509,6 @@ with tab2:
                             except AttributeError:
                                 st.experimental_rerun()
 
-                # 🟢 SL එකට ගිය විට යවන මැසේජ් එක (Invalid Setup) 🟢
                 elif "Invalid (Hit SL)" in sel_row['Status']:
                     if st.button("🚫 Invalid Setup මැසේජ් එක යවන්න 🚀"):
                         msg = f"🚫 *SETUP INVALID (HIT SL)* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට කලින්ම Stop Loss (SL) මට්ටම කඩාගෙන ගියා. Market Structure එක වෙනස් වුණු නිසා මේ Setup එක දැන් අවලංගුයි. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
