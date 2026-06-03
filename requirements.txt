@@ -5,4 +5,3 @@ pandas
 numpy
 plotly
 requests
-kaleido==0.1.0.post1
