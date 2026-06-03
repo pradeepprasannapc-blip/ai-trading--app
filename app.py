@@ -61,7 +61,7 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
-# 🟢 VIP TradingView Style Chart Generator (ඔබ ඉල්ලූ අලුත් පෙනුම)
+# 🟢 VIP TradingView Style Chart Generator (Light Theme with fixed colors)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, timeframe):
     df_plot = df.tail(100).copy() # වඩාත් හොඳ දර්ශනයක් සඳහා කෑන්ඩල් 100ක් ගනිමු
     
@@ -71,7 +71,6 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     df_plot['MA_100'] = df_plot['Close'].rolling(window=100).mean()
     
     # 2. Risk/Reward කොටුව දකුණට දික් කිරීමට අනාගත කෑන්ඩල් සඳහා ඉඩ හැදීම
-    # Timeframe එක අනුව ඊළඟ කෑන්ඩල් වල වෙලාව ගණනය කිරීම
     freq = df_plot.index.to_series().diff().median()
     last_date = df_plot.index[-1]
     
@@ -98,12 +97,12 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
         dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25)  # Loss Box
     ]
     
-    # 4. VIP Light Theme සැකසුම්
+    # 4. VIP Light Theme සැකසුම් (Error Fixed: using 'inherit' for edges and wicks)
     mc = mpf.make_marketcolors(
         up='#089981', down='#f23645',
-        edge={'up': '#089981', 'down': '#f23645'},
-        wick={'up': '#089981', 'down': '#f23645'},
-        volume={'up': '#089981', 'down': '#f23645', 'alpha': 0.6},
+        edge='inherit',   # Fixed safely to avoid unpack error
+        wick='inherit',   # Fixed safely to avoid unpack error
+        volume='in',      # Volume based on candle color
         ohlc='i'
     )
     
@@ -299,6 +298,7 @@ with tab1:
                         st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
         
                 chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
+                # 🟢 Here we set the tradingview widget theme back to "dark" as requested
                 tradingview_html = f"""
                 <div class="tradingview-widget-container" style="height:500px; width:100%;">
                   <div id="tradingview_chart" style="height:500px;"></div>
@@ -310,7 +310,7 @@ with tab1:
                     "symbol": "{full_tv_ticker}",
                     "interval": "{selected_tf['tv']}",
                     "timezone": "Etc/UTC",
-                    "theme": "light",
+                    "theme": "dark",
                     "style": "1",
                     "locale": "en",
                     "toolbar_bg": "#f1f3f6",
