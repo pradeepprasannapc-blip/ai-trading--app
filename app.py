@@ -7,8 +7,8 @@ import streamlit.components.v1 as components
 import requests
 import os
 import time
-import plotly.graph_objects as go
 import io
+import mplfinance as mpf
 
 # --- 1. App පෙනුම සහ Title සැකසීම ---
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
@@ -41,7 +41,6 @@ def send_telegram_message(message):
     except:
         return False
 
-# 🟢 අලුත් Function එක: URL වෙනුවට Image Bytes කෙලින්ම යැවීම
 def send_telegram_photo_bytes(caption, photo_bytes):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
         return False
@@ -61,61 +60,40 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
-# 🟢 අලුත් Function එක: Candlestick සහ Risk/Reward Zone Chart එක සෑදීම
+# 🟢 අලුත් Function එක: mplfinance හරහා සැබෑ Candlestick Chart එකක් සැකසීම
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl):
-    df_plot = df.tail(60).copy() # අවසාන කෑන්ඩල් 60 පෙන්වමු
+    df_plot = df.tail(60).copy()
     
-    fig = go.Figure()
-
-    # Candlestick chart එක එකතු කිරීම
-    fig.add_trace(go.Candlestick(
-        x=df_plot.index,
-        open=df_plot['Open'],
-        high=df_plot['High'],
-        low=df_plot['Low'],
-        close=df_plot['Close'],
-        name='Price'
-    ))
-
-    x_start = df_plot.index[0]
-    x_end = df_plot.index[-1] + pd.Timedelta(minutes=60) # Zone එක ඉස්සරහට දික් කරන්න
-
-    # 🟢 Profit Zone (Green Box)
-    fig.add_shape(
-        type="rect",
-        x0=x_start, y0=entry, x1=x_end, y1=tp3,
-        fillcolor="rgba(46, 204, 113, 0.2)",
-        line=dict(color="rgba(46, 204, 113, 0.8)", width=2),
-        layer="below"
+    # mplfinance සඳහා Index එක Datetime විය යුතුමයි
+    if not isinstance(df_plot.index, pd.DatetimeIndex):
+        df_plot.index = pd.to_datetime(df_plot.index)
+        
+    # Entry (Blue), TP3 (Green), SL (Red) රේඛා සැකසීම
+    hlines_levels = [entry, tp3, sl]
+    hlines_colors = ['#3498db', '#2ecc71', '#e74c3c'] 
+    
+    hlines = dict(hlines=hlines_levels, colors=hlines_colors, linestyle='--', linewidths=1.5)
+    
+    buf = io.BytesIO()
+    
+    # Dark Mode Pro පෙනුම
+    mc = mpf.make_marketcolors(up='#2ecc71', down='#e74c3c', edge='inherit', wick='inherit', volume='in', ohlc='i')
+    s  = mpf.make_mpf_style(marketcolors=mc, base_mpf_style='nightclouds', gridstyle=':')
+    
+    # ප්‍රස්ථාරය ඇඳීම
+    mpf.plot(
+        df_plot, 
+        type='candle', 
+        style=s, 
+        title=f"\n✨ {coin_name} - {direction} SETUP 🚀",
+        hlines=hlines,
+        returnfig=False, 
+        savefig=dict(fname=buf, dpi=120, bbox_inches='tight'), 
+        figsize=(10, 6)
     )
-
-    # 🔴 Stop Loss Zone (Red Box)
-    fig.add_shape(
-        type="rect",
-        x0=x_start, y0=sl, x1=x_end, y1=entry,
-        fillcolor="rgba(231, 76, 60, 0.2)",
-        line=dict(color="rgba(231, 76, 60, 0.8)", width=2),
-        layer="below"
-    )
-
-    # Entry, TP, සහ SL රේඛා
-    fig.add_hline(y=entry, line_dash="dash", line_color="blue", annotation_text="Entry", annotation_position="top right")
-    fig.add_hline(y=tp3, line_dash="dash", line_color="green", annotation_text="TP 3", annotation_position="top right")
-    fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="Stop Loss", annotation_position="bottom right")
-
-    fig.update_layout(
-        title=f"✨ {coin_name} - {direction} SETUP 🚀",
-        yaxis_title="Price",
-        xaxis_title="Time",
-        template="plotly_dark",
-        xaxis_rangeslider_visible=False,
-        width=800,
-        height=500,
-        margin=dict(l=40, r=40, t=60, b=40)
-    )
-
-    img_bytes = fig.to_image(format="png")
-    return img_bytes
+    
+    buf.seek(0)
+    return buf.read()
 
 
 HISTORY_FILE = "signal_history.csv"
@@ -202,14 +180,17 @@ with tab1:
         df['TR'] = df[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
         df['ATR'] = df['TR'].rolling(window=14).mean()
         
+        df['FVG_Bull'] = np.where(df['Low'] > df['High'].shift(2), 1, 0)
+        df['FVG_Bear'] = np.where(df['High'] < df['Low'].shift(2), 1, 0)
+        
         df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
         df.dropna(inplace=True) 
         
         if len(df) < 20:
-            st.warning("⚠️ ප්‍රමාණවත් දත්ත නොමැත.")
+            st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
         else:
             try:
-                features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR']
+                features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear']
                 X = df[features]
                 y = df['Target']
                 
@@ -249,43 +230,309 @@ with tab1:
                     sl_price = entry_price + (atr_val * 1.5) 
         
                 st.write("---")
-                st.subheader(f"📊 {selected_display_name} PRO AI විශ්ලේෂණය:")
+                st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
                 
                 has_valid_signal = False
                 if ai_confidence < 60.0:
-                    st.warning(f"⚠️ NO SIGNAL (මාකට් එක පැහැදිලි නැත)")
+                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%).")
                 else:
                     has_valid_signal = True
                     if prediction == 1:
-                        st.success(f"🟢 **BUY / LONG** 📈 ⬆️ ({ai_confidence:.1f}%)")
+                        st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
                     else:
-                        st.error(f"🔴 **SELL / SHORT** 📉 ⬇️ ({ai_confidence:.1f}%)")
+                        st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
         
+                chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
+                tradingview_html = f"""
+                <div class="tradingview-widget-container" style="height:500px; width:100%;">
+                  <div id="tradingview_chart" style="height:500px;"></div>
+                  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                  <script type="text/javascript">
+                  new TradingView.widget({{
+                    "autosize": true,
+                    "height": 500,
+                    "symbol": "{full_tv_ticker}",
+                    "interval": "{selected_tf['tv']}",
+                    "timezone": "Etc/UTC",
+                    "theme": "dark",
+                    "style": "1",
+                    "locale": "en",
+                    "toolbar_bg": "#f1f3f6",
+                    "enable_publishing": false,
+                    "withdateranges": true,
+                    "hide_side_toolbar": false,
+                    "allow_symbol_change": true,
+                    "studies": {chart_studies},
+                    "container_id": "tradingview_chart"
+                  }});
+                  </script>
+                </div>
+                """
+                components.html(tradingview_html, height=510)
+        
+                st.write("---")
                 if has_valid_signal:
-                    dir_text = "🟢 BUY / LONG" if prediction == 1 else "🔴 SELL / SHORT"
+                    dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
                     direction = "BUY" if prediction == 1 else "SELL"
+                    
+                    target_msg = (
+                        f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (ATR & SMC Visual Targets):**\n\n"
+                        f"🪙 **Coin:** {selected_display_name}\n\n"
+                        f"🔥 **Signal Direction:** {dir_text}\n\n"
+                        f"🔵 **Entry Limit Price:** ${entry_price:.{dp}f}\n\n"
+                        f"🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n"
+                        f"🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n"
+                        f"🎯 **TP 3:** ${tp3_price:.{dp}f}\n\n"
+                        f"🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
+                    )
+                    st.info(target_msg)
                     
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
+                        # 🟢 Image Bytes Generate කිරීම (mplfinance හරහා)
                         chart_image_bytes = generate_candlestick_image_bytes(df, selected_display_name.split()[0], direction, entry_price, tp3_price, sl_price)
-                        st.image(chart_image_bytes, caption="Generated Candlestick setup")
+                        st.image(chart_image_bytes, caption="Generated Candlestick setup with mplfinance")
                         image_generated_successfully = True
                     except Exception as img_err:
-                        st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. kaleido package එක නිවැරදිව ස්ථාපනය වී ඇතිදැයි බලන්න. ({img_err})")
+                        st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
                         image_generated_successfully = False
 
+                    st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
                     if st.button("Send Signal & Chart to Telegram 🚀"):
-                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin:* {selected_display_name}\n🔥 *Direction:* {dir_text}\n\n🔵 *Entry:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *SL:* `${sl_price:.{dp}f}`"
                         
-                        with st.spinner("Telegram වෙත යවමින් පවතී... ⏳"):
-                            success = False
-                            if image_generated_successfully:
-                                success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                        try:
+                            check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
+                        except:
+                            check_live = current_price
                             
+                        is_safe_to_send = True
+                        if prediction == 1: 
+                            if check_live >= tp1_price or check_live <= sl_price: is_safe_to_send = False
+                        else:
+                            if check_live <= tp1_price or check_live >= sl_price: is_safe_to_send = False
+                                
+                        if not is_safe_to_send:
+                            st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
+                        else:
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            
+                            with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
+                                success = False
+                                if image_generated_successfully:
+                                    # 🟢 Image Bytes යැවීම
+                                    success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                                
+                                if not success:
+                                    success = send_telegram_message(telegram_text)
+                                    st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal එක පමණක් යැවිණි).")
+                                
                             if success:
-                                st.success("✅ සාර්ථකව යැව්වා!")
+                                st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
+                                date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
+                                data = {"Date": [date_str], "Ticker": [ticker], "Coin": [selected_display_name.split()[0]], "Direction": ["BUY" if prediction == 1 else "SELL"], "Entry": [entry_price], "TP1": [tp1_price], "TP2": [tp2_price], "TP3": [tp3_price], "SL": [sl_price], "Status": ["⏳ Pending Entry"]}
+                                df_new = pd.DataFrame(data)
+                                if os.path.exists(HISTORY_FILE): df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                                else: df_new.to_csv(HISTORY_FILE, index=False)
                             else:
-                                st.error("❌ යැවීම අසාර්ථකයි.")
+                                st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
             except Exception as e:
-                st.error(f"⚠️ විශ්ලේෂණයේදී ගැටලුවක්. ({e})")
+                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න. ({e})")
+    else:
+        st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
+
+with tab2:
+    st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
+    st.write("මාකට් එකේ සජීවී මිල මෙහි යාවත්කාලීන වේ. TP 1, 2, හෝ 3 Hit වූ විට Status එක Auto වෙනස් වෙනවා!")
+    auto_refresh = st.checkbox("🔄 Auto Refresh (සෑම තත්පර 15කට වරක් සජීවී මිල සහ Status පමණක් යාවත්කාලීන වීමට මෙහි ටික් එකක් දාන්න)")
+
+    if os.path.exists(HISTORY_FILE):
+        try:
+            history_df = pd.read_csv(HISTORY_FILE)
+            if "TP1" not in history_df.columns:
+                os.remove(HISTORY_FILE)
+                st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
+                st.stop()
+        except Exception: pass
+            
+        updated = False
+        live_prices_dict = {}
+        
+        with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
+            for index, row in history_df.iterrows():
+                if "Cancelled" in str(row['Status']):
+                    live_prices_dict[index] = np.nan
+                    continue
+                try:
+                    current_live_price, current_low, current_high = None, None, None
+                    df_hist = yf.download(row['Ticker'], period="5d", interval="5m", progress=False)
+                    if not df_hist.empty:
+                        if isinstance(df_hist.columns, pd.MultiIndex): df_hist.columns = df_hist.columns.get_level_values(0)
+                        current_live_price = float(df_hist['Close'].dropna().iloc[-1])
+                        current_low = float(df_hist['Low'].dropna().iloc[-1])
+                        current_high = float(df_hist['High'].dropna().iloc[-1])
+                    else:
+                        tkr = yf.Ticker(row['Ticker'])
+                        current_live_price = float(tkr.fast_info['lastPrice'])
+                        current_low = current_high = current_live_price
+                        
+                    if current_live_price is not None:
+                        live_prices_dict[index] = current_live_price
+                        entry_val, tp1_val, tp2_val, tp3_val, sl_val = float(row['Entry']), float(row['TP1']), float(row['TP2']), float(row['TP3']), float(row['SL'])
+                        new_status = str(row['Status'])
+                        
+                        if "Pending" in new_status:
+                            if row['Direction'] == 'BUY':
+                                if current_high >= tp1_val: new_status = "⚠️ Missed (Hit TP)"
+                                elif current_low <= sl_val: new_status = "🚫 Invalid (Hit SL)"
+                                elif current_low <= entry_val: new_status = "🟢 Active"
+                            else: 
+                                if current_low <= tp1_val: new_status = "⚠️ Missed (Hit TP)"
+                                elif current_high >= sl_val: new_status = "🚫 Invalid (Hit SL)"
+                                elif current_high >= entry_val: new_status = "🟢 Active"
+                                    
+                        if new_status in ["🟢 Active", "✅ TP1 HIT", "✅ TP2 HIT"]:
+                            if row['Direction'] == 'BUY':
+                                if current_high >= tp3_val: new_status = "✅ TP3 HIT"
+                                elif current_high >= tp2_val and new_status not in ["✅ TP3 HIT"]: new_status = "✅ TP2 HIT"
+                                elif current_high >= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]: new_status = "✅ TP1 HIT"
+                                elif new_status == "🟢 Active" and current_low <= sl_val: new_status = "🛑 SL HIT"
+                            else: 
+                                if current_low <= tp3_val: new_status = "✅ TP3 HIT"
+                                elif current_low <= tp2_val and new_status not in ["✅ TP3 HIT"]: new_status = "✅ TP2 HIT"
+                                elif current_low <= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]: new_status = "✅ TP1 HIT"
+                                elif new_status == "🟢 Active" and current_high >= sl_val: new_status = "🛑 SL HIT"
+                                    
+                        if new_status != str(row['Status']):
+                            history_df.at[index, 'Status'] = new_status
+                            updated = True
+                    else: live_prices_dict[index] = np.nan
+                except Exception: live_prices_dict[index] = np.nan
+        
+        if updated: history_df.to_csv(HISTORY_FILE, index=False)
+            
+        display_df = history_df.copy()
+        display_df['Live Price'] = display_df.index.map(live_prices_dict)
+        def format_price(x):
+            if pd.isnull(x): return "N/A"
+            val = float(x)
+            return f"${val:.8f}" if val < 0.01 else f"${val:.4f}"
+
+        for col in ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']: display_df[col] = display_df[col].apply(format_price)
+        display_df.drop(columns=['Ticker'], inplace=True)
+        display_df = display_df.iloc[::-1]
+        
+        html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}}</style>"
+        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
+        for idx, row in display_df.iterrows():
+            status_text = str(row['Status'])
+            status_td = f"<td><div class='marquee-container'><div class='marquee-scroll'>{status_text}</div></div></td>" if "Pending Entry" in status_text else f"<td>{status_text}</td>"
+            html_table += f"<tr><td style='font-weight:bold; color:#888;'>{idx}</td><td>{row['Date']}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
+        html_table += "</table></div>"
+        st.markdown(html_table, unsafe_allow_html=True)
+
+        st.write("---")
+        st.subheader("📢 Result එක Telegram යවන්න")
+        completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active|Missed|Invalid", na=False, case=False)].iloc[::-1]
+        
+        if not completed_signals.empty:
+            options = [f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" for index, row in completed_signals.iterrows()]
+            selected_sig = st.selectbox("Update කරන්න අවශ්‍ය Signal එක තෝරන්න:", options)
+            if selected_sig:
+                selected_idx = options.index(selected_sig)
+                sel_row = completed_signals.iloc[selected_idx]
+                actual_index = sel_row.name 
+                dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️" if sel_row['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
+                
+                if "Pending" in sel_row['Status']:
+                    entry_val = float(sel_row['Entry'])
+                    dp_val = 8 if entry_val < 0.01 else 4
+                    col_pend1, col_pend2 = st.columns(2)
+                    with col_pend1:
+                        if st.button("⏳ Pending Alert මැසේජ් එක යවන්න 🚀"):
+                            msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            if send_telegram_message(msg): st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                    with col_pend2:
+                        if st.button("🚫 Signal එක Cancel කරන්න"):
+                            msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            if send_telegram_message(msg):
+                                st.success("🚫 Cancel මැසේජ් එක යැව්වා! මේ Signal එක දැන් History එකේ Cancelled කියලා වැටෙයි.")
+                                history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
+                                history_df.to_csv(HISTORY_FILE, index=False)
+                                time.sleep(1)
+                                try: st.rerun()
+                                except AttributeError: st.experimental_rerun()
+
+                elif "Missed (Hit TP)" in sel_row['Status']:
+                    if st.button("⚠️ Missed Setup මැසේජ් එක යවන්න 🚀"):
+                        msg = f"⚠️ *MISSED TRADE (HIT TP)* ⚠️\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nඅපේ Analysis එක 100% ක් නිවැරදියි! නමුත් මාකට් එක අපේ Entry එකට එන්නේ නැතුව කෙලින්ම Target (TP) එකට ගියා. Setup එක සම්පූර්ණයි, ඒ නිසා Limit Order එක අයින් කරගන්න. ඊළඟ Trade එකෙන් අල්ලමු! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        if send_telegram_message(msg):
+                            st.success("⚠️ Missed Setup මැසේජ් එක සාර්ථකව යැව්වා!")
+                            history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
+                            history_df.to_csv(HISTORY_FILE, index=False)
+                            time.sleep(1)
+                            try: st.rerun()
+                            except AttributeError: st.experimental_rerun()
+
+                elif "Invalid (Hit SL)" in sel_row['Status']:
+                    if st.button("🚫 Invalid Setup මැසේජ් එක යවන්න 🚀"):
+                        msg = f"🚫 *SETUP INVALID (HIT SL)* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට කලින්ම Stop Loss (SL) මට්ටම කඩාගෙන ගියා. Market Structure එක වෙනස් වුණු නිසා මේ Setup එක දැන් අවලංගුයි. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        if send_telegram_message(msg):
+                            st.success("🚫 Setup Invalid මැසේජ් එක සාර්ථකව යැව්වා!")
+                            history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
+                            history_df.to_csv(HISTORY_FILE, index=False)
+                            time.sleep(1)
+                            try: st.rerun()
+                            except AttributeError: st.experimental_rerun()
+                            
+                elif "Active" in sel_row['Status']:
+                    entry_val = float(sel_row['Entry'])
+                    dp_val = 8 if entry_val < 0.01 else 4
+                    if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
+                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        if send_telegram_message(msg): st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                
+                elif "TP" in sel_row['Status']:
+                    hit_level = sel_row['Status'].split()[1]
+                    tp_val, tp_dp = float(sel_row[hit_level]), 8 if float(sel_row[hit_level]) < 0.01 else 4
+                    if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
+                        if send_telegram_message(msg): st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
+                
+                elif "SL" in sel_row['Status']:
+                    if st.button("🛑 Loss මැසේජ් එක යවන්න"):
+                        msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය জ্ঞකරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        if send_telegram_message(msg): st.success("🛑 Stop Loss මැසේජ් එක සාර්ථකව යැව්වා!")
+        else: st.info("තවම Active, Pending, TP, SL හෝ Invalid වුණු සිග්නල් කිසිවක් නැත.")
+
+        st.write("---")
+        st.subheader("🗑️ History කළමනාකරණය (Delete Signals)")
+        all_delete_options = [f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" for index, row in history_df.iterrows()][::-1]
+        selected_to_delete = st.multiselect("මකා දැමීමට අවශ්‍ය සිග්නල් තෝරන්න:", all_delete_options)
+        
+        col_del1, col_del2 = st.columns(2)
+        with col_del1:
+            if st.button("🗑️ තෝරාගත් ඒවා පමණක් මකන්න"):
+                if selected_to_delete:
+                    indices_to_drop = [index for index, row in history_df.iterrows() if f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" in selected_to_delete]
+                    history_df.drop(indices_to_drop, inplace=True)
+                    history_df.to_csv(HISTORY_FILE, index=False)
+                    st.success("✅ තෝරාගත් සිග්නල් සාර්ථකව මකා දැමුවා!")
+                    time.sleep(1)
+                    try: st.rerun()
+                    except AttributeError: st.experimental_rerun()
+                else: st.warning("⚠️ මකා දැමීමට කිසිවක් තෝරා නැත.")
+                    
+        with col_del2:
+            if st.button("🚨 ඔක්කොම මකන්න (Clear All)"):
+                os.remove(HISTORY_FILE)
+                st.success("✅ History එක සම්පූර්ණයෙන්ම මකා දැමුවා!")
+                time.sleep(1)
+                try: st.rerun()
+                except AttributeError: st.experimental_rerun()
+            
+        if auto_refresh:
+            time.sleep(15)
+            try: st.rerun()
+            except AttributeError: st.experimental_rerun()
+    else: st.info("දැනට කිසිම Signal එකක් Save වෙලා නෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
