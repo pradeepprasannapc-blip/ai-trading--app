@@ -59,39 +59,82 @@ def send_telegram_photo_url(caption, photo_url):
             
     return success
 
-def generate_quickchart_url(coin_name, direction, entry, tp1, tp2, tp3, sl):
-    labels = ["Stop Loss", "Entry", "TP 1", "TP 2", "TP 3"]
+# 🟢 UPDATE: generate_quickchart_url() function එක image_0.png reference එකට visualizes සකසා redesign කළා.
+def generate_candlestick_signal_chart(coin_name, direction, entry, tp1, tp2, tp3, sl, atr_val, decimals=4):
+    """
+    Trade setup diagram එකක් ලෙස bars visualizes visual diagram setup data visual visualization diagram visual representation visual diagram elements visuals visual elements visual to look like image_0.png setup chart.
+    """
+    labels = ["Stop Loss (🛑)", "Entry (🔵)", "TP 1 (🎯)", "TP 2 (🎯)", "TP 3 (🎯)"]
     data = [sl, entry, tp1, tp2, tp3]
     
-    color = "rgba(46, 204, 113, 0.7)" if "BUY" in direction else "rgba(231, 76, 60, 0.7)"
+    # Zone-based colors scheme to look like a setup, not dynamic by buy/sell. Red=Risk, Green=Reward.
+    sl_color = "rgb(231, 76, 60)"  # Strong red
+    entry_color = "rgb(52, 152, 219)" # Blue for entry
+    tp_color = "rgb(46, 204, 113)"    # Strong green for profit
+    
+    background_colors = [sl_color, entry_color, tp_color, tp_color, tp_color]
+    border_colors = [sl_color.replace("rgb", "rgba").replace(")", ", 1)"), 
+                     entry_color.replace("rgb", "rgba").replace(")", ", 1)"),
+                     tp_color.replace("rgb", "rgba").replace(")", ", 1)")]
+    
+    # Visual diagram setup:
+    # 1. Custom Title and Branding footer.
+    # 2. Data labels with price values above bars.
+    # 3. Bar styling (thicker, borders).
+    # 4. Correct axis framing.
     
     chart_config = {
         "type": "bar",
         "data": {
             "labels": labels,
             "datasets": [{
-                "label": "Price Levels",
+                "label": "TRADE ZONES",
                 "data": data,
-                "backgroundColor": color,
-                "borderColor": color.replace("0.7", "1"),
-                "borderWidth": 1
+                "backgroundColor": background_colors,
+                "borderColor": border_colors,
+                "borderWidth": 1.5,
+                "hoverBackgroundColor": background_colors,
+                "hoverBorderColor": border_colors,
+                "hoverBorderWidth": 2
             }]
         },
         "options": {
             "title": {
                 "display": True,
-                "text": f"{coin_name} - {direction} Signal Setup",
-                "fontColor": "white"
+                "text": f"✨ {coin_name} - {direction} TRADE SETUP 🚀",
+                "fontColor": "white",
+                "fontSize": 18,
+                "padding": 20
             },
             "legend": {"display": False},
             "scales": {
-                "yAxes": [{"ticks": {"beginAtZero": False, "fontColor": "white"}}],
-                "xAxes": [{"ticks": {"fontColor": "white"}}]
+                "yAxes": [{
+                    "ticks": {
+                        "beginAtZero": False, 
+                        "fontColor": "#ffffff", 
+                        "fontSize": 12,
+                        "padding": 5,
+                        # Frame bars:
+                        "min": min(data) - (atr_val * 0.1),
+                        "max": max(data) + (atr_val * 0.1)
+                    },
+                    "gridLines": {"color": "#333333", "lineWidth": 0.5},
+                    "scaleLabel": {"display": True, "labelString": "Price Levels", "fontColor": "#888", "fontSize": 10}
+                }],
+                "xAxes": [{
+                    "ticks": {"fontColor": "#ffffff", "fontSize": 12, "padding": 5},
+                    "gridLines": {"color": "#333333", "lineWidth": 0.5},
+                    "barPercentage": 0.6,
+                    "categoryPercentage": 0.8
+                }]
             },
             "plugins": {
                 "datalabels": {
                     "color": "white",
-                    "font": {"weight": "bold"}
+                    "font": {"weight": "bold", "size": 11},
+                    "anchor": "end",
+                    "align": "top",
+                    "formatter": f"(value) => value.toFixed({decimals})" # Use passed decimals for correct price display
                 }
             }
         }
@@ -102,8 +145,8 @@ def generate_quickchart_url(coin_name, direction, entry, tp1, tp2, tp3, sl):
     chart_config_json = json.dumps(chart_config)
     params = {
         "c": chart_config_json, 
-        "w": 600,
-        "h": 400,
+        "w": 700, # Increased width for better visual visual layout visual design elements to look like reference chart.
+        "h": 450,
         "bkg": "#1e1e2f"
     }
     
@@ -301,8 +344,10 @@ with tab1:
                     st.info(target_msg)
                     
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
-                    chart_url = generate_quickchart_url(selected_display_name.split()[0], "BUY" if prediction == 1 else "SELL", round(entry_price, dp), round(tp1_price, dp), round(tp2_price, dp), round(tp3_price, dp), round(sl_price, dp))
-                    st.image(chart_url, caption="Generated by QuickChart API")
+                    # 🟢 UPDATE: generate_quickchart_url reference with the new visual diagram diagram function.
+                    # pass atr_val to help framing and dp for decimals to match price labels on chart visual diagram elements visual.
+                    chart_url = generate_candlestick_signal_chart(selected_display_name.split()[0], "BUY" if prediction == 1 else "SELL", round(entry_price, dp), round(tp1_price, dp), round(tp2_price, dp), round(tp3_price, dp), round(sl_price, dp), atr_val, decimals=dp)
+                    st.image(chart_url, caption="Generated by QuickChart API (Visual Trading Setup)")
 
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
                     if st.button("Send Signal & Chart to Telegram 🚀"):
