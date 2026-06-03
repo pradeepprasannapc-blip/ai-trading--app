@@ -60,16 +60,16 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
-# 🟢 Advanced Pro Chart Generator (With Fibonacci, Trendlines & Watermarks)
+# 🟢 Advanced Pro Chart Generator (With Volume Profile VPVR, Fibonacci & Trendlines)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, timeframe):
-    df_plot = df.tail(120).copy() # කෑන්ඩල් 120ක් ගනිමු Fib අඳින්න ලේසි වෙන්න
+    df_plot = df.tail(120).copy() # කෑන්ඩල් 120ක් ගනිමු 
     
     # 1. Moving Averages
     df_plot['MA_7'] = df_plot['Close'].rolling(window=7).mean()
     df_plot['MA_25'] = df_plot['Close'].rolling(window=25).mean()
     df_plot['MA_100'] = df_plot['Close'].rolling(window=100).mean()
     
-    # 2. අනාගත කෑන්ඩල් සඳහා ඉඩ හැදීම (Risk/Reward Box එකට)
+    # 2. අනාගත කෑන්ඩල් සඳහා ඉඩ හැදීම
     freq = df_plot.index.to_series().diff().median()
     last_date = df_plot.index[-1]
     
@@ -87,7 +87,6 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     high_idx = df_plot['High'].values.argmax()
     
     diff = high_val - low_val
-    # 0.382 සහ 0.618 Levels
     fib_382 = high_val - (diff * 0.382) if low_idx < high_idx else low_val + (diff * 0.382)
     fib_618 = high_val - (diff * 0.618) if low_idx < high_idx else low_val + (diff * 0.618)
     
@@ -109,9 +108,9 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     
     # Fills (Shaded boxes)
     fills = [
-        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), # Profit Green Box
-        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25), # Loss Red Box
-        dict(y1=y_fib_top, y2=y_fib_bot, where=where_fib, color='#787b86', alpha=0.06) # Fib Gray Box
+        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), 
+        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25), 
+        dict(y1=y_fib_top, y2=y_fib_bot, where=where_fib, color='#787b86', alpha=0.06) 
     ]
     
     # 4. VIP Light Theme + Grid සැකසුම්
@@ -119,14 +118,14 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     s = mpf.make_mpf_style(
         marketcolors=mc, 
         gridcolor='#e1e3eb', 
-        gridstyle='--', # අලුත්: Dashed Grid රේඛා
+        gridstyle='--', 
         facecolor='#ffffff', 
         edgecolor='#b2b5be',
         figcolor='#ffffff',
         rc={'font.size': 9, 'axes.grid': True}
     )
     
-    # 5. Moving Averages Chart එකට එකතු කිරීම
+    # 5. Moving Averages එකතු කිරීම
     ap = []
     if not df_padded['MA_7'].isna().all():
         ap.append(mpf.make_addplot(df_padded['MA_7'], color='#2962ff', width=1.5)) 
@@ -151,17 +150,52 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     
     ax_main = axlist[0] 
     
-    # 7. Fibonacci රේඛා සහ Trendline ඇඳීම
-    # Diagonal Trendline
+    # 🟢 7. අලුත්: Volume Profile (VPVR) එකතු කිරීම 🟢
+    vp_bins = 50
+    price_min, price_max = df_plot['Low'].min(), df_plot['High'].max()
+    bin_size = (price_max - price_min) / vp_bins
+    bins = np.linspace(price_min, price_max, vp_bins + 1)
+    
+    # Typical price මගින් Volume එක කඩමු
+    df_plot['Typical_Price'] = (df_plot['High'] + df_plot['Low'] + df_plot['Close']) / 3
+    df_plot['Bin'] = pd.cut(df_plot['Typical_Price'], bins=bins, labels=False, include_lowest=True)
+    
+    # Up volume සහ Down volume වෙන් කිරීම
+    df_up = df_plot[df_plot['Close'] >= df_plot['Open']]
+    df_down = df_plot[df_plot['Close'] < df_plot['Open']]
+    
+    vp_up = df_up.groupby('Bin')['Volume'].sum()
+    vp_down = df_down.groupby('Bin')['Volume'].sum()
+    
+    vp_up_arr = np.zeros(vp_bins)
+    vp_down_arr = np.zeros(vp_bins)
+    
+    for b, vol in vp_up.items():
+        if not np.isnan(b): vp_up_arr[int(b)] = vol
+    for b, vol in vp_down.items():
+        if not np.isnan(b): vp_down_arr[int(b)] = vol
+        
+    vp_y = bins[:-1] + (bin_size / 2) # බින් එකේ මැද ලක්ෂ්‍යය
+    max_vol = np.max(vp_up_arr + vp_down_arr)
+    
+    # චාට් එකේ වම් පැත්තේ ඉඳන් අඳිමු (TradingView වගේම)
+    if max_vol > 0:
+        vp_widths_up = (vp_up_arr / max_vol) * 22  # උපරිම පළල කෑන්ඩල් 22ක තරම්
+        vp_widths_down = (vp_down_arr / max_vol) * 22
+        
+        # නිල් සහ තැඹිලි පාටින් අඳිමු
+        ax_main.barh(vp_y, vp_widths_up, left=0, height=bin_size*0.9, color='#2962ff', alpha=0.3, zorder=1)
+        ax_main.barh(vp_y, vp_widths_down, left=vp_widths_up, height=bin_size*0.9, color='#ff9800', alpha=0.3, zorder=1)
+
+    # 8. Fibonacci රේඛා සහ Trendline ඇඳීම
     ax_main.plot([low_idx, high_idx], [low_val, high_val], color='#787b86', linestyle='--', linewidth=1.5, alpha=0.8)
     
-    # Fib Horizontal Lines & Labels
     fib_levels_to_draw = [(high_val, '1 (100%)'), (fib_618, '0.618'), (fib_382, '0.382'), (low_val, '0 (0%)')]
     for val, label in fib_levels_to_draw:
         ax_main.plot([start_fib_idx, end_fib_idx], [val, val], color='#787b86', linestyle=':', linewidth=1.2, alpha=0.8)
         ax_main.text(start_fib_idx, val, f" {label}", color='#787b86', fontsize=8, va='bottom', ha='left')
 
-    # 8. TradingView Style Price Tags (Entry, TP, SL)
+    # 9. TradingView Style Price Tags
     x_max = total_len - 1 
     target_levels = [(entry, '#3b3b3b', 'Entry'), (tp3, '#089981', 'TP 3'), (sl, '#f23645', 'Stop Loss')]
     
@@ -172,13 +206,12 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
         ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white", fontsize=10, fontweight='bold', bbox=bbox_props)
         ax_main.text(x_max - 2, price + (price * 0.002), label, ha="right", va="bottom", color=color, fontsize=10, fontweight='bold')
 
-    # 9. Top-Left Watermark / Legend (පින්තූරයේ පරිදි)
+    # 10. Top-Left Watermark / Legend
     coin_clean = coin_name.replace('USDT', ' / TetherUS')
     ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#131722')
-    ax_main.text(0.01, 0.91, "Multi Moving Average (7, 25, 100)", transform=ax_main.transAxes, fontsize=9, color='#787b86')
+    ax_main.text(0.01, 0.91, "Multi Moving Average (7, 25, 100) & Volume Profile (VPVR)", transform=ax_main.transAxes, fontsize=9, color='#787b86')
     ax_main.text(0.01, 0.86, f"AI Confidence: {direction} SETUP 🔥", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#089981' if direction=="BUY" else '#f23645')
 
-    # පින්තූරය Bytes වලට හැරවීම
     buf = io.BytesIO()
     fig.savefig(buf, dpi=120, bbox_inches='tight')
     buf.seek(0)
@@ -379,9 +412,9 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        # 🟢 Fibonaci & Watermarks සහිත නවතම Chart එක
+                        # 🟢 Volume Profile + Fibonaci + Watermarks සහිත නවතම Chart එක
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp3_price, sl_price, tf_display)
-                        st.image(chart_image_bytes, caption="Generated VIP TradingView Setup (With Fibonacci & Watermarks)")
+                        st.image(chart_image_bytes, caption="Generated VIP Setup (Volume Profile + Fibonacci)")
                         image_generated_successfully = True
                     except Exception as img_err:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
