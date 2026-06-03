@@ -4,12 +4,11 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import streamlit.components.v1 as components
-import plotly.graph_objects as go
 import requests
 import os
 import time
 
-# 1. App පෙනුම සහ Title සැකසීම
+# --- 1. App පෙනුම සහ Title සැකසීම ---
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
@@ -40,7 +39,8 @@ def send_telegram_message(message):
     except:
         return False
 
-def send_telegram_photo(caption, image_bytes):
+# 🟢 අලුත්: QuickChart API හරහා Photo එක Telegram යැවීම 🟢
+def send_telegram_photo_url(caption, photo_url):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
         return False
         
@@ -48,16 +48,70 @@ def send_telegram_photo(caption, image_bytes):
     success = True
     
     for chat_id in [TELEGRAM_GROUP_ID, TELEGRAM_CHANNEL_ID]:
-        files = {'photo': ('chart.png', image_bytes, 'image/png')}
-        payload = {"chat_id": chat_id, "caption": caption, "parse_mode": "Markdown"}
+        payload = {"chat_id": chat_id, "photo": photo_url, "caption": caption, "parse_mode": "Markdown"}
         try:
-            res = requests.post(url, data=payload, files=files)
+            res = requests.post(url, data=payload)
             if res.status_code != 200:
                 success = False
         except:
             success = False
             
     return success
+
+# 🟢 අලුත්: QuickChart URL එක ජෙනරේට් කරන Function එක 🟢
+def generate_quickchart_url(coin_name, direction, entry, tp1, tp2, tp3, sl):
+    # බාර් චාර්ට් එකක් සඳහා දත්ත සකස් කිරීම
+    labels = ["Stop Loss", "Entry", "TP 1", "TP 2", "TP 3"]
+    data = [sl, entry, tp1, tp2, tp3]
+    
+    # පාට තීරණය කිරීම (Buy නම් කොළ, Sell නම් රතු)
+    color = "rgba(46, 204, 113, 0.7)" if "BUY" in direction else "rgba(231, 76, 60, 0.7)"
+    
+    chart_config = {
+        "type": "bar",
+        "data": {
+            "labels": labels,
+            "datasets": [{
+                "label": "Price Levels",
+                "data": data,
+                "backgroundColor": color,
+                "borderColor": color.replace("0.7", "1"),
+                "borderWidth": 1
+            }]
+        },
+        "options": {
+            "title": {
+                "display": True,
+                "text": f"{coin_name} - {direction} Signal Setup",
+                "fontColor": "white"
+            },
+            "legend": {"display": False},
+            "scales": {
+                "yAxes": [{"ticks": {"beginAtZero": False, "fontColor": "white"}}],
+                "xAxes": [{"ticks": {"fontColor": "white"}}]
+            },
+            "plugins": {
+                "datalabels": {
+                    "color": "white",
+                    "font": {"weight": "bold"}
+                }
+            }
+        }
+    }
+    
+    # QuickChart API URL එක හැදීම
+    base_url = "https://quickchart.io/chart"
+    params = {
+        "c": str(chart_config).replace("'", '"'), # JSON format එකට හැරවීම
+        "w": 600,
+        "h": 400,
+        "bkg": "#1e1e2f" # අඳුරු (Dark) පසුබිමක්
+    }
+    
+    # URL එක encode කිරීම
+    import urllib.parse
+    encoded_params = urllib.parse.urlencode(params)
+    return f"{base_url}?{encoded_params}"
 
 HISTORY_FILE = "signal_history.csv"
 
@@ -248,24 +302,10 @@ with tab1:
                     )
                     st.info(target_msg)
                     
-                    st.write("### 📸 Signal Visualizer (මෙම ප්‍රස්ථාරය Signal එක සමග ස්වයංක්‍රීයව Telegram වෙත යැවේ)")
-                    
-                    fig = go.Figure(data=[go.Candlestick(x=df.index[-50:], 
-                                    open=df['Open'].iloc[-50:],
-                                    high=df['High'].iloc[-50:],
-                                    low=df['Low'].iloc[-50:],
-                                    close=df['Close'].iloc[-50:],
-                                    name="Price")])
-                    
-                    fig.add_hline(y=entry_price, line_dash="dash", line_color="blue", annotation_text=f"ENTRY: {entry_price:.{dp}f}", annotation_position="bottom right", annotation_font_color="blue")
-                    fig.add_hline(y=tp1_price, line_dash="solid", line_color="lightgreen", annotation_text=f"TP 1: {tp1_price:.{dp}f}", annotation_position="top right", annotation_font_color="lightgreen")
-                    fig.add_hline(y=tp2_price, line_dash="solid", line_color="mediumseagreen", annotation_text=f"TP 2: {tp2_price:.{dp}f}", annotation_position="top right", annotation_font_color="mediumseagreen")
-                    fig.add_hline(y=tp3_price, line_dash="solid", line_color="green", annotation_text=f"TP 3: {tp3_price:.{dp}f}", annotation_position="top right", annotation_font_color="green")
-                    fig.add_hline(y=sl_price, line_dash="solid", line_color="red", annotation_text=f"STOP LOSS: {sl_price:.{dp}f}", annotation_position="bottom right", annotation_font_color="red")
-                                  
-                    fig.update_layout(title=f"{selected_display_name} - PRO AI VIP SIGNAL", yaxis_title="Price", xaxis_title="Date", template="plotly_dark", xaxis_rangeslider_visible=False, height=500)
-                    
-                    st.plotly_chart(fig, use_container_width=True)
+                    # 🟢 අලුත්: QuickChart Image Preview 🟢
+                    st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
+                    chart_url = generate_quickchart_url(selected_display_name.split()[0], "BUY" if prediction == 1 else "SELL", round(entry_price, dp), round(tp1_price, dp), round(tp2_price, dp), round(tp3_price, dp), round(sl_price, dp))
+                    st.image(chart_url, caption="Generated by QuickChart API")
 
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
                     if st.button("Send Signal & Chart to Telegram 🚀"):
@@ -287,12 +327,12 @@ with tab1:
                             telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
+                                # 🟢 අලුත්: QuickChart URL එක හරහා Telegram යැවීම 🟢
                                 try:
-                                    img_bytes = fig.to_image(format="png", width=800, height=500, engine="kaleido")
-                                    success = send_telegram_photo(telegram_text, img_bytes)
+                                    success = send_telegram_photo_url(telegram_text, chart_url)
                                 except Exception as e:
                                     success = send_telegram_message(telegram_text)
-                                    st.warning("⚠️ Chart Photo එක යවන්න 'kaleido' පැකේජය අවශ්‍යයි. කරුණාකර Streamlit Python version එක 3.10 ට වෙනස් කර Reboot කරන්න. (Text Signal එක පමණක් යැවිණි).")
+                                    st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal එක පමණක් යැවිණි).")
                                 
                             if success:
                                 st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
