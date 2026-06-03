@@ -3,6 +3,5 @@ yfinance
 scikit-learn
 pandas
 numpy
-plotly
+mplfinance
 requests
-kaleido==0.1.0post1
