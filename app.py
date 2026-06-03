@@ -7,8 +7,8 @@ import streamlit.components.v1 as components
 import requests
 import os
 import time
-import json
-import urllib.parse
+import plotly.graph_objects as go
+import io
 
 # --- 1. App පෙනුම සහ Title සැකසීම ---
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
@@ -41,7 +41,8 @@ def send_telegram_message(message):
     except:
         return False
 
-def send_telegram_photo_url(caption, photo_url):
+# 🟢 අලුත් Function එක: URL වෙනුවට Image Bytes කෙලින්ම යැවීම
+def send_telegram_photo_bytes(caption, photo_bytes):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
         return False
         
@@ -49,9 +50,10 @@ def send_telegram_photo_url(caption, photo_url):
     success = True
     
     for chat_id in [TELEGRAM_GROUP_ID, TELEGRAM_CHANNEL_ID]:
-        payload = {"chat_id": chat_id, "photo": photo_url, "caption": caption, "parse_mode": "Markdown"}
+        payload = {"chat_id": chat_id, "caption": caption, "parse_mode": "Markdown"}
+        files = {"photo": ("chart.png", photo_bytes, "image/png")}
         try:
-            res = requests.post(url, data=payload)
+            res = requests.post(url, data=payload, files=files)
             if res.status_code != 200:
                 success = False
         except:
@@ -59,99 +61,67 @@ def send_telegram_photo_url(caption, photo_url):
             
     return success
 
-# 🟢 UPDATE: generate_quickchart_url() function එක image_0.png reference එකට visualizes සකසා redesign කළා.
-def generate_candlestick_signal_chart(coin_name, direction, entry, tp1, tp2, tp3, sl, atr_val, decimals=4):
-    """
-    Trade setup diagram එකක් ලෙස bars visualizes visual diagram setup data visual visualization diagram visual representation visual diagram elements visuals visual elements visual to look like image_0.png setup chart.
-    """
-    labels = ["Stop Loss (🛑)", "Entry (🔵)", "TP 1 (🎯)", "TP 2 (🎯)", "TP 3 (🎯)"]
-    data = [sl, entry, tp1, tp2, tp3]
+# 🟢 අලුත් Function එක: Candlestick සහ Risk/Reward Zone Chart එක සෑදීම
+def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl):
+    # අවසාන කෑන්ඩල් 50 පමණක් පෙන්වමු, එවිට chart එක පැහැදිලියි
+    df_plot = df.tail(50).copy()
     
-    # Zone-based colors scheme to look like a setup, not dynamic by buy/sell. Red=Risk, Green=Reward.
-    sl_color = "rgb(231, 76, 60)"  # Strong red
-    entry_color = "rgb(52, 152, 219)" # Blue for entry
-    tp_color = "rgb(46, 204, 113)"    # Strong green for profit
-    
-    background_colors = [sl_color, entry_color, tp_color, tp_color, tp_color]
-    border_colors = [sl_color.replace("rgb", "rgba").replace(")", ", 1)"), 
-                     entry_color.replace("rgb", "rgba").replace(")", ", 1)"),
-                     tp_color.replace("rgb", "rgba").replace(")", ", 1)")]
-    
-    # Visual diagram setup:
-    # 1. Custom Title and Branding footer.
-    # 2. Data labels with price values above bars.
-    # 3. Bar styling (thicker, borders).
-    # 4. Correct axis framing.
-    
-    chart_config = {
-        "type": "bar",
-        "data": {
-            "labels": labels,
-            "datasets": [{
-                "label": "TRADE ZONES",
-                "data": data,
-                "backgroundColor": background_colors,
-                "borderColor": border_colors,
-                "borderWidth": 1.5,
-                "hoverBackgroundColor": background_colors,
-                "hoverBorderColor": border_colors,
-                "hoverBorderWidth": 2
-            }]
-        },
-        "options": {
-            "title": {
-                "display": True,
-                "text": f"✨ {coin_name} - {direction} TRADE SETUP 🚀",
-                "fontColor": "white",
-                "fontSize": 18,
-                "padding": 20
-            },
-            "legend": {"display": False},
-            "scales": {
-                "yAxes": [{
-                    "ticks": {
-                        "beginAtZero": False, 
-                        "fontColor": "#ffffff", 
-                        "fontSize": 12,
-                        "padding": 5,
-                        # Frame bars:
-                        "min": min(data) - (atr_val * 0.1),
-                        "max": max(data) + (atr_val * 0.1)
-                    },
-                    "gridLines": {"color": "#333333", "lineWidth": 0.5},
-                    "scaleLabel": {"display": True, "labelString": "Price Levels", "fontColor": "#888", "fontSize": 10}
-                }],
-                "xAxes": [{
-                    "ticks": {"fontColor": "#ffffff", "fontSize": 12, "padding": 5},
-                    "gridLines": {"color": "#333333", "lineWidth": 0.5},
-                    "barPercentage": 0.6,
-                    "categoryPercentage": 0.8
-                }]
-            },
-            "plugins": {
-                "datalabels": {
-                    "color": "white",
-                    "font": {"weight": "bold", "size": 11},
-                    "anchor": "end",
-                    "align": "top",
-                    "formatter": f"(value) => value.toFixed({decimals})" # Use passed decimals for correct price display
-                }
-            }
-        }
-    }
-    
-    base_url = "https://quickchart.io/chart"
-    # 🟢 අලුත්: JSON ක්‍රමයට නිවැරදිව කන්වර්ට් කිරීම 🟢
-    chart_config_json = json.dumps(chart_config)
-    params = {
-        "c": chart_config_json, 
-        "w": 700, # Increased width for better visual visual layout visual design elements to look like reference chart.
-        "h": 450,
-        "bkg": "#1e1e2f"
-    }
-    
-    encoded_params = urllib.parse.urlencode(params)
-    return f"{base_url}?{encoded_params}"
+    fig = go.Figure()
+
+    # Candlestick chart එක එකතු කිරීම
+    fig.add_trace(go.Candlestick(
+        x=df_plot.index,
+        open=df_plot['Open'],
+        high=df_plot['High'],
+        low=df_plot['Low'],
+        close=df_plot['Close'],
+        name='Price'
+    ))
+
+    # X-axis හි මුල සහ අග ගණනය කිරීම (Zones ඇඳීමට)
+    x_start = df_plot.index[0]
+    # අනාගතයට zone එක දික් කිරීමට අමතර space එකක් එකතු කිරීම
+    x_end = df_plot.index[-1] + pd.Timedelta(minutes=50) 
+
+    # 🟢 Profit Zone (Green Box) - Entry සිට TP3 දක්වා
+    fig.add_shape(
+        type="rect",
+        x0=x_start, y0=entry, x1=x_end, y1=tp3,
+        fillcolor="rgba(46, 204, 113, 0.2)" if direction == "BUY" else "rgba(46, 204, 113, 0.2)",
+        line=dict(color="rgba(46, 204, 113, 0.8)", width=2),
+        layer="below"
+    )
+
+    # 🔴 Stop Loss Zone (Red Box) - Entry සිට SL දක්වා
+    fig.add_shape(
+        type="rect",
+        x0=x_start, y0=sl, x1=x_end, y1=entry,
+        fillcolor="rgba(231, 76, 60, 0.2)",
+        line=dict(color="rgba(231, 76, 60, 0.8)", width=2),
+        layer="below"
+    )
+
+    # Entry, TP, සහ SL රේඛා පැහැදිලිව පෙන්වීම
+    fig.add_hline(y=entry, line_dash="dash", line_color="blue", annotation_text="Entry", annotation_position="top right")
+    fig.add_hline(y=tp3, line_dash="dash", line_color="green", annotation_text="TP 3", annotation_position="top right")
+    fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="Stop Loss", annotation_position="bottom right")
+
+    # Chart එකේ ලස්සන හැඩය සහ වර්ණ (Dark theme)
+    fig.update_layout(
+        title=f"✨ {coin_name} - {direction} SETUP 🚀",
+        yaxis_title="Price",
+        xaxis_title="Time",
+        template="plotly_dark",
+        xaxis_rangeslider_visible=False,
+        width=800,
+        height=500,
+        margin=dict(l=40, r=40, t=60, b=40)
+    )
+
+    # Image එක Bytes බවට පරිවර්තනය (Kaleido අවශ්‍යයි)
+    img_bytes = fig.to_image(format="png")
+    return img_bytes
+
 
 HISTORY_FILE = "signal_history.csv"
 
@@ -330,6 +300,7 @@ with tab1:
                 st.write("---")
                 if has_valid_signal:
                     dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
+                    direction = "BUY" if prediction == 1 else "SELL"
                     
                     target_msg = (
                         f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (ATR & SMC Visual Targets):**\n\n"
@@ -344,10 +315,16 @@ with tab1:
                     st.info(target_msg)
                     
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
-                    # 🟢 UPDATE: generate_quickchart_url reference with the new visual diagram diagram function.
-                    # pass atr_val to help framing and dp for decimals to match price labels on chart visual diagram elements visual.
-                    chart_url = generate_candlestick_signal_chart(selected_display_name.split()[0], "BUY" if prediction == 1 else "SELL", round(entry_price, dp), round(tp1_price, dp), round(tp2_price, dp), round(tp3_price, dp), round(sl_price, dp), atr_val, decimals=dp)
-                    st.image(chart_url, caption="Generated by QuickChart API (Visual Trading Setup)")
+                    
+                    # 🟢 Image Bytes Generate කිරීම
+                    try:
+                        chart_image_bytes = generate_candlestick_image_bytes(df, selected_display_name.split()[0], direction, entry_price, tp3_price, sl_price)
+                        st.image(chart_image_bytes, caption="Generated Candlestick setup with Plotly")
+                        image_generated_successfully = True
+                    except Exception as img_err:
+                        st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. Streamlit cloud හි kaleido package එක නිවැරදිව ස්ථාපනය වී ඇතිදැයි පරීක්ෂා කරන්න. ({img_err})")
+                        image_generated_successfully = False
+
 
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
                     if st.button("Send Signal & Chart to Telegram 🚀"):
@@ -369,7 +346,11 @@ with tab1:
                             telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
-                                success = send_telegram_photo_url(telegram_text, chart_url)
+                                success = False
+                                if image_generated_successfully:
+                                    # 🟢 අලුත් Function එක හරහා Image Bytes යැවීම
+                                    success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                                
                                 if not success:
                                     success = send_telegram_message(telegram_text)
                                     st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal එක පමණක් යැවිණි).")
@@ -384,7 +365,7 @@ with tab1:
                             else:
                                 st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
             except Exception as e:
-                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න.")
+                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න. ({e})")
     else:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
