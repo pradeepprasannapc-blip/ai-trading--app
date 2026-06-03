@@ -6,4 +6,5 @@ numpy
 plotly
 streamlit-lightweight-charts
 requests
-kaleido
+kaleido==0.1.0.post1
+
