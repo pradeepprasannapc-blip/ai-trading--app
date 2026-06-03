@@ -4,6 +4,5 @@ scikit-learn
 pandas
 numpy
 plotly
-streamlit-lightweight-charts
 requests
-kaleido==0.1.0.post1
+matplotlib
