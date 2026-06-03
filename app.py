@@ -61,20 +61,19 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
-# 🟢 VIP TradingView Style Chart Generator (Light Theme with fixed colors)
+# 🟢 VIP TradingView Style Chart Generator (With Price Tags on Right)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, timeframe):
     df_plot = df.tail(100).copy() # වඩාත් හොඳ දර්ශනයක් සඳහා කෑන්ඩල් 100ක් ගනිමු
     
-    # 1. පින්තූරයේ පරිදි Moving Averages (7, 25, 100) සැකසීම
+    # 1. Moving Averages (7, 25, 100) සැකසීම
     df_plot['MA_7'] = df_plot['Close'].rolling(window=7).mean()
     df_plot['MA_25'] = df_plot['Close'].rolling(window=25).mean()
     df_plot['MA_100'] = df_plot['Close'].rolling(window=100).mean()
     
-    # 2. Risk/Reward කොටුව දකුණට දික් කිරීමට අනාගත කෑන්ඩල් සඳහා ඉඩ හැදීම
+    # 2. අනාගත කෑන්ඩල් සඳහා ඉඩ හැදීම (Risk/Reward Box එකට සහ Price Tags වලට)
     freq = df_plot.index.to_series().diff().median()
     last_date = df_plot.index[-1]
     
-    # අනාගතයට කෑන්ඩල් 25ක් පමණ ඉඩ තබමු
     future_dates = [last_date + (freq * i) for i in range(1, 26)] 
     future_index = pd.DatetimeIndex(future_dates)
     future_df = pd.DataFrame(index=future_index, columns=df_plot.columns)
@@ -82,28 +81,22 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     
     total_len = len(df_padded)
     
-    # 3. Entry, TP, SL රේඛා සඳහා Arrays
     y_entry = np.full(total_len, entry)
     y_tp = np.full(total_len, tp3)
     y_sl = np.full(total_len, sl)
     
-    # කොටුව අඳින්නේ අවසාන historical කෑන්ඩල් 5 සහ අනාගත කෑන්ඩල් තුළ පමණයි
     where_mask = np.zeros(total_len, dtype=bool)
     where_mask[-(len(future_dates) + 5):] = True 
     
-    # Risk (Red) සහ Reward (Green) වර්ණ (TradingView සම්මත)
     fills = [
-        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), # Profit Box
-        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25)  # Loss Box
+        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), 
+        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25)  
     ]
     
-    # 4. VIP Light Theme සැකසුම් (Error Fixed: using 'inherit' for edges and wicks)
+    # 3. Light Theme සැකසුම්
     mc = mpf.make_marketcolors(
         up='#089981', down='#f23645',
-        edge='inherit',   # Fixed safely to avoid unpack error
-        wick='inherit',   # Fixed safely to avoid unpack error
-        volume='in',      # Volume based on candle color
-        ohlc='i'
+        edge='inherit', wick='inherit', volume='in', ohlc='i'
     )
     
     s = mpf.make_mpf_style(
@@ -116,37 +109,60 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
         rc={'font.size': 9}
     )
     
-    # 5. Entry, TP, SL තිරස් රේඛා (පින්තූරයේ කළු/කොළ/රතු රේඛා මෙන්)
-    hlines = dict(hlines=[entry, tp3, sl], colors=['#000000', '#089981', '#f23645'], linestyle='-', linewidths=1.5, alpha=0.8)
-    
-    # 6. Moving Averages Chart එකට එකතු කිරීම
+    # 4. Moving Averages එකතු කිරීම
     ap = []
     if not df_padded['MA_7'].isna().all():
-        ap.append(mpf.make_addplot(df_padded['MA_7'], color='#2962ff', width=1.5)) # Blue
+        ap.append(mpf.make_addplot(df_padded['MA_7'], color='#2962ff', width=1.5)) 
     if not df_padded['MA_25'].isna().all():
-        ap.append(mpf.make_addplot(df_padded['MA_25'], color='#9c27b0', width=1.5)) # Purple
+        ap.append(mpf.make_addplot(df_padded['MA_25'], color='#9c27b0', width=1.5)) 
     if not df_padded['MA_100'].isna().all():
-        ap.append(mpf.make_addplot(df_padded['MA_100'], color='#66bb6a', width=1.5)) # Green
+        ap.append(mpf.make_addplot(df_padded['MA_100'], color='#66bb6a', width=1.5)) 
     
-    buf = io.BytesIO()
-    
-    # ප්‍රස්ථාරය ඇඳීම
-    mpf.plot(
+    # 5. Figure එක Create කිරීම (Price tags දාන්න returnfig=True පාවිච්චි කරමු)
+    fig, axlist = mpf.plot(
         df_padded, 
         type='candle', 
         style=s, 
-        volume=True,      # යටින් Volume එක පෙන්වීම
-        addplot=ap,       # MAs
-        fill_between=fills, # Risk/Reward
-        hlines=hlines,    
-        title=f"\n{coin_name} - {direction} SETUP ({timeframe}) | PRO VIP",
-        returnfig=False, 
-        savefig=dict(fname=buf, dpi=120, bbox_inches='tight'), 
+        volume=True,      
+        addplot=ap,       
+        fill_between=fills,
+        returnfig=True, 
         figsize=(12, 6.5), 
-        panel_ratios=(5,1), # ප්‍රධාන චාට් එකට 5ක්, Volume එකට 1ක්
+        panel_ratios=(5,1), 
         tight_layout=True
     )
     
+    ax_main = axlist[0] # ප්‍රධාන චාට් එකේ Axis එක
+    
+    # 6. TradingView Style Price Tags සහ Lines ඇඳීම
+    x_max = total_len - 1 # චාට් එකේ දකුණු කෙළවර
+    
+    levels = [
+        (entry, '#3b3b3b', 'Entry'),
+        (tp3, '#089981', 'TP 3'),
+        (sl, '#f23645', 'Stop Loss')
+    ]
+    
+    # අදාළ මට්ටම් වලට ඉරි සහ කොටු එකතු කිරීම
+    for price, color, label in levels:
+        # තිරස් රේඛාව (Horizontal line)
+        ax_main.axhline(y=price, color=color, linestyle='-', linewidth=1.2, alpha=0.9)
+        
+        # දකුණු පස ඇති Price Box එක (TradingView Tag)
+        bbox_props = dict(boxstyle="square,pad=0.3", fc=color, ec=color, lw=0)
+        # මිලෙහි Dash ගණන නිවැරදිව පෙන්වීමට
+        dp = 6 if price < 0.01 else 2
+        ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white", fontsize=10, fontweight='bold', bbox=bbox_props)
+        
+        # රේඛාව උඩින් නම (Entry, TP, SL) ලිවීම
+        ax_main.text(x_max - 2, price + (price * 0.002), label, ha="right", va="bottom", color=color, fontsize=10, fontweight='bold')
+
+    # 7. Title එක Watermark එකක් වගේ උඩින්ම දැමීම
+    fig.suptitle(f"✨ PRO VIP SIGNALS: {coin_name} - {direction} SETUP ({timeframe}) 🚀", fontsize=14, fontweight='bold', y=0.96)
+
+    # පින්තූරය Bytes වලට හැරවීම
+    buf = io.BytesIO()
+    fig.savefig(buf, dpi=120, bbox_inches='tight')
     buf.seek(0)
     return buf.read()
 
@@ -211,7 +227,7 @@ with tab1:
 
     df = get_market_data(ticker, selected_tf["yf"], selected_tf["period"])
 
-    if not df.empty and len(df) > 105: # MA 100 සඳහා දත්ත අවශ්‍යයි
+    if not df.empty and len(df) > 105: 
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
             
         df['Returns'] = df['Close'].pct_change()
@@ -298,7 +314,7 @@ with tab1:
                         st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
         
                 chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
-                # 🟢 Here we set the tradingview widget theme back to "dark" as requested
+                # 🟢 TradingView Widget එක Dark Mode ලෙස පෙන්වයි
                 tradingview_html = f"""
                 <div class="tradingview-widget-container" style="height:500px; width:100%;">
                   <div id="tradingview_chart" style="height:500px;"></div>
@@ -346,9 +362,9 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        # 🟢 අලුත් Light Theme TradingView Style Chart එක Generate කිරීම
+                        # 🟢 Price Tags සහිත නවතම TradingView Style Chart එක Generate කිරීම
                         chart_image_bytes = generate_candlestick_image_bytes(df, selected_display_name.split()[0], direction_text, entry_price, tp3_price, sl_price, tf_display)
-                        st.image(chart_image_bytes, caption="Generated VIP TradingView Setup (Light Theme)")
+                        st.image(chart_image_bytes, caption="Generated VIP TradingView Setup (With Price Tags)")
                         image_generated_successfully = True
                     except Exception as img_err:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
