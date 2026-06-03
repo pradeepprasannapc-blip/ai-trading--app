@@ -15,7 +15,6 @@ st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layo
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
 st.write("SMC (FVG & Order Blocks), ATR දර්ශකය සහ ලෝකයේ හොඳම Technical Indicators එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
-# Secrets හරහා Token සහ IDs ලබා ගැනීම
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
     TELEGRAM_GROUP_ID = st.secrets["TELEGRAM_GROUP_ID"]
@@ -41,7 +40,6 @@ def send_telegram_message(message):
     except:
         return False
 
-# 🟢 අලුත්: Chart Photo එකත් එක්කම Signal එක යැවීමේ Function එක 🟢
 def send_telegram_photo(caption, image_bytes):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
         return False
@@ -63,20 +61,11 @@ def send_telegram_photo(caption, image_bytes):
 
 HISTORY_FILE = "signal_history.csv"
 
-# --- TABS සෑදීම ---
 tab1, tab2 = st.tabs(["⚡ Live AI Signals", "📂 Auto Signal History & Live Tracker"])
 
-# ==========================================
-# TAB 1: LIVE SIGNALS 
-# ==========================================
 with tab1:
     st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න:")
-
-    category = st.radio(
-        "ප්‍රවර්ගය තෝරන්න:",
-        ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ", "💱 ෆොරෙක්ස්", "✨ ලෝහ සහ තෙල්", "✏️ වෙනත් (Custom)"],
-        horizontal=True
-    )
+    category = st.radio("ප්‍රවර්ගය තෝරන්න:", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ", "💱 ෆොරෙක්ස්", "✨ ලෝහ සහ තෙල්", "✏️ වෙනත් (Custom)"], horizontal=True)
 
     if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
         market_options = {
@@ -94,19 +83,14 @@ with tab1:
         full_tv_ticker = f"BINANCE:{clean_symbol}"
 
     elif category == "💱 ෆොරෙක්ස්":
-        market_options = {
-            "Euro / US Dollar (EUR/USD)": "EURUSD=X", "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X",
-            "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X", "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X"
-        }
+        market_options = {"Euro / US Dollar (EUR/USD)": "EURUSD=X", "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X", "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X", "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X"}
         selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
         ticker = market_options[selected_display_name]
         clean_symbol = ticker.replace('=X', '')
         full_tv_ticker = f"FX_IDC:{clean_symbol}"
 
     elif category == "✨ ලෝහ සහ තෙල්":
-        market_options = {
-            "රන් / Gold (XAU/USD)": "GC=F", "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"
-        }
+        market_options = {"රන් / Gold (XAU/USD)": "GC=F", "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"}
         selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
         ticker = market_options[selected_display_name]
         clean_symbol = ticker.replace('=F', '')
@@ -115,24 +99,15 @@ with tab1:
     else:
         st.info("💡 **ඔබට අවශ්‍ය ඕනෑම කාසියක් මෙහි ඇතුළත් කළ හැක.**")
         col_c1, col_c2 = st.columns(2)
-        with col_c1:
-            ticker = st.text_input("Yahoo Finance Ticker:", "DOGE-USD")
-        with col_c2:
-            full_tv_ticker = st.text_input("TradingView Symbol:", "BINANCE:DOGEUSDT")
+        with col_c1: ticker = st.text_input("Yahoo Finance Ticker:", "DOGE-USD")
+        with col_c2: full_tv_ticker = st.text_input("TradingView Symbol:", "BINANCE:DOGEUSDT")
         selected_display_name = f"Custom Symbol ({ticker})"
 
-    tf_display = st.selectbox(
-        "Timeframe එක තෝරන්න:", 
-        ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"]
-    )
-
+    tf_display = st.selectbox("Timeframe එක තෝරන්න:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"])
     tf_mapping = {
-        "5 min": {"yf": "5m", "tv": "5", "period": "7d"},
-        "15 min": {"yf": "15m", "tv": "15", "period": "7d"},
-        "30 min": {"yf": "30m", "tv": "30", "period": "30d"},
-        "1 hour": {"yf": "1h", "tv": "60", "period": "60d"},
-        "4 hour": {"yf": "4h", "tv": "240", "period": "90d"},
-        "1 day": {"yf": "1d", "tv": "D", "period": "max"}
+        "5 min": {"yf": "5m", "tv": "5", "period": "7d"}, "15 min": {"yf": "15m", "tv": "15", "period": "7d"},
+        "30 min": {"yf": "30m", "tv": "30", "period": "30d"}, "1 hour": {"yf": "1h", "tv": "60", "period": "60d"},
+        "4 hour": {"yf": "4h", "tv": "240", "period": "90d"}, "1 day": {"yf": "1d", "tv": "D", "period": "max"}
     }
     selected_tf = tf_mapping[tf_display]
 
@@ -144,8 +119,7 @@ with tab1:
     df = get_market_data(ticker, selected_tf["yf"], selected_tf["period"])
 
     if not df.empty and len(df) > 35:
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
             
         df['Returns'] = df['Close'].pct_change()
         df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
@@ -162,14 +136,12 @@ with tab1:
         df['BB_Upper'] = df['MA20'] + (df['StdDev'] * 2)
         df['BB_Lower'] = df['MA20'] - (df['StdDev'] * 2)
         
-        # ATR 
         df['High-Low'] = df['High'] - df['Low']
         df['High-PrevClose'] = np.abs(df['High'] - df['Close'].shift(1))
         df['Low-PrevClose'] = np.abs(df['Low'] - df['Close'].shift(1))
         df['TR'] = df[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
         df['ATR'] = df['TR'].rolling(window=14).mean()
         
-        # SMC FVG 
         df['FVG_Bull'] = np.where(df['Low'] > df['High'].shift(2), 1, 0)
         df['FVG_Bear'] = np.where(df['High'] < df['Low'].shift(2), 1, 0)
         
@@ -206,13 +178,13 @@ with tab1:
                 
                 pullback_amount = atr_val * 0.2  
                 
-                if prediction == 1: # BUY
+                if prediction == 1: 
                     entry_price = current_price - pullback_amount 
                     tp1_price = entry_price + (atr_val * 1.2)
                     tp2_price = entry_price + (atr_val * 2.2)
                     tp3_price = entry_price + (atr_val * 3.5)
                     sl_price = entry_price - (atr_val * 1.5) 
-                else: # SELL
+                else: 
                     entry_price = current_price + pullback_amount 
                     tp1_price = entry_price - (atr_val * 1.2)
                     tp2_price = entry_price - (atr_val * 2.2)
@@ -276,7 +248,6 @@ with tab1:
                     )
                     st.info(target_msg)
                     
-                    # 📸 Signal Visualizer Chart 
                     st.write("### 📸 Signal Visualizer (මෙම ප්‍රස්ථාරය Signal එක සමග ස්වයංක්‍රීයව Telegram වෙත යැවේ)")
                     
                     fig = go.Figure(data=[go.Candlestick(x=df.index[-50:], 
@@ -286,23 +257,13 @@ with tab1:
                                     close=df['Close'].iloc[-50:],
                                     name="Price")])
                     
-                    fig.add_hline(y=entry_price, line_dash="dash", line_color="blue", 
-                                  annotation_text=f"ENTRY: {entry_price:.{dp}f}", annotation_position="bottom right", annotation_font_color="blue")
-                    fig.add_hline(y=tp1_price, line_dash="solid", line_color="lightgreen", 
-                                  annotation_text=f"TP 1: {tp1_price:.{dp}f}", annotation_position="top right", annotation_font_color="lightgreen")
-                    fig.add_hline(y=tp2_price, line_dash="solid", line_color="mediumseagreen", 
-                                  annotation_text=f"TP 2: {tp2_price:.{dp}f}", annotation_position="top right", annotation_font_color="mediumseagreen")
-                    fig.add_hline(y=tp3_price, line_dash="solid", line_color="green", 
-                                  annotation_text=f"TP 3: {tp3_price:.{dp}f}", annotation_position="top right", annotation_font_color="green")
-                    fig.add_hline(y=sl_price, line_dash="solid", line_color="red", 
-                                  annotation_text=f"STOP LOSS: {sl_price:.{dp}f}", annotation_position="bottom right", annotation_font_color="red")
+                    fig.add_hline(y=entry_price, line_dash="dash", line_color="blue", annotation_text=f"ENTRY: {entry_price:.{dp}f}", annotation_position="bottom right", annotation_font_color="blue")
+                    fig.add_hline(y=tp1_price, line_dash="solid", line_color="lightgreen", annotation_text=f"TP 1: {tp1_price:.{dp}f}", annotation_position="top right", annotation_font_color="lightgreen")
+                    fig.add_hline(y=tp2_price, line_dash="solid", line_color="mediumseagreen", annotation_text=f"TP 2: {tp2_price:.{dp}f}", annotation_position="top right", annotation_font_color="mediumseagreen")
+                    fig.add_hline(y=tp3_price, line_dash="solid", line_color="green", annotation_text=f"TP 3: {tp3_price:.{dp}f}", annotation_position="top right", annotation_font_color="green")
+                    fig.add_hline(y=sl_price, line_dash="solid", line_color="red", annotation_text=f"STOP LOSS: {sl_price:.{dp}f}", annotation_position="bottom right", annotation_font_color="red")
                                   
-                    fig.update_layout(title=f"{selected_display_name} - PRO AI VIP SIGNAL",
-                                      yaxis_title="Price",
-                                      xaxis_title="Date",
-                                      template="plotly_dark",
-                                      xaxis_rangeslider_visible=False,
-                                      height=500)
+                    fig.update_layout(title=f"{selected_display_name} - PRO AI VIP SIGNAL", yaxis_title="Price", xaxis_title="Date", template="plotly_dark", xaxis_rangeslider_visible=False, height=500)
                     
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -316,57 +277,30 @@ with tab1:
                             
                         is_safe_to_send = True
                         if prediction == 1: 
-                            if check_live >= tp1_price or check_live <= sl_price:
-                                is_safe_to_send = False
+                            if check_live >= tp1_price or check_live <= sl_price: is_safe_to_send = False
                         else:
-                            if check_live <= tp1_price or check_live >= sl_price:
-                                is_safe_to_send = False
+                            if check_live <= tp1_price or check_live >= sl_price: is_safe_to_send = False
                                 
                         if not is_safe_to_send:
                             st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                         else:
-                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
-                            telegram_text += f"🪙 *Coin/Pair:* {selected_display_name}\n"
-                            telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
-                            telegram_text += f"🔥 *Direction:* {dir_text}\n\n"
-                            telegram_text += f"🔵 *Entry Price:* `${entry_price:.{dp}f}`\n"
-                            telegram_text += f"🎯 *TP 1:* `${tp1_price:.{dp}f}`\n"
-                            telegram_text += f"🎯 *TP 2:* `${tp2_price:.{dp}f}`\n"
-                            telegram_text += f"🎯 *TP 3:* `${tp3_price:.{dp}f}`\n"
-                            telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
-                            telegram_text += f"💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
-                                # 🟢 අලුත්: Chart එක Photo එකක් ලෙස Image Bytes බවට පත් කිරීම 🟢
                                 try:
                                     img_bytes = fig.to_image(format="png", width=800, height=500, engine="kaleido")
                                     success = send_telegram_photo(telegram_text, img_bytes)
                                 except Exception as e:
-                                    # Kaleido නොමැති නම් සාමාන්‍ය Text එක පමණක් යැවීම (Fallback)
                                     success = send_telegram_message(telegram_text)
-                                    st.warning("⚠️ Chart Photo එක යවන්න 'kaleido' පැකේජය අවශ්‍යයි. කරුණාකර Terminal එකේ `pip install kaleido` ලබා දෙන්න. (Text Signal එක පමණක් යැවිණි).")
+                                    st.warning("⚠️ Chart Photo එක යවන්න 'kaleido' පැකේජය අවශ්‍යයි. කරුණාකර Streamlit Python version එක 3.10 ට වෙනස් කර Reboot කරන්න. (Text Signal එක පමණක් යැවිණි).")
                                 
                             if success:
                                 st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
-                                
                                 date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                                data = {
-                                    "Date": [date_str], 
-                                    "Ticker": [ticker],
-                                    "Coin": [selected_display_name.split()[0]], 
-                                    "Direction": ["BUY" if prediction == 1 else "SELL"], 
-                                    "Entry": [entry_price], 
-                                    "TP1": [tp1_price],
-                                    "TP2": [tp2_price],
-                                    "TP3": [tp3_price],
-                                    "SL": [sl_price],
-                                    "Status": ["⏳ Pending Entry"]
-                                }
+                                data = {"Date": [date_str], "Ticker": [ticker], "Coin": [selected_display_name.split()[0]], "Direction": ["BUY" if prediction == 1 else "SELL"], "Entry": [entry_price], "TP1": [tp1_price], "TP2": [tp2_price], "TP3": [tp3_price], "SL": [sl_price], "Status": ["⏳ Pending Entry"]}
                                 df_new = pd.DataFrame(data)
-                                if os.path.exists(HISTORY_FILE):
-                                    df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
-                                else:
-                                    df_new.to_csv(HISTORY_FILE, index=False)
+                                if os.path.exists(HISTORY_FILE): df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                                else: df_new.to_csv(HISTORY_FILE, index=False)
                             else:
                                 st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
             except Exception as e:
@@ -374,13 +308,9 @@ with tab1:
     else:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
 
-# ==========================================
-# TAB 2: SIGNAL HISTORY & RESULTS (AUTO CHECKER & LIVE TRACKER)
-# ==========================================
 with tab2:
     st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
     st.write("මාකට් එකේ සජීවී මිල මෙහි යාවත්කාලීන වේ. TP 1, 2, හෝ 3 Hit වූ විට Status එක Auto වෙනස් වෙනවා!")
-    
     auto_refresh = st.checkbox("🔄 Auto Refresh (සෑම තත්පර 15කට වරක් සජීවී මිල සහ Status පමණක් යාවත්කාලීන වීමට මෙහි ටික් එකක් දාන්න)")
 
     if os.path.exists(HISTORY_FILE):
@@ -390,8 +320,7 @@ with tab2:
                 os.remove(HISTORY_FILE)
                 st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
                 st.stop()
-        except Exception:
-            pass
+        except Exception: pass
             
         updated = False
         live_prices_dict = {}
@@ -401,154 +330,95 @@ with tab2:
                 if "Cancelled" in str(row['Status']):
                     live_prices_dict[index] = np.nan
                     continue
-
                 try:
-                    current_live_price = None
-                    current_low = None
-                    current_high = None
-                    
+                    current_live_price, current_low, current_high = None, None, None
                     df_hist = yf.download(row['Ticker'], period="5d", interval="5m", progress=False)
-                    
                     if not df_hist.empty:
-                        if isinstance(df_hist.columns, pd.MultiIndex):
-                            df_hist.columns = df_hist.columns.get_level_values(0)
+                        if isinstance(df_hist.columns, pd.MultiIndex): df_hist.columns = df_hist.columns.get_level_values(0)
                         current_live_price = float(df_hist['Close'].dropna().iloc[-1])
                         current_low = float(df_hist['Low'].dropna().iloc[-1])
                         current_high = float(df_hist['High'].dropna().iloc[-1])
                     else:
                         tkr = yf.Ticker(row['Ticker'])
                         current_live_price = float(tkr.fast_info['lastPrice'])
-                        current_low = current_live_price
-                        current_high = current_live_price
+                        current_low = current_high = current_live_price
                         
                     if current_live_price is not None:
                         live_prices_dict[index] = current_live_price
-                        
-                        entry_val = float(row['Entry'])
-                        tp1_val = float(row['TP1'])
-                        tp2_val = float(row['TP2'])
-                        tp3_val = float(row['TP3'])
-                        sl_val = float(row['SL'])
-                        
+                        entry_val, tp1_val, tp2_val, tp3_val, sl_val = float(row['Entry']), float(row['TP1']), float(row['TP2']), float(row['TP3']), float(row['SL'])
                         new_status = str(row['Status'])
                         
                         if "Pending" in new_status:
                             if row['Direction'] == 'BUY':
-                                if current_high >= tp1_val:
-                                    new_status = "⚠️ Missed (Hit TP)"
-                                elif current_low <= sl_val:
-                                    new_status = "🚫 Invalid (Hit SL)"
-                                elif current_low <= entry_val:
-                                    new_status = "🟢 Active"
-                            else: # SELL
-                                if current_low <= tp1_val:
-                                    new_status = "⚠️ Missed (Hit TP)"
-                                elif current_high >= sl_val:
-                                    new_status = "🚫 Invalid (Hit SL)"
-                                elif current_high >= entry_val:
-                                    new_status = "🟢 Active"
+                                if current_high >= tp1_val: new_status = "⚠️ Missed (Hit TP)"
+                                elif current_low <= sl_val: new_status = "🚫 Invalid (Hit SL)"
+                                elif current_low <= entry_val: new_status = "🟢 Active"
+                            else: 
+                                if current_low <= tp1_val: new_status = "⚠️ Missed (Hit TP)"
+                                elif current_high >= sl_val: new_status = "🚫 Invalid (Hit SL)"
+                                elif current_high >= entry_val: new_status = "🟢 Active"
                                     
                         if new_status in ["🟢 Active", "✅ TP1 HIT", "✅ TP2 HIT"]:
                             if row['Direction'] == 'BUY':
-                                if current_high >= tp3_val:
-                                    new_status = "✅ TP3 HIT"
-                                elif current_high >= tp2_val and new_status not in ["✅ TP3 HIT"]:
-                                    new_status = "✅ TP2 HIT"
-                                elif current_high >= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]:
-                                    new_status = "✅ TP1 HIT"
-                                elif new_status == "🟢 Active" and current_low <= sl_val:
-                                    new_status = "🛑 SL HIT"
+                                if current_high >= tp3_val: new_status = "✅ TP3 HIT"
+                                elif current_high >= tp2_val and new_status not in ["✅ TP3 HIT"]: new_status = "✅ TP2 HIT"
+                                elif current_high >= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]: new_status = "✅ TP1 HIT"
+                                elif new_status == "🟢 Active" and current_low <= sl_val: new_status = "🛑 SL HIT"
                             else: 
-                                if current_low <= tp3_val:
-                                    new_status = "✅ TP3 HIT"
-                                elif current_low <= tp2_val and new_status not in ["✅ TP3 HIT"]:
-                                    new_status = "✅ TP2 HIT"
-                                elif current_low <= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]:
-                                    new_status = "✅ TP1 HIT"
-                                elif new_status == "🟢 Active" and current_high >= sl_val:
-                                    new_status = "🛑 SL HIT"
+                                if current_low <= tp3_val: new_status = "✅ TP3 HIT"
+                                elif current_low <= tp2_val and new_status not in ["✅ TP3 HIT"]: new_status = "✅ TP2 HIT"
+                                elif current_low <= tp1_val and new_status not in ["✅ TP2 HIT", "✅ TP3 HIT"]: new_status = "✅ TP1 HIT"
+                                elif new_status == "🟢 Active" and current_high >= sl_val: new_status = "🛑 SL HIT"
                                     
                         if new_status != str(row['Status']):
                             history_df.at[index, 'Status'] = new_status
                             updated = True
-                    else:
-                         live_prices_dict[index] = np.nan
-                except Exception:
-                    live_prices_dict[index] = np.nan
+                    else: live_prices_dict[index] = np.nan
+                except Exception: live_prices_dict[index] = np.nan
         
-        if updated:
-            history_df.to_csv(HISTORY_FILE, index=False)
+        if updated: history_df.to_csv(HISTORY_FILE, index=False)
             
         display_df = history_df.copy()
         display_df['Live Price'] = display_df.index.map(live_prices_dict)
-        
         def format_price(x):
             if pd.isnull(x): return "N/A"
             val = float(x)
             return f"${val:.8f}" if val < 0.01 else f"${val:.4f}"
 
-        cols_to_format = ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']
-        for col in cols_to_format:
-            display_df[col] = display_df[col].apply(format_price)
-            
+        for col in ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']: display_df[col] = display_df[col].apply(format_price)
         display_df.drop(columns=['Ticker'], inplace=True)
-        
         display_df = display_df.iloc[::-1]
         
-        # =========================================================
-        # HTML ඩිසයින් එක
-        # =========================================================
         html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}}</style>"
         html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
-        
         for idx, row in display_df.iterrows():
             status_text = str(row['Status'])
-            if "Pending Entry" in status_text:
-                status_td = f"<td><div class='marquee-container'><div class='marquee-scroll'>{status_text}</div></div></td>"
-            else:
-                status_td = f"<td>{status_text}</td>"
-                
+            status_td = f"<td><div class='marquee-container'><div class='marquee-scroll'>{status_text}</div></div></td>" if "Pending Entry" in status_text else f"<td>{status_text}</td>"
             html_table += f"<tr><td style='font-weight:bold; color:#888;'>{idx}</td><td>{row['Date']}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
-            
         html_table += "</table></div>"
-        
         st.markdown(html_table, unsafe_allow_html=True)
-        # =========================================================
 
-        # --- TELEGRAM යැවීම ---
         st.write("---")
         st.subheader("📢 Result එක Telegram යවන්න")
-        
         completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active|Missed|Invalid", na=False, case=False)].iloc[::-1]
         
         if not completed_signals.empty:
-            options = []
-            for index, row in completed_signals.iterrows():
-                options.append(f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})")
-                
+            options = [f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" for index, row in completed_signals.iterrows()]
             selected_sig = st.selectbox("Update කරන්න අවශ්‍ය Signal එක තෝරන්න:", options)
-            
             if selected_sig:
                 selected_idx = options.index(selected_sig)
                 sel_row = completed_signals.iloc[selected_idx]
                 actual_index = sel_row.name 
-                
-                if sel_row['Direction'] == 'BUY':
-                    dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️"
-                else:
-                    dir_text_with_icons = "🔴 SELL / SHORT 📉 ⬇️"
+                dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️" if sel_row['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                 
                 if "Pending" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
-                    
                     col_pend1, col_pend2 = st.columns(2)
                     with col_pend1:
                         if st.button("⏳ Pending Alert මැසේජ් එක යවන්න 🚀"):
                             msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                            if send_telegram_message(msg):
-                                st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
-                    
+                            if send_telegram_message(msg): st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                     with col_pend2:
                         if st.button("🚫 Signal එක Cancel කරන්න"):
                             msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
@@ -557,10 +427,8 @@ with tab2:
                                 history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
                                 history_df.to_csv(HISTORY_FILE, index=False)
                                 time.sleep(1)
-                                try:
-                                    st.rerun()
-                                except AttributeError:
-                                    st.experimental_rerun()
+                                try: st.rerun()
+                                except AttributeError: st.experimental_rerun()
 
                 elif "Missed (Hit TP)" in sel_row['Status']:
                     if st.button("⚠️ Missed Setup මැසේජ් එක යවන්න 🚀"):
@@ -570,10 +438,8 @@ with tab2:
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
                             history_df.to_csv(HISTORY_FILE, index=False)
                             time.sleep(1)
-                            try:
-                                st.rerun()
-                            except AttributeError:
-                                st.experimental_rerun()
+                            try: st.rerun()
+                            except AttributeError: st.experimental_rerun()
 
                 elif "Invalid (Hit SL)" in sel_row['Status']:
                     if st.button("🚫 Invalid Setup මැසේජ් එක යවන්න 🚀"):
@@ -583,86 +449,57 @@ with tab2:
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
                             history_df.to_csv(HISTORY_FILE, index=False)
                             time.sleep(1)
-                            try:
-                                st.rerun()
-                            except AttributeError:
-                                st.experimental_rerun()
+                            try: st.rerun()
+                            except AttributeError: st.experimental_rerun()
                             
                 elif "Active" in sel_row['Status']:
                     entry_val = float(sel_row['Entry'])
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
                         msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                        if send_telegram_message(msg):
-                            st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                        if send_telegram_message(msg): st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
-                    tp_val = float(sel_row[hit_level])
-                    tp_dp = 8 if tp_val < 0.01 else 4
-                    
+                    tp_val, tp_dp = float(sel_row[hit_level]), 8 if float(sel_row[hit_level]) < 0.01 else 4
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
                         msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
-                        if send_telegram_message(msg):
-                            st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
+                        if send_telegram_message(msg): st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
                         msg = f"🛑 *STOP LOSS HIT* 📉\n\n🪙 *Coin:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                        if send_telegram_message(msg):
-                            st.success("🛑 Stop Loss මැසේජ් එක සාර්ථකව යැව්වා!")
-        else:
-            st.info("තවම Active, Pending, TP, SL හෝ Invalid වුණු සිග්නල් කිසිවක් නැත.")
+                        if send_telegram_message(msg): st.success("🛑 Stop Loss මැසේජ් එක සාර්ථකව යැව්වා!")
+        else: st.info("තවම Active, Pending, TP, SL හෝ Invalid වුණු සිග්නල් කිසිවක් නැත.")
 
-        # =========================================================
-        # 🗑️ HISTORY කළමනාකරණය
-        # =========================================================
         st.write("---")
         st.subheader("🗑️ History කළමනාකරණය (Delete Signals)")
-        
-        all_delete_options = []
-        for index, row in history_df.iterrows():
-            all_delete_options.append(f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})")
-        all_delete_options.reverse()
-        
+        all_delete_options = [f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" for index, row in history_df.iterrows()][::-1]
         selected_to_delete = st.multiselect("මකා දැමීමට අවශ්‍ය සිග්නල් තෝරන්න:", all_delete_options)
         
         col_del1, col_del2 = st.columns(2)
         with col_del1:
             if st.button("🗑️ තෝරාගත් ඒවා පමණක් මකන්න"):
                 if selected_to_delete:
-                    indices_to_drop = []
-                    for index, row in history_df.iterrows():
-                        opt_str = f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})"
-                        if opt_str in selected_to_delete:
-                            indices_to_drop.append(index)
-                    
+                    indices_to_drop = [index for index, row in history_df.iterrows() if f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" in selected_to_delete]
                     history_df.drop(indices_to_drop, inplace=True)
                     history_df.to_csv(HISTORY_FILE, index=False)
                     st.success("✅ තෝරාගත් සිග්නල් සාර්ථකව මකා දැමුවා!")
                     time.sleep(1)
-                    try:
-                        st.rerun()
-                    except AttributeError:
-                        st.experimental_rerun()
-                else:
-                    st.warning("⚠️ මකා දැමීමට කිසිවක් තෝරා නැත.")
+                    try: st.rerun()
+                    except AttributeError: st.experimental_rerun()
+                else: st.warning("⚠️ මකා දැමීමට කිසිවක් තෝරා නැත.")
                     
         with col_del2:
             if st.button("🚨 ඔක්කොම මකන්න (Clear All)"):
                 os.remove(HISTORY_FILE)
                 st.success("✅ History එක සම්පූර්ණයෙන්ම මකා දැමුවා!")
                 time.sleep(1)
-                try:
-                    st.rerun()
-                except AttributeError:
-                    st.experimental_rerun()
+                try: st.rerun()
+                except AttributeError: st.experimental_rerun()
             
         if auto_refresh:
             time.sleep(15)
-            try:
-                st.rerun()
-            except AttributeError:
-                st.experimental_rerun()
-    else:
-        st.info("දැනට කිසිම Signal එකක් Save වෙලා නෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
+            try: st.rerun()
+            except AttributeError: st.experimental_rerun()
+    else: st.info("දැනට කිසිම Signal එකක් Save වෙලා නෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
