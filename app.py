@@ -41,7 +41,6 @@ def send_telegram_message(message):
     except:
         return False
 
-# 🟢 Image Bytes කෙලින්ම Telegram යැවීමේ Function එක
 def send_telegram_photo_bytes(caption, photo_bytes):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
         return False
@@ -61,16 +60,16 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
-# 🟢 VIP TradingView Style Chart Generator (With Price Tags on Right)
+# 🟢 Advanced Pro Chart Generator (With Fibonacci, Trendlines & Watermarks)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, timeframe):
-    df_plot = df.tail(100).copy() # වඩාත් හොඳ දර්ශනයක් සඳහා කෑන්ඩල් 100ක් ගනිමු
+    df_plot = df.tail(120).copy() # කෑන්ඩල් 120ක් ගනිමු Fib අඳින්න ලේසි වෙන්න
     
-    # 1. Moving Averages (7, 25, 100) සැකසීම
+    # 1. Moving Averages
     df_plot['MA_7'] = df_plot['Close'].rolling(window=7).mean()
     df_plot['MA_25'] = df_plot['Close'].rolling(window=25).mean()
     df_plot['MA_100'] = df_plot['Close'].rolling(window=100).mean()
     
-    # 2. අනාගත කෑන්ඩල් සඳහා ඉඩ හැදීම (Risk/Reward Box එකට සහ Price Tags වලට)
+    # 2. අනාගත කෑන්ඩල් සඳහා ඉඩ හැදීම (Risk/Reward Box එකට)
     freq = df_plot.index.to_series().diff().median()
     last_date = df_plot.index[-1]
     
@@ -81,35 +80,53 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     
     total_len = len(df_padded)
     
-    y_entry = np.full(total_len, entry)
-    y_tp = np.full(total_len, tp3)
-    y_sl = np.full(total_len, sl)
+    # 3. Fibonacci Retracement Levels ගණනය කිරීම
+    low_val = df_plot['Low'].min()
+    high_val = df_plot['High'].max()
+    low_idx = df_plot['Low'].values.argmin()
+    high_idx = df_plot['High'].values.argmax()
     
+    diff = high_val - low_val
+    # 0.382 සහ 0.618 Levels
+    fib_382 = high_val - (diff * 0.382) if low_idx < high_idx else low_val + (diff * 0.382)
+    fib_618 = high_val - (diff * 0.618) if low_idx < high_idx else low_val + (diff * 0.618)
+    
+    start_fib_idx = min(low_idx, high_idx)
+    end_fib_idx = max(low_idx, high_idx)
+    
+    # Risk/Reward සහ Fib Box සඳහා Masks
     where_mask = np.zeros(total_len, dtype=bool)
     where_mask[-(len(future_dates) + 5):] = True 
     
+    where_fib = np.zeros(total_len, dtype=bool)
+    where_fib[start_fib_idx:end_fib_idx+1] = True
+    
+    y_entry = np.full(total_len, entry)
+    y_tp = np.full(total_len, tp3)
+    y_sl = np.full(total_len, sl)
+    y_fib_top = np.full(total_len, high_val)
+    y_fib_bot = np.full(total_len, low_val)
+    
+    # Fills (Shaded boxes)
     fills = [
-        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), 
-        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25)  
+        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), # Profit Green Box
+        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25), # Loss Red Box
+        dict(y1=y_fib_top, y2=y_fib_bot, where=where_fib, color='#787b86', alpha=0.06) # Fib Gray Box
     ]
     
-    # 3. Light Theme සැකසුම්
-    mc = mpf.make_marketcolors(
-        up='#089981', down='#f23645',
-        edge='inherit', wick='inherit', volume='in', ohlc='i'
-    )
-    
+    # 4. VIP Light Theme + Grid සැකසුම්
+    mc = mpf.make_marketcolors(up='#089981', down='#f23645', edge='inherit', wick='inherit', volume='in', ohlc='i')
     s = mpf.make_mpf_style(
         marketcolors=mc, 
         gridcolor='#e1e3eb', 
-        gridstyle='-', 
+        gridstyle='--', # අලුත්: Dashed Grid රේඛා
         facecolor='#ffffff', 
         edgecolor='#b2b5be',
         figcolor='#ffffff',
-        rc={'font.size': 9}
+        rc={'font.size': 9, 'axes.grid': True}
     )
     
-    # 4. Moving Averages එකතු කිරීම
+    # 5. Moving Averages Chart එකට එකතු කිරීම
     ap = []
     if not df_padded['MA_7'].isna().all():
         ap.append(mpf.make_addplot(df_padded['MA_7'], color='#2962ff', width=1.5)) 
@@ -118,7 +135,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     if not df_padded['MA_100'].isna().all():
         ap.append(mpf.make_addplot(df_padded['MA_100'], color='#66bb6a', width=1.5)) 
     
-    # 5. Figure එක Create කිරීම (Price tags දාන්න returnfig=True පාවිච්චි කරමු)
+    # 6. Figure එක Create කිරීම
     fig, axlist = mpf.plot(
         df_padded, 
         type='candle', 
@@ -132,33 +149,34 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
         tight_layout=True
     )
     
-    ax_main = axlist[0] # ප්‍රධාන චාට් එකේ Axis එක
+    ax_main = axlist[0] 
     
-    # 6. TradingView Style Price Tags සහ Lines ඇඳීම
-    x_max = total_len - 1 # චාට් එකේ දකුණු කෙළවර
+    # 7. Fibonacci රේඛා සහ Trendline ඇඳීම
+    # Diagonal Trendline
+    ax_main.plot([low_idx, high_idx], [low_val, high_val], color='#787b86', linestyle='--', linewidth=1.5, alpha=0.8)
     
-    levels = [
-        (entry, '#3b3b3b', 'Entry'),
-        (tp3, '#089981', 'TP 3'),
-        (sl, '#f23645', 'Stop Loss')
-    ]
+    # Fib Horizontal Lines & Labels
+    fib_levels_to_draw = [(high_val, '1 (100%)'), (fib_618, '0.618'), (fib_382, '0.382'), (low_val, '0 (0%)')]
+    for val, label in fib_levels_to_draw:
+        ax_main.plot([start_fib_idx, end_fib_idx], [val, val], color='#787b86', linestyle=':', linewidth=1.2, alpha=0.8)
+        ax_main.text(start_fib_idx, val, f" {label}", color='#787b86', fontsize=8, va='bottom', ha='left')
+
+    # 8. TradingView Style Price Tags (Entry, TP, SL)
+    x_max = total_len - 1 
+    target_levels = [(entry, '#3b3b3b', 'Entry'), (tp3, '#089981', 'TP 3'), (sl, '#f23645', 'Stop Loss')]
     
-    # අදාළ මට්ටම් වලට ඉරි සහ කොටු එකතු කිරීම
-    for price, color, label in levels:
-        # තිරස් රේඛාව (Horizontal line)
+    for price, color, label in target_levels:
         ax_main.axhline(y=price, color=color, linestyle='-', linewidth=1.2, alpha=0.9)
-        
-        # දකුණු පස ඇති Price Box එක (TradingView Tag)
         bbox_props = dict(boxstyle="square,pad=0.3", fc=color, ec=color, lw=0)
-        # මිලෙහි Dash ගණන නිවැරදිව පෙන්වීමට
         dp = 6 if price < 0.01 else 2
         ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white", fontsize=10, fontweight='bold', bbox=bbox_props)
-        
-        # රේඛාව උඩින් නම (Entry, TP, SL) ලිවීම
         ax_main.text(x_max - 2, price + (price * 0.002), label, ha="right", va="bottom", color=color, fontsize=10, fontweight='bold')
 
-    # 7. Title එක Watermark එකක් වගේ උඩින්ම දැමීම
-    fig.suptitle(f"✨ PRO VIP SIGNALS: {coin_name} - {direction} SETUP ({timeframe}) 🚀", fontsize=14, fontweight='bold', y=0.96)
+    # 9. Top-Left Watermark / Legend (පින්තූරයේ පරිදි)
+    coin_clean = coin_name.replace('USDT', ' / TetherUS')
+    ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#131722')
+    ax_main.text(0.01, 0.91, "Multi Moving Average (7, 25, 100)", transform=ax_main.transAxes, fontsize=9, color='#787b86')
+    ax_main.text(0.01, 0.86, f"AI Confidence: {direction} SETUP 🔥", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#089981' if direction=="BUY" else '#f23645')
 
     # පින්තූරය Bytes වලට හැරවීම
     buf = io.BytesIO()
@@ -227,7 +245,7 @@ with tab1:
 
     df = get_market_data(ticker, selected_tf["yf"], selected_tf["period"])
 
-    if not df.empty and len(df) > 105: 
+    if not df.empty and len(df) > 125: 
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
             
         df['Returns'] = df['Close'].pct_change()
@@ -314,7 +332,6 @@ with tab1:
                         st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
         
                 chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
-                # 🟢 TradingView Widget එක Dark Mode ලෙස පෙන්වයි
                 tradingview_html = f"""
                 <div class="tradingview-widget-container" style="height:500px; width:100%;">
                   <div id="tradingview_chart" style="height:500px;"></div>
@@ -362,9 +379,9 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        # 🟢 Price Tags සහිත නවතම TradingView Style Chart එක Generate කිරීම
-                        chart_image_bytes = generate_candlestick_image_bytes(df, selected_display_name.split()[0], direction_text, entry_price, tp3_price, sl_price, tf_display)
-                        st.image(chart_image_bytes, caption="Generated VIP TradingView Setup (With Price Tags)")
+                        # 🟢 Fibonaci & Watermarks සහිත නවතම Chart එක
+                        chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp3_price, sl_price, tf_display)
+                        st.image(chart_image_bytes, caption="Generated VIP TradingView Setup (With Fibonacci & Watermarks)")
                         image_generated_successfully = True
                     except Exception as img_err:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
