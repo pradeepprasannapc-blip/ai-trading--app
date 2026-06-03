@@ -172,8 +172,8 @@ with tab1:
                 ai_confidence = max(probability) * 100
                 dp = 8 if current_price < 0.01 else 4
                 
-                # 🟢 අලුත් වෙනස: සැබෑ Limit Order එකක් සඳහා "Pullback" (Entry Offset) එකක් සැකසීම 🟢
-                pullback_amount = volatility * 0.4  # සජීවී මිලට වඩා 40% ක දුරක් තබයි
+                # 🟢 අලුත් වෙනස: සජීවී මිලට වඩා 20% (0.2) ක දුරක් තැබීම 🟢
+                pullback_amount = volatility * 0.2  
                 
                 if prediction == 1: # BUY
                     entry_price = current_price - pullback_amount # මිල පහළට එනතෙක් Limit එක තබයි
@@ -248,7 +248,6 @@ with tab1:
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
                     if st.button("Send Signal to Telegram 🚀"):
                         
-                        # 🟢 අලුත් වෙනස: යවන්න කලින් "Expired" ද කියලා බලන Pre-Check එක 🟢
                         try:
                             check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
                         except:
@@ -265,7 +264,6 @@ with tab1:
                         if not is_safe_to_send:
                             st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                         else:
-                            # අවුලක් නැත්නම් Telegram යවමු
                             telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n"
                             telegram_text += f"🪙 *Coin/Pair:* {selected_display_name}\n"
                             telegram_text += f"⏱ *Timeframe:* {tf_display}\n"
