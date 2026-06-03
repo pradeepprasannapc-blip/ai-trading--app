@@ -11,8 +11,8 @@ import time
 # 1. App පෙනුම සහ Title සැකසීම
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
-st.title("⚡ PRO AI Trading Signal App")
-st.write("SMC තාක්ෂණය, ලෝකයේ හොඳම Technical Indicators සහ 100% Live TradingView Chart එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
+st.write("SMC (FVG & Order Blocks), ATR දර්ශකය සහ ලෝකයේ හොඳම Technical Indicators එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 # Secrets හරහා Token සහ IDs ලබා ගැනීම
 try:
@@ -141,14 +141,26 @@ with tab1:
         df['BB_Upper'] = df['MA20'] + (df['StdDev'] * 2)
         df['BB_Lower'] = df['MA20'] - (df['StdDev'] * 2)
         
+        # 🟢 අලුත්: ATR (Average True Range) ගණනය කිරීම 🟢
+        df['High-Low'] = df['High'] - df['Low']
+        df['High-PrevClose'] = np.abs(df['High'] - df['Close'].shift(1))
+        df['Low-PrevClose'] = np.abs(df['Low'] - df['Close'].shift(1))
+        df['TR'] = df[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
+        df['ATR'] = df['TR'].rolling(window=14).mean()
+        
+        # 🟢 අලුත්: SMC FVG (Fair Value Gaps) ගණනය කිරීම 🟢
+        df['FVG_Bull'] = np.where(df['Low'] > df['High'].shift(2), 1, 0)
+        df['FVG_Bear'] = np.where(df['High'] < df['Low'].shift(2), 1, 0)
+        
         df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
-        df.dropna(inplace=True)
+        df.dropna(inplace=True) # හිස් දත්ත මකා දැමීම
         
         if len(df) < 20:
             st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
         else:
             try:
-                features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns']
+                # AI එකට FVG සහ ATR අලුතින් පුහුණු කිරීම
+                features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear']
                 X = df[features]
                 y = df['Target']
                 
@@ -168,25 +180,25 @@ with tab1:
                 except Exception:
                     current_price = float(df['Close'].to_numpy()[-1])
                     
-                volatility = float((df['High'] - df['Low']).rolling(window=14).mean().to_numpy()[-1])
+                atr_val = float(df['ATR'].to_numpy()[-1])
                 ai_confidence = max(probability) * 100
                 dp = 8 if current_price < 0.01 else 4
                 
-                # 🟢 අලුත් වෙනස: සජීවී මිලට වඩා 20% (0.2) ක දුරක් තැබීම 🟢
-                pullback_amount = volatility * 0.2  
+                # 🟢 අලුත්: ATR පදනම් වූ Dynamic Entry, TP සහ SL 🟢
+                pullback_amount = atr_val * 0.4  # ATR එකෙන් 40% ක Pullback එකක්
                 
                 if prediction == 1: # BUY
-                    entry_price = current_price - pullback_amount # මිල පහළට එනතෙක් Limit එක තබයි
-                    tp1_price = entry_price + (volatility * 1.2)
-                    tp2_price = entry_price + (volatility * 2.0)
-                    tp3_price = entry_price + (volatility * 3.0)
-                    sl_price = entry_price - (volatility * 1.5)
+                    entry_price = current_price - pullback_amount 
+                    tp1_price = entry_price + (atr_val * 1.2)
+                    tp2_price = entry_price + (atr_val * 2.2)
+                    tp3_price = entry_price + (atr_val * 3.5)
+                    sl_price = entry_price - (atr_val * 1.5) # ATR අනුව ආරක්ෂිත SL
                 else: # SELL
-                    entry_price = current_price + pullback_amount # මිල ඉහළට එනතෙක් Limit එක තබයි
-                    tp1_price = entry_price - (volatility * 1.2)
-                    tp2_price = entry_price - (volatility * 2.0)
-                    tp3_price = entry_price - (volatility * 3.0)
-                    sl_price = entry_price + (volatility * 1.5)
+                    entry_price = current_price + pullback_amount 
+                    tp1_price = entry_price - (atr_val * 1.2)
+                    tp2_price = entry_price - (atr_val * 2.2)
+                    tp3_price = entry_price - (atr_val * 3.5)
+                    sl_price = entry_price + (atr_val * 1.5) # ATR අනුව ආරක්ෂිත SL
         
                 st.write("---")
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
@@ -234,7 +246,7 @@ with tab1:
                     dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
                     
                     target_msg = (
-                        f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (Visual Targets):**\n\n"
+                        f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (ATR & SMC Visual Targets):**\n\n"
                         f"🪙 **Coin:** {selected_display_name}\n\n"
                         f"🔥 **Signal Direction:** {dir_text}\n\n"
                         f"🔵 **Entry Limit Price:** ${entry_price:.{dp}f}\n\n"
