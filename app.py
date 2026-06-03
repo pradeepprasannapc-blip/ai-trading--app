@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 import streamlit.components.v1 as components
+import plotly.graph_objects as go
 import requests
 import os
 import time
@@ -40,6 +41,26 @@ def send_telegram_message(message):
     except:
         return False
 
+# 🟢 අලුත්: Chart Photo එකත් එක්කම Signal එක යැවීමේ Function එක 🟢
+def send_telegram_photo(caption, image_bytes):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
+        return False
+        
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    success = True
+    
+    for chat_id in [TELEGRAM_GROUP_ID, TELEGRAM_CHANNEL_ID]:
+        files = {'photo': ('chart.png', image_bytes, 'image/png')}
+        payload = {"chat_id": chat_id, "caption": caption, "parse_mode": "Markdown"}
+        try:
+            res = requests.post(url, data=payload, files=files)
+            if res.status_code != 200:
+                success = False
+        except:
+            success = False
+            
+    return success
+
 HISTORY_FILE = "signal_history.csv"
 
 # --- TABS සෑදීම ---
@@ -62,7 +83,7 @@ with tab1:
             "Bitcoin (BTC/USD)": "BTC-USD", "Ethereum (ETH/USD)": "ETH-USD",
             "Solana (SOL/USD)": "SOL-USD", "Binance Coin (BNB/USD)": "BNB-USD",
             "Ripple (XRP/USD)": "XRP-USD", "Cardano (ADA/USD)": "ADA-USD",
-            "Dogecoin (DOGE/USD)": "DOGE-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD",
+            "Dogwifhat (WIF/USD)": "WIF-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD",
             "Pepe (PEPE/USD)": "PEPE-USD", "Avalanche (AVAX/USD)": "AVAX-USD",
             "Chainlink (LINK/USD)": "LINK-USD", "Polkadot (DOT/USD)": "DOT-USD",
             "Fantom (FTM/USD)": "FTM-USD", "Polygon (MATIC/USD)": "MATIC-USD"
@@ -141,25 +162,24 @@ with tab1:
         df['BB_Upper'] = df['MA20'] + (df['StdDev'] * 2)
         df['BB_Lower'] = df['MA20'] - (df['StdDev'] * 2)
         
-        # 🟢 අලුත්: ATR (Average True Range) ගණනය කිරීම 🟢
+        # ATR 
         df['High-Low'] = df['High'] - df['Low']
         df['High-PrevClose'] = np.abs(df['High'] - df['Close'].shift(1))
         df['Low-PrevClose'] = np.abs(df['Low'] - df['Close'].shift(1))
         df['TR'] = df[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
         df['ATR'] = df['TR'].rolling(window=14).mean()
         
-        # 🟢 අලුත්: SMC FVG (Fair Value Gaps) ගණනය කිරීම 🟢
+        # SMC FVG 
         df['FVG_Bull'] = np.where(df['Low'] > df['High'].shift(2), 1, 0)
         df['FVG_Bear'] = np.where(df['High'] < df['Low'].shift(2), 1, 0)
         
         df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
-        df.dropna(inplace=True) # හිස් දත්ත මකා දැමීම
+        df.dropna(inplace=True) 
         
         if len(df) < 20:
             st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
         else:
             try:
-                # AI එකට FVG සහ ATR අලුතින් පුහුණු කිරීම
                 features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear']
                 X = df[features]
                 y = df['Target']
@@ -184,21 +204,20 @@ with tab1:
                 ai_confidence = max(probability) * 100
                 dp = 8 if current_price < 0.01 else 4
                 
-                # 🟢 අලුත්: ATR පදනම් වූ Dynamic Entry, TP සහ SL 🟢
-                pullback_amount = atr_val * 0.4  # ATR එකෙන් 40% ක Pullback එකක්
+                pullback_amount = atr_val * 0.2  
                 
                 if prediction == 1: # BUY
                     entry_price = current_price - pullback_amount 
                     tp1_price = entry_price + (atr_val * 1.2)
                     tp2_price = entry_price + (atr_val * 2.2)
                     tp3_price = entry_price + (atr_val * 3.5)
-                    sl_price = entry_price - (atr_val * 1.5) # ATR අනුව ආරක්ෂිත SL
+                    sl_price = entry_price - (atr_val * 1.5) 
                 else: # SELL
                     entry_price = current_price + pullback_amount 
                     tp1_price = entry_price - (atr_val * 1.2)
                     tp2_price = entry_price - (atr_val * 2.2)
                     tp3_price = entry_price - (atr_val * 3.5)
-                    sl_price = entry_price + (atr_val * 1.5) # ATR අනුව ආරක්ෂිත SL
+                    sl_price = entry_price + (atr_val * 1.5) 
         
                 st.write("---")
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
@@ -257,8 +276,38 @@ with tab1:
                     )
                     st.info(target_msg)
                     
+                    # 📸 Signal Visualizer Chart 
+                    st.write("### 📸 Signal Visualizer (මෙම ප්‍රස්ථාරය Signal එක සමග ස්වයංක්‍රීයව Telegram වෙත යැවේ)")
+                    
+                    fig = go.Figure(data=[go.Candlestick(x=df.index[-50:], 
+                                    open=df['Open'].iloc[-50:],
+                                    high=df['High'].iloc[-50:],
+                                    low=df['Low'].iloc[-50:],
+                                    close=df['Close'].iloc[-50:],
+                                    name="Price")])
+                    
+                    fig.add_hline(y=entry_price, line_dash="dash", line_color="blue", 
+                                  annotation_text=f"ENTRY: {entry_price:.{dp}f}", annotation_position="bottom right", annotation_font_color="blue")
+                    fig.add_hline(y=tp1_price, line_dash="solid", line_color="lightgreen", 
+                                  annotation_text=f"TP 1: {tp1_price:.{dp}f}", annotation_position="top right", annotation_font_color="lightgreen")
+                    fig.add_hline(y=tp2_price, line_dash="solid", line_color="mediumseagreen", 
+                                  annotation_text=f"TP 2: {tp2_price:.{dp}f}", annotation_position="top right", annotation_font_color="mediumseagreen")
+                    fig.add_hline(y=tp3_price, line_dash="solid", line_color="green", 
+                                  annotation_text=f"TP 3: {tp3_price:.{dp}f}", annotation_position="top right", annotation_font_color="green")
+                    fig.add_hline(y=sl_price, line_dash="solid", line_color="red", 
+                                  annotation_text=f"STOP LOSS: {sl_price:.{dp}f}", annotation_position="bottom right", annotation_font_color="red")
+                                  
+                    fig.update_layout(title=f"{selected_display_name} - PRO AI VIP SIGNAL",
+                                      yaxis_title="Price",
+                                      xaxis_title="Date",
+                                      template="plotly_dark",
+                                      xaxis_rangeslider_visible=False,
+                                      height=500)
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
-                    if st.button("Send Signal to Telegram 🚀"):
+                    if st.button("Send Signal & Chart to Telegram 🚀"):
                         
                         try:
                             check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
@@ -266,10 +315,10 @@ with tab1:
                             check_live = current_price
                             
                         is_safe_to_send = True
-                        if prediction == 1: # BUY check
+                        if prediction == 1: 
                             if check_live >= tp1_price or check_live <= sl_price:
                                 is_safe_to_send = False
-                        else: # SELL check
+                        else:
                             if check_live <= tp1_price or check_live >= sl_price:
                                 is_safe_to_send = False
                                 
@@ -287,11 +336,18 @@ with tab1:
                             telegram_text += f"🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n"
                             telegram_text += f"💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
-                            with st.spinner("Telegram වෙත යවමින් පවතී..."):
-                                success = send_telegram_message(telegram_text)
+                            with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
+                                # 🟢 අලුත්: Chart එක Photo එකක් ලෙස Image Bytes බවට පත් කිරීම 🟢
+                                try:
+                                    img_bytes = fig.to_image(format="png", width=800, height=500, engine="kaleido")
+                                    success = send_telegram_photo(telegram_text, img_bytes)
+                                except Exception as e:
+                                    # Kaleido නොමැති නම් සාමාන්‍ය Text එක පමණක් යැවීම (Fallback)
+                                    success = send_telegram_message(telegram_text)
+                                    st.warning("⚠️ Chart Photo එක යවන්න 'kaleido' පැකේජය අවශ්‍යයි. කරුණාකර Terminal එකේ `pip install kaleido` ලබා දෙන්න. (Text Signal එක පමණක් යැවිණි).")
                                 
                             if success:
-                                st.success("✅ Signal එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
+                                st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
                                 
                                 date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                                 data = {
