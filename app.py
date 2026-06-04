@@ -439,24 +439,25 @@ tab1, tab2, tab3, tab4 = st.tabs(["⚡ Live AI Signals", "🔍 VIP Market Scanne
 with tab1:
     st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න:")
     
-    # 🔴 New Mode Selector
-    strategy_mode = st.radio("Trading Strategy Mode:", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True)
+    # 🔴 Category Selection moved ABOVE Strategy Mode and updated with English translations
+    category = st.radio("ප්‍රවර්ගය තෝරන්න (Select Category):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)", "✏️ වෙනත් (Custom)"], horizontal=True)
     
-    category = st.radio("ප්‍රවර්ගය තෝරන්න:", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ", "💱 ෆොරෙක්ස්", "✨ ලෝහ සහ තෙල්", "✏️ වෙනත් (Custom)"], horizontal=True)
+    # 🔴 Strategy Mode moved BELOW Category Selection
+    strategy_mode = st.radio("Trading Strategy Mode:", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True)
 
-    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
         selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
         ticker = market_options[selected_display_name]
         clean_symbol = ticker.replace('-USD', 'USDT')
         full_tv_ticker = f"BINANCE:{clean_symbol}"
 
-    elif category == "💱 ෆොරෙක්ස්":
+    elif category == "💱 ෆොරෙක්ස් (Forex)":
         selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(fx_options_dict.keys()))
         ticker = fx_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=X', '')
         full_tv_ticker = f"FX_IDC:{clean_symbol}"
 
-    elif category == "✨ ලෝහ සහ තෙල්":
+    elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)":
         selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(com_options_dict.keys()))
         ticker = com_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=F', '')
@@ -584,7 +585,7 @@ with tab1:
                 
                 # --- Fear & Greed Index Fetching ---
                 fng_value, fng_class = get_fear_and_greed()
-                if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+                if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
                     st.info(f"🧭 **Crypto Market Sentiment (Fear & Greed):** {fng_class} ({fng_value}/100)")
                 
                 has_valid_signal = False
@@ -612,7 +613,7 @@ with tab1:
                 else:
                     min_conf = 60.0
                     if prediction == 1: # BUY
-                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value >= 80:
+                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value >= 80:
                             confluence_pass = False
                             confluence_msg = f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Overbought) මට්ටමේ. මෙවැනි අවස්ථාවක Market එක කඩා වැටෙන්නට (Crash) ඉඩ ඇති බැවින් AI මෙම BUY සිග්නලය ප්‍රතික්ෂේප කරයි."
                         elif (last_ema9 < last_ema21) and (last_macd < 0):
@@ -622,7 +623,7 @@ with tab1:
                                 confluence_pass = False
                                 confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව 'Falling Knife' එකක් ඇල්ලීම ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
                     else: # SELL
-                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value <= 20:
+                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value <= 20:
                             confluence_pass = False
                             confluence_msg = f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Oversold) මට්ටමේ. මෙතැනින් Reversal එකක් වීමට ඉඩ ඇති බැවින් AI මෙම SELL සිග්නලය ප්‍රතික්ෂේප කරයි."
                         elif (last_ema9 > last_ema21) and (last_macd > 0):
@@ -726,11 +727,11 @@ with tab1:
                             st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                         else:
                             # 🟢 Category එක තීරණය කිරීම (Crypto, Forex, ආදිය)
-                            if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+                            if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
                                 cat_name = "Crypto 🪙"
-                            elif category == "💱 ෆොරෙක්ස්":
+                            elif category == "💱 ෆොරෙක්ස් (Forex)":
                                 cat_name = "Forex 💱"
-                            elif category == "✨ ලෝහ සහ තෙල්":
+                            elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)":
                                 cat_name = "Commodities ✨"
                             else:
                                 cat_name = "Custom ✏️"
@@ -765,11 +766,11 @@ with tab2:
     st.subheader("🔍 VIP Market Scanner (Auto Signal Finder)")
     st.write("එකින් එක කාසි පරීක්ෂා කිරීම වෙනුවට, එකවර මුළු කැටගරි එකක්ම ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති Assets පමණක් පහසුවෙන් සොයාගන්න.")
     
-    # 🔴 New Mode Selector for Scanner
+    # 🟢 Scanner එකටත් කැටගරි මාරු කිරීමේ හැකියාව එක් කිරීම (උඩටම ගෙන ආවා)
+    scan_category = st.radio("ස්කෑන් කළ යුතු ප්‍රවර්ගය තෝරන්න (Select Category to Scan):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)"], horizontal=True, key="scanner_category_radio")
+
+    # 🔴 New Mode Selector for Scanner (පහළට ගෙන ගියා)
     strategy_mode_scan = st.radio("Trading Strategy Mode (Scanner):", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True, key="scan_strat")
-    
-    # 🟢 Scanner එකටත් කැටගරි මාරු කිරීමේ හැකියාව එක් කිරීම
-    scan_category = st.radio("ස්කෑන් කළ යුතු ප්‍රවර්ගය තෝරන්න:", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ", "💱 ෆොරෙක්ස්", "✨ ලෝහ සහ තෙල්"], horizontal=True, key="scanner_category_radio")
     
     col_s1, col_s2, col_s3 = st.columns(3)
     with col_s1:
@@ -780,10 +781,10 @@ with tab2:
         )
         
     # තෝරාගත් කැටගරියට අදාළ Asset Options ටික සකස් කිරීම
-    if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+    if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
         current_scan_options = market_options
         max_limit_val = len(market_options)
-    elif scan_category == "💱 ෆොරෙක්ස්":
+    elif scan_category == "💱 ෆොරෙක්ස් (Forex)":
         current_scan_options = fx_options_dict
         max_limit_val = len(fx_options_dict)
     else:
@@ -939,13 +940,13 @@ with tab2:
                         else:
                             min_conf_s = 60.0
                             if prediction_s == 1:
-                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value >= 80: 
+                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value >= 80: 
                                     confluence_pass_s = False
                                 elif (last_ema9_s < last_ema21_s) and (last_macd_s < 0):
                                     if not (last_rsi_s < 45 and ("Hammer" in scan_pattern or "Bullish" in scan_pattern)):
                                         confluence_pass_s = False
                             else:
-                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value <= 20: 
+                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value <= 20: 
                                     confluence_pass_s = False
                                 elif (last_ema9_s > last_ema21_s) and (last_macd_s > 0):
                                     if not (last_rsi_s > 55 and ("Shooting Star" in scan_pattern or "Bearish" in scan_pattern)):
@@ -978,9 +979,9 @@ with tab2:
                                 sl_price_s = entry_price_s + (atr_val_s * 2.0)
                                 
                             # clean symbol සැකසීම ටෙලිග්‍රෑම් චාර්ට් එක වෙනුවෙන්
-                            if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+                            if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
                                 clean_symbol = ticker_to_scan.replace('-USD', 'USDT')
-                            elif scan_category == "💱 ෆොරෙක්ස්":
+                            elif scan_category == "💱 ෆොරෙක්ස් (Forex)":
                                 clean_symbol = ticker_to_scan.replace('=X', '')
                             else:
                                 clean_symbol = ticker_to_scan.replace('=F', '')
@@ -1054,9 +1055,9 @@ with tab2:
                         dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                         
                         # Dynamic Category Name set dynamically based on scanner type chosen
-                        if sel_s['Category'] == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+                        if sel_s['Category'] == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
                             cat_tag = "Crypto 🪙"
-                        elif sel_s['Category'] == "💱 ෆොරෙක්ස්":
+                        elif sel_s['Category'] == "💱 ෆොරෙක්ස් (Forex)":
                             cat_tag = "Forex 💱"
                         else:
                             cat_tag = "Commodities ✨"
@@ -1290,7 +1291,7 @@ with tab3:
             time.sleep(15)
             try: st.rerun()
             except AttributeError: st.experimental_rerun()
-    else: st.info("දැනට කිසිම Signal එකක් Save වෙලා นෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
+    else: st.info("දැනට කිසිම Signal එකක් Save වෙලා නෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
 
 # --- Tab 4: Auto Demo Trading Account ---
 with tab4:
@@ -1377,4 +1378,4 @@ with tab4:
         else:
             st.info("තවම Trade කිසිවක් Close වී නොමැත.")
     else:
-        st.info("ඔබ තවමත් Signals කිසිවක් ලබාගෙන නැත.  පළමු ටැබ් එකෙන් Signals ලබාගත් පසු ඒවා ස්වයංක්‍රීයව මෙහි Trade වේ.")
+        st.info("ඔබ තවමත් Signals කිසිවක් ලබාගෙන නැත. පළමු ටැබ් එකෙන් Signals ලබාගත් පසු ඒවා ස්වයංක්‍රීයව මෙහි Trade වේ.")
