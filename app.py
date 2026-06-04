@@ -309,7 +309,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
 
 HISTORY_FILE = "signal_history.csv"
 
-tab1, tab2 = st.tabs(["⚡ Live AI Signals", "📂 Auto Signal History & Live Tracker"])
+tab1, tab2, tab3 = st.tabs(["⚡ Live AI Signals", "📂 Auto Signal History", "💼 VIP Demo Trading"])
 
 with tab1:
     st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න:")
@@ -565,7 +565,7 @@ with tab1:
                         image_generated_successfully = False
 
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
-                    if st.button("Send Signal & Chart to Telegram 🚀"):
+                    if st.button("Send Signal & Auto Trade on Demo 🚀"):
                         
                         try:
                             check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
@@ -606,23 +606,20 @@ with tab1:
     else:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරන්න.")
 
-with tab2:
-    st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
-    st.write("මාකට් එකේ සජීවී මිල මෙහි යාවත්කාලීන වේ. TP 1, 2, හෝ 3 Hit වූ විට Status එක Auto වෙනස් වෙනවා!")
-    auto_refresh = st.checkbox("🔄 Auto Refresh (සෑම තත්පර 15කට වරක් සජීවී මිල සහ Status පමණක් යාවත්කාලීන වීමට මෙහි ටික් එකක් දාන්න)")
-
-    if os.path.exists(HISTORY_FILE):
-        try:
-            history_df = pd.read_csv(HISTORY_FILE)
-            if "TP1" not in history_df.columns:
-                os.remove(HISTORY_FILE)
-                st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
-                st.stop()
-        except Exception: pass
-            
+# --- Processing Display Data outside tabs so both Tab2 and Tab3 can use it ---
+display_df = pd.DataFrame()
+if os.path.exists(HISTORY_FILE):
+    try:
+        history_df = pd.read_csv(HISTORY_FILE)
+        if "TP1" not in history_df.columns:
+            os.remove(HISTORY_FILE)
+            st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
+            st.stop()
+        
         updated = False
         live_prices_dict = {}
         
+        # Check if we need to fetch live prices (Optimized)
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
                 if "Cancelled" in str(row['Status']):
@@ -683,10 +680,21 @@ with tab2:
             val = float(x)
             return f"${val:.8f}" if val < 0.01 else f"${val:.4f}"
 
-        for col in ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']: display_df[col] = display_df[col].apply(format_price)
+        for col in ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']: 
+            display_df[col] = display_df[col].apply(format_price)
         display_df.drop(columns=['Ticker'], inplace=True)
         display_df = display_df.iloc[::-1]
-        
+
+    except Exception:
+        pass
+
+
+with tab2:
+    st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
+    st.write("මාකට් එකේ සජීවී මිල මෙහි යාවත්කාලීන වේ. TP 1, 2, හෝ 3 Hit වූ විට Status එක Auto වෙනස් වෙනවා!")
+    auto_refresh = st.checkbox("🔄 Auto Refresh (සෑම තත්පර 15කට වරක් සජීවී මිල සහ Status පමණක් යාවත්කාලීන වීමට මෙහි ටික් එකක් දාන්න)")
+
+    if not display_df.empty:
         html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}}</style>"
         html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
         for idx, row in display_df.iterrows():
@@ -801,3 +809,90 @@ with tab2:
             try: st.rerun()
             except AttributeError: st.experimental_rerun()
     else: st.info("දැනට කිසිම Signal එකක් Save වෙලා නෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
+
+# --- Tab 3: Auto Demo Trading Account ---
+with tab3:
+    st.subheader("💼 VIP Auto Demo Trading Account (Simulated)")
+    st.write("ඔබ ලබාගන්නා සියලුම AI Signals ස්වයංක්‍රීයව මෙම $10,000 ක අතත්‍ය (Demo) ගිණුමේ Trade වේ. සැබෑ Market Data අනුව මෙහි ලාභ/අලාභ (P&L) ගණනය වේ.")
+
+    if not display_df.empty:
+        INITIAL_BALANCE = 10000.0
+        RISK_AMOUNT = 100.0 # $100 risk per trade (1% of 10k)
+        
+        realized_pnl = 0.0
+        floating_pnl = 0.0
+        active_trades_list = []
+        closed_trades_list = []
+        
+        for idx, row in display_df.iterrows():
+            status = str(row['Status'])
+            
+            # Skip trades that haven't triggered or were cancelled
+            if "Pending" in status or "Cancelled" in status or "Invalid" in status or "Missed" in status:
+                continue
+                
+            try:
+                entry = float(row['Entry'].replace('$', '').replace(',', ''))
+                sl = float(row['SL'].replace('$', '').replace(',', ''))
+                tp3 = float(row['TP3'].replace('$', '').replace(',', ''))
+                
+                live_price_str = str(row['Live Price']).replace('$', '').replace(',', '').replace('N/A', '0')
+                live_price = float(live_price_str) if live_price_str != '0' else entry
+                
+                direction = row['Direction']
+                sl_dist = abs(entry - sl)
+                units = RISK_AMOUNT / sl_dist if sl_dist > 0 else 0
+                
+                # --- PNL Calculations ---
+                if "SL HIT" in status:
+                    pnl = -RISK_AMOUNT
+                    realized_pnl += pnl
+                    trade_info = {"Date": row['Date'], "Coin": row['Coin'], "Type": direction, "Status": "🛑 SL Hit", "P&L": f"-${abs(pnl):.2f}"}
+                    closed_trades_list.append(trade_info)
+                    
+                elif "TP3 HIT" in status:
+                    pnl = units * abs(tp3 - entry)
+                    realized_pnl += pnl
+                    trade_info = {"Date": row['Date'], "Coin": row['Coin'], "Type": direction, "Status": "✅ TP3 Hit (Closed)", "P&L": f"+${pnl:.2f}"}
+                    closed_trades_list.append(trade_info)
+                    
+                else:
+                    # Active or partially hit TP1/TP2 -> Floating
+                    if direction == 'BUY':
+                        cur_pnl = units * (live_price - entry)
+                    else:
+                        cur_pnl = units * (entry - live_price)
+                        
+                    floating_pnl += cur_pnl
+                    pnl_str = f"+${cur_pnl:.2f}" if cur_pnl >= 0 else f"-${abs(cur_pnl):.2f}"
+                    trade_info = {"Date": row['Date'], "Coin": row['Coin'], "Type": direction, "Entry": f"${entry:.4f}", "Live Price": f"${live_price:.4f}", "Status": status, "Floating P&L": pnl_str}
+                    active_trades_list.append(trade_info)
+                    
+            except Exception as e:
+                continue
+
+        current_balance = INITIAL_BALANCE + realized_pnl
+        equity = current_balance + floating_pnl
+        
+        st.write("### 🏦 ගිණුමේ සාරාංශය (Account Summary)")
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1.metric("💰 Balance", f"${current_balance:,.2f}")
+        col_m2.metric("📊 Equity", f"${equity:,.2f}", f"{floating_pnl:,.2f} Floating")
+        col_m3.metric("🟢 Active Trades", len(active_trades_list))
+        col_m4.metric("📁 Closed Trades", len(closed_trades_list))
+        
+        st.write("---")
+        st.write("### 🟢 Active Positions (ක්‍රියාත්මක වන Trades)")
+        if active_trades_list:
+            st.dataframe(pd.DataFrame(active_trades_list), use_container_width=True)
+        else:
+            st.info("දැනට Active Trades කිසිවක් නොමැත.")
+            
+        st.write("---")
+        st.write("### 📁 Trade History (අවසන් කළ Trades)")
+        if closed_trades_list:
+            st.dataframe(pd.DataFrame(closed_trades_list), use_container_width=True)
+        else:
+            st.info("තවම Trade කිසිවක් Close වී නොමැත.")
+    else:
+        st.info("ඔබ තවමත් Signals කිසිවක් ලබාගෙන නැත. පළමු ටැබ් එකෙන් Signals ලබාගත් පසු ඒවා ස්වයංක්‍රීයව මෙහි Trade වේ.")
