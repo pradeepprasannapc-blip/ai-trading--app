@@ -107,7 +107,7 @@ def detect_candlestick_pattern(df):
     except:
         return "Standard Price Action"
 
-# 🟢 Advanced Pro Chart Generator (Dark Theme VIP Edition)
+# 🟢 Advanced Pro Chart Generator (Dynamic Dark Theme VIP Edition)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, tp3, sl, timeframe, detected_pattern):
     df_plot = df.tail(120).copy()
     
@@ -120,7 +120,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
     freq = df_plot.index.to_series().diff().median()
     last_date = df_plot.index[-1]
     
-    future_dates = [last_date + (freq * i) for i in range(1, 26)] 
+    future_dates = [last_date + (freq * i) for i in range(1, 30)] 
     future_index = pd.DatetimeIndex(future_dates)
     future_df = pd.DataFrame(index=future_index, columns=df_plot.columns)
     df_padded = pd.concat([df_plot, future_df])
@@ -153,8 +153,8 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
     y_fib_bot = np.full(total_len, low_val)
     
     fills = [
-        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.20), 
-        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.20), 
+        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.15), 
+        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.15), 
         dict(y1=y_fib_top, y2=y_fib_bot, where=where_fib, color='#787b86', alpha=0.08) 
     ]
     
@@ -252,7 +252,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         ax_main.plot([start_fib_idx, end_fib_idx], [val, val], color='#787b86', linestyle=':', linewidth=1.2, alpha=0.5)
         ax_main.text(start_fib_idx, val, f" {label}", color='#787b86', fontsize=8, va='bottom', ha='left')
 
-    # Price Tags (Custom Labels similar to user's design)
+    # Price Tags (Custom Labels generating dynamically for each coin)
     x_max = total_len - 1 
     target_levels = [
         (tp3, '#089981', 'Take Profit 3 (TP 3)'), 
@@ -262,16 +262,39 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         (sl, '#f23645', 'Stop Loss (SL)')
     ]
     
+    atr_val = df_plot['ATR'].iloc[-1]
+    
     for price, color, label in target_levels:
         ax_main.axhline(y=price, color=color, linestyle='-', linewidth=1.2, alpha=0.9)
         bbox_props = dict(boxstyle="square,pad=0.3", fc=color, ec=color, lw=0)
         dp = 6 if price < 0.01 else 2
-        # Price label background
+        # Price label box on the right
         ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white" if color != '#b2b5be' else "#131722", fontsize=10, fontweight='bold', bbox=bbox_props)
-        # Text label (e.g., Take Profit 1)
-        ax_main.text(x_max - 4, price + (df_plot['ATR'].iloc[-1] * 0.15), label, ha="right", va="bottom", color=color, fontsize=10, fontweight='bold')
+        # Dynamic Text label positioning
+        text_y_offset = atr_val * 0.15 if direction == "BUY" else -(atr_val * 0.15)
+        va_align = "bottom" if direction == "BUY" else "top"
+        if label == 'Entry Price':
+            text_y_offset = atr_val * 0.15
+            va_align = "bottom"
+        ax_main.text(x_max - 5, price + text_y_offset, label, ha="right", va=va_align, color=color, fontsize=10, fontweight='bold')
 
-    # Watermarks - adjusted for dark background
+    # Dynamic Support & Resistance Zones dynamically adjusting per signal
+    if direction == "BUY":
+        res_y = tp3 + (atr_val * 0.3)
+        sup_y = sl - (atr_val * 0.3)
+        ax_main.axhline(y=res_y, color='#f23645', linestyle='-', linewidth=1.5, alpha=0.4)
+        ax_main.text(x_max - 15, res_y, "Red Resistance", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
+        ax_main.axhline(y=sup_y, color='#089981', linestyle='-', linewidth=1.5, alpha=0.4)
+        ax_main.text(x_max - 15, sup_y, "Support Zone", ha="right", va="top", color="#089981", fontsize=9, fontweight='bold')
+    else:
+        res_y = sl + (atr_val * 0.3)
+        sup_y = tp3 - (atr_val * 0.3)
+        ax_main.axhline(y=res_y, color='#f23645', linestyle='-', linewidth=1.5, alpha=0.4)
+        ax_main.text(x_max - 15, res_y, "Red Resistance", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
+        ax_main.axhline(y=sup_y, color='#089981', linestyle='-', linewidth=1.5, alpha=0.4)
+        ax_main.text(x_max - 15, sup_y, "Support Zone", ha="right", va="top", color="#089981", fontsize=9, fontweight='bold')
+
+    # Watermarks
     coin_clean = coin_name.replace('USDT', ' / TetherUS')
     ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#d1d4dc')
     ax_main.text(0.01, 0.91, "Multi Moving Average (7, 25, 100) & Volume Profile (VPVR)", transform=ax_main.transAxes, fontsize=9, color='#787b86')
@@ -533,9 +556,9 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        # 🟢 Passing ALL TP levels to the image generator to draw the labels correctly
+                        # 🟢 Passing ALL TP levels to the dynamic image generator
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
-                        st.image(chart_image_bytes, caption=f"Generated VIP Setup (VPVR + {detected_pattern})")
+                        st.image(chart_image_bytes, caption=f"Dynamically Generated Setup for {selected_display_name} (VPVR + {detected_pattern})")
                         image_generated_successfully = True
                     except Exception as img_err:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
