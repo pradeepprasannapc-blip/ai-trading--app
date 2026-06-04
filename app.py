@@ -353,14 +353,36 @@ HISTORY_FILE = "signal_history.csv"
 
 # Global options for mapping
 market_options = {
-    "Bitcoin (BTC/USD)": "BTC-USD", "Ethereum (ETH/USD)": "ETH-USD",
-    "Solana (SOL/USD)": "SOL-USD", "Binance Coin (BNB/USD)": "BNB-USD",
-    "Ripple (XRP/USD)": "XRP-USD", "Cardano (ADA/USD)": "ADA-USD",
-    "Dogwifhat (WIF/USD)": "WIF-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD",
-    "Pepe (PEPE/USD)": "PEPE-USD", "Avalanche (AVAX/USD)": "AVAX-USD",
-    "Chainlink (LINK/USD)": "LINK-USD", "Polkadot (DOT/USD)": "DOT-USD",
-    "Fantom (FTM/USD)": "FTM-USD", "Polygon (MATIC/USD)": "MATIC-USD",
-    "Injective (INJ/USD)": "INJ-USD"
+    "Bitcoin (BTC/USD)": "BTC-USD", "Ethereum (ETH/USD)": "ETH-USD", "Solana (SOL/USD)": "SOL-USD", "Binance Coin (BNB/USD)": "BNB-USD",
+    "Ripple (XRP/USD)": "XRP-USD", "Cardano (ADA/USD)": "ADA-USD", "Dogwifhat (WIF/USD)": "WIF-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD",
+    "Pepe (PEPE/USD)": "PEPE-USD", "Avalanche (AVAX/USD)": "AVAX-USD", "Chainlink (LINK/USD)": "LINK-USD", "Polkadot (DOT/USD)": "DOT-USD",
+    "Fantom (FTM/USD)": "FTM-USD", "Polygon (MATIC/USD)": "MATIC-USD", "Injective (INJ/USD)": "INJ-USD", "Dogecoin (DOGE/USD)": "DOGE-USD",
+    "Litecoin (LTC/USD)": "LTC-USD", "Bitcoin Cash (BCH/USD)": "BCH-USD", "Stellar (XLM/USD)": "XLM-USD", "Uniswap (UNI/USD)": "UNI-USD",
+    "Cosmos (ATOM/USD)": "ATOM-USD", "Monero (XMR/USD)": "XMR-USD", "Ethereum Classic (ETC/USD)": "ETC-USD", "Filecoin (FIL/USD)": "FIL-USD",
+    "Internet Computer (ICP/USD)": "ICP-USD", "VeChain (VET/USD)": "VET-USD", "Hedera (HBAR/USD)": "HBAR-USD", "Aptos (APT/USD)": "APT-USD",
+    "Arbitrum (ARB/USD)": "ARB-USD", "Near Protocol (NEAR/USD)": "NEAR-USD", "Optimism (OP/USD)": "OP-USD", "Stacks (STX/USD)": "STX-USD",
+    "Render (RNDR/USD)": "RNDR-USD", "Immutable (IMX/USD)": "IMX-USD", "The Graph (GRT/USD)": "GRT-USD", "Theta Network (THETA/USD)": "THETA-USD",
+    "Aave (AAVE/USD)": "AAVE-USD", "Synthetix (SNX/USD)": "SNX-USD", "Maker (MKR/USD)": "MKR-USD", "Algorand (ALGO/USD)": "ALGO-USD",
+    "Flow (FLOW/USD)": "FLOW-USD", "MultiversX (EGLD/USD)": "EGLD-USD", "Mina (MINA/USD)": "MINA-USD", "THORChain (RUNE/USD)": "RUNE-USD",
+    "Lido DAO (LDO/USD)": "LDO-USD", "Quant (QNT/USD)": "QNT-USD", "Gala (GALA/USD)": "GALA-USD", "The Sandbox (SAND/USD)": "SAND-USD",
+    "Decentraland (MANA/USD)": "MANA-USD", "Axie Infinity (AXS/USD)": "AXS-USD", "Chiliz (CHZ/USD)": "CHZ-USD", "Enjin Coin (ENJ/USD)": "ENJ-USD",
+    "Curve DAO (CRV/USD)": "CRV-USD", "Zilliqa (ZIL/USD)": "ZIL-USD", "NEO (NEO/USD)": "NEO-USD", "Dash (DASH/USD)": "DASH-USD",
+    "Kava (KAVA/USD)": "KAVA-USD", "Compound (COMP/USD)": "COMP-USD", "IOTA (MIOTA/USD)": "MIOTA-USD", "Tezos (XTZ/USD)": "XTZ-USD",
+    "Zcash (ZEC/USD)": "ZEC-USD", "Kusama (KSM/USD)": "KSM-USD", "Basic Attention Token (BAT/USD)": "BAT-USD", "Harmony (ONE/USD)": "ONE-USD",
+    "Celo (CELO/USD)": "CELO-USD", "Qtum (QTUM/USD)": "QTUM-USD", "Ravencoin (RVN/USD)": "RVN-USD", "Ontology (ONT/USD)": "ONT-USD",
+    "ICON (ICX/USD)": "ICX-USD", "DigiByte (DGB/USD)": "DGB-USD", "Horizen (ZEN/USD)": "ZEN-USD", "Nano (XNO/USD)": "XNO-USD",
+    "Syscoin (SYS/USD)": "SYS-USD", "Sui (SUI/USD)": "SUI-USD", "Sei (SEI/USD)": "SEI-USD", "Worldcoin (WLD/USD)": "WLD-USD",
+    "CyberConnect (CYBER/USD)": "CYBER-USD", "Pendle (PENDLE/USD)": "PENDLE-USD", "Radix (XRD/USD)": "XRD-USD", "Kaspa (KAS/USD)": "KAS-USD",
+    "GMX (GMX/USD)": "GMX-USD", "Magic (MAGIC/USD)": "MAGIC-USD", "Illuvium (ILV/USD)": "ILV-USD", "Biconomy (BICO/USD)": "BICO-USD",
+    "Gnosis (GNO/USD)": "GNO-USD", "Status (SNT/USD)": "SNT-USD", "Aragon (ANT/USD)": "ANT-USD", "Kyber Network (KNC/USD)": "KNC-USD",
+    "Bancor (BNT/USD)": "BNT-USD", "Loopring (LRC/USD)": "LRC-USD", "Storj (STORJ/USD)": "STORJ-USD", "Civic (CVC/USD)": "CVC-USD",
+    "Fetch.ai (FET/USD)": "FET-USD", "Band Protocol (BAND/USD)": "BAND-USD", "Numeraire (NMR/USD)": "NMR-USD", "iExec RLC (RLC/USD)": "RLC-USD",
+    "Theta Fuel (TFUEL/USD)": "TFUEL-USD", "WazirX (WRX/USD)": "WRX-USD", "Swipe (SXP/USD)": "SXP-USD", "Klever (KLV/USD)": "KLV-USD",
+    "Utrust (UTK/USD)": "UTK-USD", "Firo (FIRO/USD)": "FIRO-USD", "Dusk Network (DUSK/USD)": "DUSK-USD", "DIA (DIA/USD)": "DIA-USD",
+    "Litentry (LIT/USD)": "LIT-USD", "Phala Network (PHA/USD)": "PHA-USD", "Marlin (POND/USD)": "POND-USD", "Radiant Capital (RDNT/USD)": "RDNT-USD",
+    "Gains Network (GNS/USD)": "GNS-USD", "PancakeSwap (CAKE/USD)": "CAKE-USD", "Trust Wallet (TWT/USD)": "TWT-USD", "1inch (1INCH/USD)": "1INCH-USD", 
+    "Ocean Protocol (OCEAN/USD)": "OCEAN-USD", "SKALE (SKL/USD)": "SKL-USD", "Cartesi (CTSI/USD)": "CTSI-USD", 
+    "Coti (COTI/USD)": "COTI-USD", "NKN (NKN/USD)": "NKN-USD"
 }
 
 tf_mapping = {
