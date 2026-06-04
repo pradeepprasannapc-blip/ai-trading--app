@@ -183,11 +183,9 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     
     if detected_pattern != "Standard Price Action":
         if "Bullish" in detected_pattern or "Buy" in direction or "Hammer" in detected_pattern:
-            # කෑන්ඩල් එකට යටින් උඩට ඊතලයක් (Buy/Bullish)
             pattern_marker[last_candle_idx] = df_plot['Low'].iloc[-1] - (df_plot['ATR'].iloc[-1] * 0.8)
             ap.append(mpf.make_addplot(pattern_marker, type='scatter', markersize=200, marker='^', color='#089981'))
         else:
-            # කෑන්ඩල් එකට උඩින් යටට ඊතලයක් (Sell/Bearish)
             pattern_marker[last_candle_idx] = df_plot['High'].iloc[-1] + (df_plot['ATR'].iloc[-1] * 0.8)
             ap.append(mpf.make_addplot(pattern_marker, type='scatter', markersize=200, marker='v', color='#f23645'))
 
@@ -317,7 +315,6 @@ with tab1:
 
     tf_display = st.selectbox("Timeframe එක තෝරන්න:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"])
     
-    # 🟢 Training Data ප්‍රමාණය වැඩි කිරීම (Period Update)
     tf_mapping = {
         "5 min": {"yf": "5m", "tv": "5", "period": "60d"}, 
         "15 min": {"yf": "15m", "tv": "15", "period": "60d"},
@@ -342,7 +339,6 @@ with tab1:
         df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
         df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
         
-        # 🟢 අලුත් Feature: MACD
         df['MACD'] = df['Close'].ewm(span=12, adjust=False).mean() - df['Close'].ewm(span=26, adjust=False).mean()
         df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
         
@@ -366,29 +362,31 @@ with tab1:
         df['FVG_Bull'] = np.where(df['Low'] > df['High'].shift(2), 1, 0)
         df['FVG_Bear'] = np.where(df['High'] < df['Low'].shift(2), 1, 0)
         
-        df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
+        # 🟢 Target එක ඉදිරි කෑන්ඩල් 2ක් දක්වා වැඩි කළා (Trend එක හරියටම අල්ලන්න)
+        df['Target'] = np.where(df['Close'].shift(-2) > df['Close'], 1, 0)
         
         detected_pattern = detect_candlestick_pattern(df)
         
-        df.dropna(inplace=True) 
+        # 🟢 සජීවී දත්ත (Live Data) NaNs වලින් Drop වෙන්න කලින් Save කරගැනීම 🟢
+        features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line']
+        last_market_state = df[features].iloc[[-1]].copy()
         
-        if len(df) < 20:
+        # Training සඳහා පමණක් NaNs ඉවත් කිරීම
+        df_train = df.dropna() 
+        
+        if len(df_train) < 20:
             st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
         else:
             try:
-                # 🟢 MACD එකත් AI Features වලට දැම්මා
-                features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line']
-                X = df[features]
-                y = df['Target']
+                X = df_train[features]
+                y = df_train['Target']
                 
-                split = int(0.85 * len(df))
+                split = int(0.85 * len(df_train))
                 X_train, y_train = X[:split], y[:split]
                 
-                # Model parameters ටිකක් දියුණු කළා
                 model = RandomForestClassifier(n_estimators=200, max_depth=10, min_samples_leaf=3, random_state=42)
                 model.fit(X_train, y_train)
                 
-                last_market_state = X.iloc[[-1]]
                 prediction = model.predict(last_market_state)[0]
                 probability = model.predict_proba(last_market_state)[0]
                 
@@ -396,13 +394,12 @@ with tab1:
                     tkr_live = yf.Ticker(ticker)
                     current_price = float(tkr_live.fast_info['lastPrice'])
                 except Exception:
-                    current_price = float(df['Close'].to_numpy()[-1])
+                    current_price = float(df['Close'].iloc[-1])
                     
-                atr_val = float(df['ATR'].to_numpy()[-1])
+                atr_val = float(df['ATR'].iloc[-1])
                 ai_confidence = max(probability) * 100
                 dp = 8 if current_price < 0.01 else 4
                 
-                # 🟢 Risk Management දියුණු කිරීම (SL දුර වැඩි කළා)
                 pullback_amount = atr_val * 0.3  
                 sl_multiplier = 2.0  
                 tp1_multiplier = 1.5
@@ -426,9 +423,30 @@ with tab1:
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
                 
                 has_valid_signal = False
-                # 🟢 Confidence Threshold එක 72% කට දැම්මා
-                if ai_confidence < 72.0:
-                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 72% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
+                
+                # 🟢 Smart Trend & Confluence Filter එක 🟢
+                last_ema21 = float(last_market_state['EMA_21'].iloc[0])
+                last_macd = float(last_market_state['MACD'].iloc[0])
+                last_signal = float(last_market_state['Signal_Line'].iloc[0])
+                macd_hist = last_macd - last_signal
+                
+                confluence_pass = True
+                confluence_msg = ""
+                
+                if prediction == 1: # AI කියන්නේ BUY කියලා
+                    if current_price < last_ema21 and macd_hist < 0:
+                        confluence_pass = False
+                        confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක් (MACD රතු, මිල EMA 21 ට පහළින්). මෙවැනි අවස්ථාවක අලුතින් BUY සිග්නල් එකක් ගැනීම 'Falling Knife' එකක් ඇල්ලීමක් වැනි ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+                else: # AI කියන්නේ SELL කියලා
+                    if current_price > last_ema21 and macd_hist > 0:
+                        confluence_pass = False
+                        confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක් (MACD කොළ, මිල EMA 21 ට ඉහළින්). මෙවැනි අවස්ථාවක අලුතින් SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+
+                # Confidence එක 68% කට වෙනස් කළා (අමාරුවෙන් සිග්නල් හොයන එක නැති කරන්න)
+                if ai_confidence < 68.0:
+                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 68% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
+                elif not confluence_pass:
+                    st.error(confluence_msg)
                 else:
                     has_valid_signal = True
                     if prediction == 1:
@@ -530,7 +548,7 @@ with tab1:
                             else:
                                 st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
             except Exception as e:
-                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න.")
+                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න. Error: {e}")
     else:
         st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරන්න.")
 
