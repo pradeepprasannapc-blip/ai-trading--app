@@ -362,16 +362,13 @@ with tab1:
         df['FVG_Bull'] = np.where(df['Low'] > df['High'].shift(2), 1, 0)
         df['FVG_Bear'] = np.where(df['High'] < df['Low'].shift(2), 1, 0)
         
-        # 🟢 Target එක ඉදිරි කෑන්ඩල් 2ක් දක්වා වැඩි කළා (Trend එක හරියටම අල්ලන්න)
         df['Target'] = np.where(df['Close'].shift(-2) > df['Close'], 1, 0)
         
         detected_pattern = detect_candlestick_pattern(df)
         
-        # 🟢 සජීවී දත්ත (Live Data) NaNs වලින් Drop වෙන්න කලින් Save කරගැනීම 🟢
         features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line']
         last_market_state = df[features].iloc[[-1]].copy()
         
-        # Training සඳහා පමණක් NaNs ඉවත් කිරීම
         df_train = df.dropna() 
         
         if len(df_train) < 20:
@@ -424,27 +421,28 @@ with tab1:
                 
                 has_valid_signal = False
                 
-                # 🟢 Smart Trend & Confluence Filter එක 🟢
+                # 🟢 Smarter Trend & Confluence Filter 🟢
+                last_ema9 = float(last_market_state['EMA_9'].iloc[0])
                 last_ema21 = float(last_market_state['EMA_21'].iloc[0])
                 last_macd = float(last_market_state['MACD'].iloc[0])
-                last_signal = float(last_market_state['Signal_Line'].iloc[0])
-                macd_hist = last_macd - last_signal
                 
                 confluence_pass = True
                 confluence_msg = ""
                 
                 if prediction == 1: # AI කියන්නේ BUY කියලා
-                    if current_price < last_ema21 and macd_hist < 0:
+                    # EMA 9 රේඛාව EMA 21 ට පහළින් නම් සහ MACD සෘණ නම්, ඒක පැහැදිලි Downtrend එකක්.
+                    if (last_ema9 < last_ema21) and (last_macd < 0):
                         confluence_pass = False
-                        confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක් (MACD රතු, මිල EMA 21 ට පහළින්). මෙවැනි අවස්ථාවක අලුතින් BUY සිග්නල් එකක් ගැනීම 'Falling Knife' එකක් ඇල්ලීමක් වැනි ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+                        confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක් (EMA 9 රේඛාව EMA 21 ට පහළින් සහ MACD සෘණ අගයක). මෙවැනි අවස්ථාවක අලුතින් BUY සිග්නල් එකක් ගැනීම 'Falling Knife' එකක් ඇල්ලීමක් වැනි ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
                 else: # AI කියන්නේ SELL කියලා
-                    if current_price > last_ema21 and macd_hist > 0:
+                    # EMA 9 රේඛාව EMA 21 ට ඉහළින් නම් සහ MACD ධන නම්, ඒක පැහැදිලි Uptrend එකක්.
+                    if (last_ema9 > last_ema21) and (last_macd > 0):
                         confluence_pass = False
-                        confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක් (MACD කොළ, මිල EMA 21 ට ඉහළින්). මෙවැනි අවස්ථාවක අලුතින් SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+                        confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක් (EMA 9 රේඛාව EMA 21 ට ඉහළින් සහ MACD ධන අගයක). මෙවැනි අවස්ථාවක අලුතින් SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
 
-                # Confidence එක 68% කට වෙනස් කළා (අමාරුවෙන් සිග්නල් හොයන එක නැති කරන්න)
-                if ai_confidence < 68.0:
-                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 68% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
+                # 🟢 Confidence Threshold එක 65% කට වෙනස් කළා (සිග්නල් ලේසියෙන් හොයාගන්න) 🟢
+                if ai_confidence < 65.0:
+                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 65% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
                 elif not confluence_pass:
                     st.error(confluence_msg)
                 else:
