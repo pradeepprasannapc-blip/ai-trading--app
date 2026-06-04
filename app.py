@@ -998,6 +998,7 @@ with tab4:
         valid_signals = []
         progress_bar = st.progress(0)
         status_text = st.empty()
+        results_placeholder = st.empty()
         
         fng_value, fng_class = get_fear_and_greed()
         
@@ -1097,6 +1098,8 @@ with tab4:
                                 "AI Confidence": f"{ai_confidence_s:.1f}%", 
                                 "Detected Pattern": scan_pattern
                             })
+                            # Real-time Update to the Table
+                            results_placeholder.dataframe(pd.DataFrame(valid_signals), use_container_width=True)
             except Exception:
                 pass
                 
@@ -1106,7 +1109,6 @@ with tab4:
         
         if valid_signals:
             st.success(f"🎉 Valid Signals {len(valid_signals)} ක් සොයාගන්නා ලදී!")
-            st.dataframe(pd.DataFrame(valid_signals), use_container_width=True)
             st.info("💡 දැන් පළමු ටැබ් එකට (Live AI Signals) ගොස් ඉහත වගුවේ ඇති කාසි සහ Timeframe එක තෝරා Signal එක Telegram යවන්න.")
         else:
             st.warning(f"⚠️ මේ මොහොතේ {scan_tf_display} Timeframe එක සඳහා කිසිදු කාසියක පැහැදිලි (Valid) Signal එකක් නොමැත. ටික වෙලාවකින් නැවත උත්සාහ කරන්න.")
