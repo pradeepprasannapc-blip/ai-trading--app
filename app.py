@@ -20,6 +20,8 @@ if 'scan_results' not in st.session_state:
     st.session_state.scan_results = []
 if 'scan_tf' not in st.session_state:
     st.session_state.scan_tf = "15 min"
+if 'scanning' not in st.session_state:
+    st.session_state.scanning = False
 
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
@@ -404,6 +406,7 @@ def get_market_data(symbol, tf, prd):
     df = yf.download(symbol, period=prd, interval=tf, auto_adjust=True)
     return df
 
+# Tab පිළිවෙළ ඔයා ඉල්ලපු විදිහට හැදුවා!
 tab1, tab2, tab3, tab4 = st.tabs(["⚡ Live AI Signals", "🔍 VIP Market Scanner", "📂 Auto Signal History", "💼 VIP Demo Trading"])
 
 with tab1:
@@ -699,35 +702,48 @@ with tab2:
     st.subheader("🔍 VIP Market Scanner (Auto Signal Finder)")
     st.write("එකින් එක කාසි පරීක්ෂා කිරීම වෙනුවට, එකවර කාසි රාශියක් ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති කාසි පමණක් පහසුවෙන් සොයාගන්න.")
     
-    col_s1, col_s2 = st.columns(2)
+    col_s1, col_s2, col_s3 = st.columns(3)
     with col_s1:
         scan_tf_display = st.selectbox(
             "ස්කෑන් කළ යුතු Timeframe එක තෝරන්න:", 
             ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"], 
             index=["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"].index(st.session_state.scan_tf)
         )
-        
     with col_s2:
-        st.write("")
-        st.write("")
-        start_scan = st.button("🚀 Market එක ස්කෑන් කිරීම ආරම්භ කරන්න", use_container_width=True)
+        scan_limit = st.slider("ස්කෑන් කරන කාසි ගණන (වේගවත් කිරීම සඳහා):", min_value=5, max_value=len(market_options), value=30, step=5)
         
+    with col_s3:
+        st.write("")
+        st.write("")
+        start_scan = st.button("🚀 Start Scan", use_container_width=True)
+
     if start_scan:
-        st.session_state.scan_tf = scan_tf_display
+        st.session_state.scanning = True
         st.session_state.scan_results = []
+        st.session_state.scan_tf = scan_tf_display
+
+    if st.session_state.get('scanning', False):
+        st.warning("⚠️ ස්කෑන් වෙමින් පවතී... හොඳ සිග්නල් එකක් දැක්කොත් පහළින් ඇති 'Stop Scan' බොත්තම ඔබන්න.")
+        if st.button("🛑 Stop Scan (නවත්වන්න)", type="primary"):
+            st.session_state.scanning = False
+            st.rerun()
+
         progress_bar = st.progress(0)
         status_text = st.empty()
         results_placeholder = st.empty()
         
         fng_value, fng_class = get_fear_and_greed()
         
-        coins_to_scan = list(market_options.keys())
+        coins_to_scan = list(market_options.keys())[:scan_limit]
         total_coins = len(coins_to_scan)
-        scan_tf = tf_mapping[scan_tf_display]
+        scan_tf = tf_mapping[st.session_state.scan_tf]
         
         for i, coin_name in enumerate(coins_to_scan):
+            if not st.session_state.scanning:
+                break
+                
             ticker_to_scan = market_options[coin_name]
-            status_text.text(f"🔍 ස්කෑන් කරමින් පවතී: {coin_name}... ({i+1}/{total_coins})")
+            status_text.info(f"🔍 ස්කෑන් කරමින් පවතී: {coin_name}... ({i+1}/{total_coins})")
             
             try:
                 df_scan = yf.download(ticker_to_scan, period=scan_tf["period"], interval=scan_tf["yf"], auto_adjust=True, progress=False)
@@ -779,10 +795,6 @@ with tab2:
                         X_s = df_train_scan[features_scan]
                         y_s = df_train_scan['Target']
                         
-                        split_s = int(0.85 * len(df_train_scan))
-                        X_train_s, y_train_s = X_s[:split_s], y_s[:split_s]
-                        
-                        # Use a slightly lighter model for fast scanning
                         model_s = RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=3, random_state=42)
                         model_s.fit(X_train_s, y_train_s)
                         
@@ -790,7 +802,6 @@ with tab2:
                         probability_s = model_s.predict_proba(last_market_state_scan)[0]
                         ai_confidence_s = max(probability_s) * 100
                         
-                        # Confluence Logic
                         last_ema9_s = float(last_market_state_scan['EMA_9'].iloc[0])
                         last_ema21_s = float(last_market_state_scan['EMA_21'].iloc[0])
                         last_macd_s = float(last_market_state_scan['MACD'].iloc[0])
@@ -851,72 +862,81 @@ with tab2:
                                 "TP2": tp2_price_s,
                                 "TP3": tp3_price_s,
                                 "SL": sl_price_s,
-                                "TF": scan_tf_display,
+                                "TF": st.session_state.scan_tf,
                                 "Chart_DF": df_scan.tail(120).copy()
                             })
                             
-                            # Real-time Update to the Table (Hide Index for mobile view)
-                            df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
-                            df_show.columns = ['Coin / Pair', 'Direction', 'AI Confidence', 'Detected Pattern']
-                            df_show['AI Confidence'] = df_show['AI Confidence'].apply(lambda x: f"{x:.1f}%")
-                            results_placeholder.dataframe(df_show, use_container_width=True, hide_index=True)
+                            if st.session_state.scan_results:
+                                df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
+                                df_show.columns = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern']
+                                df_show['Confidence'] = df_show['Confidence'].apply(lambda x: f"{x:.1f}%")
+                                results_placeholder.table(df_show) # Using static table to prevent jitter
             except Exception:
                 pass
                 
             progress_bar.progress((i + 1) / total_coins)
             
-        status_text.text("✅ ස්කෑන් කිරීම අවසන්!")
-        
-    if st.session_state.get('scan_results'):
+        st.session_state.scanning = False
+        st.rerun()
+
+    # Results & Send Section (Displays ONLY when NOT actively scanning)
+    if not st.session_state.get('scanning', False) and st.session_state.get('scan_results'):
         st.success(f"🎉 Valid Signals {len(st.session_state.scan_results)} ක් සොයාගන්නා ලදී!")
         
-        if not start_scan:
-            df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
-            df_show.columns = ['Coin / Pair', 'Direction', 'AI Confidence', 'Detected Pattern']
-            df_show['AI Confidence'] = df_show['AI Confidence'].apply(lambda x: f"{x:.1f}%")
-            st.dataframe(df_show, use_container_width=True, hide_index=True)
-            
+        df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
+        df_show.columns = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern']
+        df_show['Confidence'] = df_show['Confidence'].apply(lambda x: f"{x:.1f}%" if isinstance(x, float) else x)
+        st.table(df_show)
+        
         st.write("---")
-        st.write("### 🚀 තෝරාගත් Signal එක Telegram යවන්න")
+        st.write("### 🚀 සොයාගත් Signals Telegram වෙත යවන්න")
         
         options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
-        selected_opt = st.selectbox("යැවිය යුතු Signal එක තෝරන්න:", options)
         
-        if st.button("Send Selected Signal & Auto Trade 🚀", use_container_width=True, type="primary"):
-            idx = options.index(selected_opt)
-            sel_s = st.session_state.scan_results[idx]
-            dp = 8 if sel_s['Entry'] < 0.01 else 4
+        # 'Select All' functionality
+        select_all = st.checkbox("සියල්ල තෝරන්න (Select All)")
+        if select_all:
+            selected_opts = st.multiselect("යැවිය යුතු Signals තෝරන්න:", options, default=options)
+        else:
+            selected_opts = st.multiselect("යැවිය යුතු Signals තෝරන්න:", options)
             
-            dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
-            
-            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-            
-            with st.spinner(f"{sel_s['Coin']} සඳහා Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
-                try:
-                    chart_image_bytes = generate_candlestick_image_bytes(
-                        sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], 
-                        sel_s['Entry'], sel_s['TP1'], sel_s['TP2'], sel_s['TP3'], sel_s['SL'], 
-                        sel_s['TF'], sel_s['Pattern']
-                    )
-                    success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
-                    if not success:
-                        success = send_telegram_message(telegram_text)
-                        st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal එක පමණක් යැවිණි).")
-                except Exception as img_err:
-                    st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
-                    success = send_telegram_message(telegram_text)
-                    
-            if success:
-                st.success(f"✅ {sel_s['Coin']} Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
-                date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                data = {"Date": [date_str], "Ticker": [sel_s['Ticker']], "Coin": [sel_s['Coin'].split()[0]], "Direction": [sel_s['Direction']], "Entry": [sel_s['Entry']], "TP1": [sel_s['TP1']], "TP2": [sel_s['TP2']], "TP3": [sel_s['TP3']], "SL": [sel_s['SL']], "Status": ["⏳ Pending Entry"]}
-                df_new = pd.DataFrame(data)
-                if os.path.exists(HISTORY_FILE): df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
-                else: df_new.to_csv(HISTORY_FILE, index=False)
+        if st.button("Send Selected Signals & Auto Trade 🚀", type="primary", use_container_width=True):
+            if not selected_opts:
+                st.warning("⚠️ කරුණාකර යැවීමට අවම වශයෙන් එක් සිග්නල් එකක් හෝ තෝරන්න.")
             else:
-                st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
-    elif start_scan:
-        st.warning(f"⚠️ මේ මොහොතේ {scan_tf_display} Timeframe එක සඳහා කිසිදු කාසියක පැහැදිලි (Valid) Signal එකක් නොමැත. ටික වෙලාවකින් නැවත උත්සාහ කරන්න.")
+                for opt in selected_opts:
+                    idx = options.index(opt)
+                    sel_s = st.session_state.scan_results[idx]
+                    dp = 8 if sel_s['Entry'] < 0.01 else 4
+                    dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
+                    
+                    telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                    
+                    with st.spinner(f"⏳ {sel_s['Coin']} යවමින් පවතී..."):
+                        try:
+                            chart_image_bytes = generate_candlestick_image_bytes(
+                                sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], 
+                                sel_s['Entry'], sel_s['TP1'], sel_s['TP2'], sel_s['TP3'], sel_s['SL'], 
+                                sel_s['TF'], sel_s['Pattern']
+                            )
+                            success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                            if not success:
+                                success = send_telegram_message(telegram_text)
+                        except Exception as img_err:
+                            success = send_telegram_message(telegram_text)
+                            
+                    if success:
+                        st.success(f"✅ {sel_s['Coin']} සාර්ථකව යැව්වා!")
+                        date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
+                        data = {"Date": [date_str], "Ticker": [sel_s['Ticker']], "Coin": [sel_s['Coin'].split()[0]], "Direction": [sel_s['Direction']], "Entry": [sel_s['Entry']], "TP1": [sel_s['TP1']], "TP2": [sel_s['TP2']], "TP3": [sel_s['TP3']], "SL": [sel_s['SL']], "Status": ["⏳ Pending Entry"]}
+                        df_new = pd.DataFrame(data)
+                        if os.path.exists(HISTORY_FILE): df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                        else: df_new.to_csv(HISTORY_FILE, index=False)
+                    else:
+                        st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
+                        
+    elif not start_scan and not st.session_state.get('scanning', False):
+        st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
 
 # --- Processing Display Data outside tabs so both Tab3 and Tab4 can use it ---
 display_df = pd.DataFrame()
@@ -997,7 +1017,6 @@ if os.path.exists(HISTORY_FILE):
 
     except Exception:
         pass
-
 
 with tab3:
     st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
