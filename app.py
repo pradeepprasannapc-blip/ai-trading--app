@@ -317,7 +317,7 @@ with tab1:
 
     tf_display = st.selectbox("Timeframe එක තෝරන්න:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"])
     
-    # 🟢 Training Data ප්‍රමාණය වැඩි කිරීම (Period Update) 🟢
+    # 🟢 Training Data ප්‍රමාණය වැඩි කිරීම (Period Update)
     tf_mapping = {
         "5 min": {"yf": "5m", "tv": "5", "period": "60d"}, 
         "15 min": {"yf": "15m", "tv": "15", "period": "60d"},
@@ -342,7 +342,7 @@ with tab1:
         df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
         df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
         
-        # 🟢 අලුත් Feature: MACD 🟢
+        # 🟢 අලුත් Feature: MACD
         df['MACD'] = df['Close'].ewm(span=12, adjust=False).mean() - df['Close'].ewm(span=26, adjust=False).mean()
         df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
         
@@ -376,7 +376,7 @@ with tab1:
             st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
         else:
             try:
-                # 🟢 MACD එකත් AI Features වලට දැම්මා 🟢
+                # 🟢 MACD එකත් AI Features වලට දැම්මා
                 features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line']
                 X = df[features]
                 y = df['Target']
@@ -402,7 +402,7 @@ with tab1:
                 ai_confidence = max(probability) * 100
                 dp = 8 if current_price < 0.01 else 4
                 
-                # 🟢 Risk Management දියුණු කිරීම (SL දුර වැඩි කළා) 🟢
+                # 🟢 Risk Management දියුණු කිරීම (SL දුර වැඩි කළා)
                 pullback_amount = atr_val * 0.3  
                 sl_multiplier = 2.0  
                 tp1_multiplier = 1.5
@@ -426,7 +426,7 @@ with tab1:
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
                 
                 has_valid_signal = False
-                # 🟢 Confidence Threshold එක 72% කට දැම්මා 🟢
+                # 🟢 Confidence Threshold එක 72% කට දැම්මා
                 if ai_confidence < 72.0:
                     st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 72% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
                 else:
@@ -514,7 +514,7 @@ with tab1:
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                 success = False
                                 if image_generated_successfully:
-                                success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                                    success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
                                 
                                 if not success:
                                     success = send_telegram_message(telegram_text)
