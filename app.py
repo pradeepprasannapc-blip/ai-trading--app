@@ -437,7 +437,7 @@ def get_market_data(symbol, tf, prd):
 tab1, tab2, tab3, tab4 = st.tabs(["⚡ Live AI Signals", "🔍 VIP Market Scanner", "📂 Auto Signal History", "💼 VIP Demo Trading"])
 
 with tab1:
-    st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න:")
+    st.subheader("🌐 Market සහ Coins තෝරන්න:")
     
     # 🔴 Category Selection
     category = st.radio("ප්‍රවර්ගය තෝරන්න (Select Category):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)", "✏️ වෙනත් (Custom)"], horizontal=True)
@@ -446,19 +446,19 @@ with tab1:
     strategy_mode = st.radio("Trading Strategy Mode:", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True)
 
     if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
-        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
+        selected_display_name = st.selectbox("Coins තෝරන්න:", list(market_options.keys()))
         ticker = market_options[selected_display_name]
         clean_symbol = ticker.replace('-USD', 'USDT')
         full_tv_ticker = f"BINANCE:{clean_symbol}"
 
     elif category == "💱 ෆොරෙක්ස් (Forex)":
-        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(fx_options_dict.keys()))
+        selected_display_name = st.selectbox("Coins තෝරන්න:", list(fx_options_dict.keys()))
         ticker = fx_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=X', '')
         full_tv_ticker = f"FX_IDC:{clean_symbol}"
 
     elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)":
-        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(com_options_dict.keys()))
+        selected_display_name = st.selectbox("Coins තෝරන්න:", list(com_options_dict.keys()))
         ticker = com_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=F', '')
         full_tv_ticker = f"COMEX:{clean_symbol}" if "GC" in ticker else f"NYMEX:{clean_symbol}"
