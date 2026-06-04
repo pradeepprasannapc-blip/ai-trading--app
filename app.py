@@ -107,8 +107,8 @@ def detect_candlestick_pattern(df):
     except:
         return "Standard Price Action"
 
-# 🟢 Advanced Pro Chart Generator (With Pattern Marker, VPVR, Fibonacci)
-def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, timeframe, detected_pattern):
+# 🟢 Advanced Pro Chart Generator (Dark Theme VIP Edition)
+def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, tp3, sl, timeframe, detected_pattern):
     df_plot = df.tail(120).copy()
     
     # 1. Moving Averages
@@ -153,20 +153,28 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     y_fib_bot = np.full(total_len, low_val)
     
     fills = [
-        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), 
-        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25), 
-        dict(y1=y_fib_top, y2=y_fib_bot, where=where_fib, color='#787b86', alpha=0.06) 
+        dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.20), 
+        dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.20), 
+        dict(y1=y_fib_top, y2=y_fib_bot, where=where_fib, color='#787b86', alpha=0.08) 
     ]
     
+    # Dark Mode Theme Configuration
     mc = mpf.make_marketcolors(up='#089981', down='#f23645', edge='inherit', wick='inherit', volume='in', ohlc='i')
     s = mpf.make_mpf_style(
         marketcolors=mc, 
-        gridcolor='#e1e3eb', 
+        gridcolor='#2b2b43', 
         gridstyle='--', 
-        facecolor='#ffffff', 
-        edgecolor='#b2b5be',
-        figcolor='#ffffff',
-        rc={'font.size': 9, 'axes.grid': True}
+        facecolor='#131722', 
+        edgecolor='#2b2b43',
+        figcolor='#131722',
+        rc={
+            'font.size': 9, 
+            'axes.grid': True,
+            'text.color': '#d1d4dc',
+            'axes.labelcolor': '#d1d4dc',
+            'xtick.color': '#d1d4dc',
+            'ytick.color': '#d1d4dc'
+        }
     )
     
     ap = []
@@ -233,37 +241,45 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     if max_vol > 0:
         vp_widths_up = (vp_up_arr / max_vol) * 22  
         vp_widths_down = (vp_down_arr / max_vol) * 22
-        ax_main.barh(vp_y, vp_widths_up, left=0, height=bin_size*0.9, color='#2962ff', alpha=0.3, zorder=1)
-        ax_main.barh(vp_y, vp_widths_down, left=vp_widths_up, height=bin_size*0.9, color='#ff9800', alpha=0.3, zorder=1)
+        ax_main.barh(vp_y, vp_widths_up, left=0, height=bin_size*0.9, color='#2962ff', alpha=0.2, zorder=1)
+        ax_main.barh(vp_y, vp_widths_down, left=vp_widths_up, height=bin_size*0.9, color='#ff9800', alpha=0.2, zorder=1)
 
     # Fibonacci & Lines
-    ax_main.plot([low_idx, high_idx], [low_val, high_val], color='#787b86', linestyle='--', linewidth=1.5, alpha=0.8)
+    ax_main.plot([low_idx, high_idx], [low_val, high_val], color='#787b86', linestyle='--', linewidth=1.5, alpha=0.5)
     
     fib_levels_to_draw = [(high_val, '1 (100%)'), (fib_618, '0.618'), (fib_382, '0.382'), (low_val, '0 (0%)')]
     for val, label in fib_levels_to_draw:
-        ax_main.plot([start_fib_idx, end_fib_idx], [val, val], color='#787b86', linestyle=':', linewidth=1.2, alpha=0.8)
+        ax_main.plot([start_fib_idx, end_fib_idx], [val, val], color='#787b86', linestyle=':', linewidth=1.2, alpha=0.5)
         ax_main.text(start_fib_idx, val, f" {label}", color='#787b86', fontsize=8, va='bottom', ha='left')
 
-    # Price Tags
+    # Price Tags (Custom Labels similar to user's design)
     x_max = total_len - 1 
-    target_levels = [(entry, '#3b3b3b', 'Entry'), (tp3, '#089981', 'TP 3'), (sl, '#f23645', 'Stop Loss')]
+    target_levels = [
+        (tp3, '#089981', 'Take Profit 3 (TP 3)'), 
+        (tp2, '#089981', 'Take Profit 2 (TP 2)'), 
+        (tp1, '#089981', 'Take Profit 1 (TP 1)'), 
+        (entry, '#b2b5be', 'Entry Price'), 
+        (sl, '#f23645', 'Stop Loss (SL)')
+    ]
     
     for price, color, label in target_levels:
         ax_main.axhline(y=price, color=color, linestyle='-', linewidth=1.2, alpha=0.9)
         bbox_props = dict(boxstyle="square,pad=0.3", fc=color, ec=color, lw=0)
         dp = 6 if price < 0.01 else 2
-        ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white", fontsize=10, fontweight='bold', bbox=bbox_props)
-        ax_main.text(x_max - 2, price + (price * 0.002), label, ha="right", va="bottom", color=color, fontsize=10, fontweight='bold')
+        # Price label background
+        ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white" if color != '#b2b5be' else "#131722", fontsize=10, fontweight='bold', bbox=bbox_props)
+        # Text label (e.g., Take Profit 1)
+        ax_main.text(x_max - 4, price + (df_plot['ATR'].iloc[-1] * 0.15), label, ha="right", va="bottom", color=color, fontsize=10, fontweight='bold')
 
-    # Watermarks
+    # Watermarks - adjusted for dark background
     coin_clean = coin_name.replace('USDT', ' / TetherUS')
-    ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#131722')
+    ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#d1d4dc')
     ax_main.text(0.01, 0.91, "Multi Moving Average (7, 25, 100) & Volume Profile (VPVR)", transform=ax_main.transAxes, fontsize=9, color='#787b86')
     ax_main.text(0.01, 0.86, f"AI Confidence: {direction} SETUP 🔥", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#089981' if direction=="BUY" else '#f23645')
     ax_main.text(0.01, 0.81, f"🧩 Detected Pattern: {detected_pattern}", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#ff9800')
 
     buf = io.BytesIO()
-    fig.savefig(buf, dpi=120, bbox_inches='tight')
+    fig.savefig(buf, dpi=120, bbox_inches='tight', facecolor='#131722')
     buf.seek(0)
     return buf.read()
 
@@ -477,7 +493,7 @@ with tab1:
                     "theme": "dark",
                     "style": "1",
                     "locale": "en",
-                    "toolbar_bg": "#f1f3f6",
+                    "toolbar_bg": "#131722",
                     "enable_publishing": false,
                     "withdateranges": true,
                     "hide_side_toolbar": false,
@@ -517,7 +533,8 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp3_price, sl_price, tf_display, detected_pattern)
+                        # 🟢 Passing ALL TP levels to the image generator to draw the labels correctly
+                        chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
                         st.image(chart_image_bytes, caption=f"Generated VIP Setup (VPVR + {detected_pattern})")
                         image_generated_successfully = True
                     except Exception as img_err:
