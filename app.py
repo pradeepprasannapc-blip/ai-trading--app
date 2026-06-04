@@ -299,7 +299,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         ax_main.plot([start_fib_idx, end_fib_idx], [val, val], color='#787b86', linestyle=':', linewidth=1.2, alpha=0.5)
         ax_main.text(start_fib_idx, val, f" {label}", color='#787b86', fontsize=8, va='bottom', ha='left')
 
-    # Price Tags
+    # Price Tags (Custom Labels generating dynamically for each coin)
     x_max = total_len - 1 
     target_levels = [
         (tp3, '#089981', 'Take Profit 3 (TP 3)'), 
@@ -315,7 +315,9 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         ax_main.axhline(y=price, color=color, linestyle='-', linewidth=1.2, alpha=0.9)
         bbox_props = dict(boxstyle="square,pad=0.3", fc=color, ec=color, lw=0)
         dp = 6 if price < 0.01 else 2
+        # Price label box on the right
         ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white" if color != '#b2b5be' else "#131722", fontsize=10, fontweight='bold', bbox=bbox_props)
+        # Dynamic Text label positioning
         text_y_offset = atr_val * 0.15 if direction == "BUY" else -(atr_val * 0.15)
         va_align = "bottom" if direction == "BUY" else "top"
         if label == 'Entry Price':
@@ -323,7 +325,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
             va_align = "bottom"
         ax_main.text(x_max - 5, price + text_y_offset, label, ha="right", va=va_align, color=color, fontsize=10, fontweight='bold')
 
-    # Dynamic Support & Resistance Zones
+    # Dynamic Support & Resistance Zones with Order Block (OB) Labels dynamically adjusting per signal
     if direction == "BUY":
         res_y = tp3 + (atr_val * 0.3)
         sup_y = sl - (atr_val * 0.3)
@@ -853,11 +855,11 @@ with tab2:
                                 "Chart_DF": df_scan.tail(120).copy()
                             })
                             
-                            # Real-time Update to the Table
+                            # Real-time Update to the Table (Hide Index for mobile view)
                             df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
                             df_show.columns = ['Coin / Pair', 'Direction', 'AI Confidence', 'Detected Pattern']
                             df_show['AI Confidence'] = df_show['AI Confidence'].apply(lambda x: f"{x:.1f}%")
-                            results_placeholder.dataframe(df_show, use_container_width=True)
+                            results_placeholder.dataframe(df_show, use_container_width=True, hide_index=True)
             except Exception:
                 pass
                 
@@ -872,7 +874,7 @@ with tab2:
             df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
             df_show.columns = ['Coin / Pair', 'Direction', 'AI Confidence', 'Detected Pattern']
             df_show['AI Confidence'] = df_show['AI Confidence'].apply(lambda x: f"{x:.1f}%")
-            st.dataframe(df_show, use_container_width=True)
+            st.dataframe(df_show, use_container_width=True, hide_index=True)
             
         st.write("---")
         st.write("### 🚀 තෝරාගත් Signal එක Telegram යවන්න")
@@ -880,7 +882,7 @@ with tab2:
         options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
         selected_opt = st.selectbox("යැවිය යුතු Signal එක තෝරන්න:", options)
         
-        if st.button("Send Selected Signal & Auto Trade 🚀", use_container_width=True):
+        if st.button("Send Selected Signal & Auto Trade 🚀", use_container_width=True, type="primary"):
             idx = options.index(selected_opt)
             sel_s = st.session_state.scan_results[idx]
             dp = 8 if sel_s['Entry'] < 0.01 else 4
@@ -989,8 +991,7 @@ if os.path.exists(HISTORY_FILE):
             val = float(x)
             return f"${val:.8f}" if val < 0.01 else f"${val:.4f}"
 
-        for col in ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']: 
-            display_df[col] = display_df[col].apply(format_price)
+        for col in ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']: display_df[col] = display_df[col].apply(format_price)
         display_df.drop(columns=['Ticker'], inplace=True)
         display_df = display_df.iloc[::-1]
 
