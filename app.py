@@ -736,7 +736,7 @@ with tab1:
                             else:
                                 cat_name = "Custom ✏️"
                                 
-                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Category:* {cat_name}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Category:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                 success = False
@@ -750,13 +750,8 @@ with tab1:
                             if success:
                                 st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
                                 date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                                # 🟢 Safe CSV Saving Logic (දත්ත පැටලෙන්නේ නැති වෙන්න pd.concat භාවිතය)
-                                data = {
-                                    "Date": [date_str], "Ticker": [ticker], "Coin": [selected_display_name.split()[0]], 
-                                    "Category": [cat_name], "Direction": ["BUY" if prediction == 1 else "SELL"], 
-                                    "Entry": [entry_price], "TP1": [tp1_price], "TP2": [tp2_price], 
-                                    "TP3": [tp3_price], "SL": [sl_price], "Status": ["⏳ Pending Entry"]
-                                }
+                                # Category සහ Strategy එකත් History එකට Save කරනවා
+                                data = {"Date": [date_str], "Ticker": [ticker], "Coin": [selected_display_name.split()[0]], "Category": [cat_name], "Strategy": [strategy_mode], "Direction": ["BUY" if prediction == 1 else "SELL"], "Entry": [entry_price], "TP1": [tp1_price], "TP2": [tp2_price], "TP3": [tp3_price], "SL": [sl_price], "Status": ["⏳ Pending Entry"]}
                                 df_new = pd.DataFrame(data)
                                 if os.path.exists(HISTORY_FILE):
                                     try:
@@ -1014,6 +1009,7 @@ with tab2:
                                 "SL": sl_price_s,
                                 "TF": st.session_state.scan_tf,
                                 "Category": scan_category,
+                                "Strategy_Mode": strategy_mode_scan,
                                 "Chart_DF": df_scan.tail(120).copy()
                             })
                             
@@ -1075,7 +1071,7 @@ with tab2:
                         else:
                             cat_tag = "Commodities ✨"
                             
-                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Category:* {cat_tag}\n🪙 *Coin/Pair:* {sel_s['Asset']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Category:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Coin/Pair:* {sel_s['Asset']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         
                         with st.spinner(f"⏳ {sel_s['Asset']} යවමින් පවතී..."):
                             try:
@@ -1096,9 +1092,9 @@ with tab2:
                             # 🟢 Safe CSV Saving Logic (දත්ත පැටලෙන්නේ නැති වෙන්න pd.concat භාවිතය)
                             data = {
                                 "Date": [date_str], "Ticker": [sel_s['Ticker']], "Coin": [sel_s['Asset'].split()[0]], 
-                                "Category": [cat_tag], "Direction": [sel_s['Direction']], "Entry": [sel_s['Entry']], 
-                                "TP1": [sel_s['TP1']], "TP2": [sel_s['TP2']], "TP3": [sel_s['TP3']], "SL": [sel_s['SL']], 
-                                "Status": ["⏳ Pending Entry"]
+                                "Category": [cat_tag], "Strategy": [sel_s['Strategy_Mode']], "Direction": [sel_s['Direction']], 
+                                "Entry": [sel_s['Entry']], "TP1": [sel_s['TP1']], "TP2": [sel_s['TP2']], "TP3": [sel_s['TP3']], 
+                                "SL": [sel_s['SL']], "Status": ["⏳ Pending Entry"]
                             }
                             df_new = pd.DataFrame(data)
                             if os.path.exists(HISTORY_FILE):
@@ -1135,6 +1131,11 @@ if os.path.exists(HISTORY_FILE):
                 if "=F" in str(t): return "Commodities ✨"
                 return "Crypto 🪙"
             history_df.insert(3, "Category", history_df["Ticker"].apply(infer_category))
+            history_df.to_csv(HISTORY_FILE, index=False)
+
+        # 🟢 පරණ History Files වල Strategy එක නැත්නම් Default N/A දාලා Save කරනවා
+        if "Strategy" not in history_df.columns:
+            history_df.insert(4, "Strategy", "N/A")
             history_df.to_csv(HISTORY_FILE, index=False)
         
         updated = False
@@ -1230,15 +1231,16 @@ with tab3:
 
     if not display_df.empty:
         html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}} .corrupt-row td {color: #ff4b4b;}</style>"
-        # 🟢 HTML Table එකට Category Column එකතු කළා
-        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Category</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
+        # 🟢 HTML Table එකට Strategy Column එකත් එකතු කළා
+        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Category</th><th>Strategy</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
         for idx, row in display_df.iterrows():
             status_text = str(row['Status'])
             status_td = f"<td><div class='marquee-container'><div class='marquee-scroll'>{status_text}</div></div></td>" if "Pending Entry" in status_text else f"<td>{status_text}</td>"
             cat_text = str(row.get('Category', 'N/A'))
+            strat_text = str(row.get('Strategy', 'N/A'))
             tr_class = " class='corrupt-row'" if "Corrupt Data" in status_text else ""
             
-            html_table += f"<tr{tr_class}><td style='font-weight:bold; color:#888;'>{idx}</td><td>{row['Date']}</td><td>{cat_text}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
+            html_table += f"<tr{tr_class}><td style='font-weight:bold; color:#888;'>{idx}</td><td>{row['Date']}</td><td>{cat_text}</td><td>{strat_text}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
         html_table += "</table></div>"
         st.markdown(html_table, unsafe_allow_html=True)
 
@@ -1255,8 +1257,9 @@ with tab3:
                 actual_index = sel_row.name 
                 dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️" if sel_row['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                 
-                # Category එක ලබා ගැනීම (නැත්නම් පරණ ඒවාට Default Crypto දෙනවා)
+                # Category සහ Strategy එක ලබා ගැනීම (නැත්නම් පරණ ඒවාට Default අගයන් දෙනවා)
                 cat_val = sel_row.get('Category', 'Crypto 🪙')
+                strat_val = sel_row.get('Strategy', 'N/A')
                 
                 if "Pending" in sel_row['Status']:
                     entry_val = float(str(sel_row['Entry']).replace('$', '').replace(',', ''))
@@ -1264,11 +1267,11 @@ with tab3:
                     col_pend1, col_pend2 = st.columns(2)
                     with col_pend1:
                         if st.button("⏳ Pending Alert මැසේජ් එක යවන්න 🚀"):
-                            msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             if send_telegram_message(msg): st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                     with col_pend2:
                         if st.button("🚫 Signal එක Cancel කරන්න"):
-                            msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             if send_telegram_message(msg):
                                 st.success("🚫 Cancel මැසේජ් එක යැව්වා! මේ Signal එක දැන් History එකේ Cancelled කියලා වැටෙයි.")
                                 history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
@@ -1279,7 +1282,7 @@ with tab3:
 
                 elif "Missed (Hit TP)" in sel_row['Status']:
                     if st.button("⚠️ Missed Setup මැසේජ් එක යවන්න 🚀"):
-                        msg = f"⚠️ *MISSED TRADE (HIT TP)* ⚠️\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nඅපේ Analysis එක 100% ක් නිවැරදියි! නමුත් මාකට් එක අපේ Entry එකට එන්නේ නැතුව කෙලින්ම Target (TP) එකට ගියා. Setup එක සම්පූර්ණයි, ඒ නිසා Limit Order එක අයින් කරගන්න. ඊළඟ Trade එකෙන් අල්ලමු! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"⚠️ *MISSED TRADE (HIT TP)* ⚠️\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nඅපේ Analysis එක 100% ක් නිවැරදියි! නමුත් මාකට් එක අපේ Entry එකට එන්නේ නැතුව කෙලින්ම Target (TP) එකට ගියා. Setup එක සම්පූර්ණයි, ඒ නිසා Limit Order එක අයින් කරගන්න. ඊළඟ Trade එකෙන් අල්ලමු! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg):
                             st.success("⚠️ Missed Setup මැසේජ් එක සාර්ථකව යැව්වා!")
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
@@ -1290,7 +1293,7 @@ with tab3:
 
                 elif "Invalid (Hit SL)" in sel_row['Status']:
                     if st.button("🚫 Invalid Setup මැසේජ් එක යවන්න 🚀"):
-                        msg = f"🚫 *SETUP INVALID (HIT SL)* 🚫\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට කලින්ම Stop Loss (SL) මට්ටම කඩාගෙන ගියා. Market Structure එක වෙනස් වුණු නිසා මේ Setup එක දැන් අවලංගුයි. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"🚫 *SETUP INVALID (HIT SL)* 🚫\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට කලින්ම Stop Loss (SL) මට්ටම කඩාගෙන ගියා. Market Structure එක වෙනස් වුණු නිසා මේ Setup එක දැන් අවලංගුයි. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg):
                             st.success("🚫 Setup Invalid මැසේජ් එක සාර්ථකව යැව්වා!")
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
@@ -1303,19 +1306,19 @@ with tab3:
                     entry_val = float(str(sel_row['Entry']).replace('$', '').replace(',', ''))
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
-                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg): st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
                     tp_val, tp_dp = float(str(sel_row[hit_level]).replace('$', '').replace(',', '')), 8 if float(str(sel_row[hit_level]).replace('$', '').replace(',', '')) < 0.01 else 4
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
-                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
                         if send_telegram_message(msg): st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
-                        msg = f"🛑 *STOP LOSS HIT* 📉\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය জ্ঞකරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"🛑 *STOP LOSS HIT* 📉\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය জ্ঞකරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg): st.success("🛑 Stop Loss මැසේජ් එක සාර්ථකව යැව්වා!")
         else: st.info("තවම Active, Pending, TP, SL හෝ Invalid වුණු සිග්නල් කිසිවක් නැත.")
 
