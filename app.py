@@ -750,11 +750,23 @@ with tab1:
                             if success:
                                 st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (History එකටත් Save වුණා)")
                                 date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                                # Category එකත් History එකට Save කරනවා
-                                data = {"Date": [date_str], "Ticker": [ticker], "Coin": [selected_display_name.split()[0]], "Category": [cat_name], "Direction": ["BUY" if prediction == 1 else "SELL"], "Entry": [entry_price], "TP1": [tp1_price], "TP2": [tp2_price], "TP3": [tp3_price], "SL": [sl_price], "Status": ["⏳ Pending Entry"]}
+                                # 🟢 Safe CSV Saving Logic (දත්ත පැටලෙන්නේ නැති වෙන්න pd.concat භාවිතය)
+                                data = {
+                                    "Date": [date_str], "Ticker": [ticker], "Coin": [selected_display_name.split()[0]], 
+                                    "Category": [cat_name], "Direction": ["BUY" if prediction == 1 else "SELL"], 
+                                    "Entry": [entry_price], "TP1": [tp1_price], "TP2": [tp2_price], 
+                                    "TP3": [tp3_price], "SL": [sl_price], "Status": ["⏳ Pending Entry"]
+                                }
                                 df_new = pd.DataFrame(data)
-                                if os.path.exists(HISTORY_FILE): df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
-                                else: df_new.to_csv(HISTORY_FILE, index=False)
+                                if os.path.exists(HISTORY_FILE):
+                                    try:
+                                        hist_df = pd.read_csv(HISTORY_FILE)
+                                        hist_df = pd.concat([hist_df, df_new], ignore_index=True)
+                                        hist_df.to_csv(HISTORY_FILE, index=False)
+                                    except Exception:
+                                        df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                                else:
+                                    df_new.to_csv(HISTORY_FILE, index=False)
                             else:
                                 st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
             except Exception as e:
@@ -1081,11 +1093,23 @@ with tab2:
                         if success:
                             st.success(f"✅ {sel_s['Asset']} සාර්ථකව යැව්වා!")
                             date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                            # Category එකත් History එකට Save කරනවා
-                            data = {"Date": [date_str], "Ticker": [sel_s['Ticker']], "Coin": [sel_s['Asset'].split()[0]], "Category": [cat_tag], "Direction": [sel_s['Direction']], "Entry": [sel_s['Entry']], "TP1": [sel_s['TP1']], "TP2": [sel_s['TP2']], "TP3": [sel_s['TP3']], "SL": [sel_s['SL']], "Status": ["⏳ Pending Entry"]}
+                            # 🟢 Safe CSV Saving Logic (දත්ත පැටලෙන්නේ නැති වෙන්න pd.concat භාවිතය)
+                            data = {
+                                "Date": [date_str], "Ticker": [sel_s['Ticker']], "Coin": [sel_s['Asset'].split()[0]], 
+                                "Category": [cat_tag], "Direction": [sel_s['Direction']], "Entry": [sel_s['Entry']], 
+                                "TP1": [sel_s['TP1']], "TP2": [sel_s['TP2']], "TP3": [sel_s['TP3']], "SL": [sel_s['SL']], 
+                                "Status": ["⏳ Pending Entry"]
+                            }
                             df_new = pd.DataFrame(data)
-                            if os.path.exists(HISTORY_FILE): df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
-                            else: df_new.to_csv(HISTORY_FILE, index=False)
+                            if os.path.exists(HISTORY_FILE):
+                                try:
+                                    hist_df = pd.read_csv(HISTORY_FILE)
+                                    hist_df = pd.concat([hist_df, df_new], ignore_index=True)
+                                    hist_df.to_csv(HISTORY_FILE, index=False)
+                                except Exception:
+                                    df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                            else:
+                                df_new.to_csv(HISTORY_FILE, index=False)
                         else:
                             st.error(f"❌ {sel_s['Asset']} යැවීම අසාර්ථකයි.")
                             
@@ -1110,7 +1134,7 @@ if os.path.exists(HISTORY_FILE):
                 if "=X" in str(t): return "Forex 💱"
                 if "=F" in str(t): return "Commodities ✨"
                 return "Crypto 🪙"
-            history_df["Category"] = history_df["Ticker"].apply(infer_category)
+            history_df.insert(3, "Category", history_df["Ticker"].apply(infer_category))
             history_df.to_csv(HISTORY_FILE, index=False)
         
         updated = False
@@ -1122,6 +1146,15 @@ if os.path.exists(HISTORY_FILE):
                     live_prices_dict[index] = np.nan
                     continue
                 try:
+                    # 🟢 Corrupt Data Handler: Error එකක් ආවොත් ඒ පේළිය මඟහරින්න
+                    entry_str = str(row['Entry']).replace('$', '').replace(',', '')
+                    if entry_str.isalpha() or entry_str == 'nan' or entry_str.strip() == '':
+                        live_prices_dict[index] = np.nan
+                        if "Corrupt Data" not in str(row['Status']):
+                            history_df.at[index, 'Status'] = "🚫 Cancelled (Corrupt Data)"
+                            updated = True
+                        continue
+                        
                     current_live_price, current_low, current_high = None, None, None
                     df_hist = yf.download(row['Ticker'], period="5d", interval="5m", progress=False)
                     if not df_hist.empty:
@@ -1136,7 +1169,7 @@ if os.path.exists(HISTORY_FILE):
                         
                     if current_live_price is not None:
                         live_prices_dict[index] = current_live_price
-                        entry_val, tp1_val, tp2_val, tp3_val, sl_val = float(row['Entry']), float(row['TP1']), float(row['TP2']), float(row['TP3']), float(row['SL'])
+                        entry_val, tp1_val, tp2_val, tp3_val, sl_val = float(entry_str), float(str(row['TP1']).replace('$', '').replace(',', '')), float(str(row['TP2']).replace('$', '').replace(',', '')), float(str(row['TP3']).replace('$', '').replace(',', '')), float(str(row['SL']).replace('$', '').replace(',', ''))
                         new_status = str(row['Status'])
                         
                         if "Pending" in new_status:
@@ -1173,14 +1206,21 @@ if os.path.exists(HISTORY_FILE):
         display_df['Live Price'] = display_df.index.map(live_prices_dict)
         def format_price(x):
             if pd.isnull(x): return "N/A"
-            val = float(x)
-            return f"${val:.8f}" if val < 0.01 else f"${val:.4f}"
+            try:
+                val = float(str(x).replace('$', '').replace(',', ''))
+                return f"${val:.8f}" if val < 0.01 else f"${val:.4f}"
+            except:
+                return str(x)
 
-        for col in ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']: display_df[col] = display_df[col].apply(format_price)
+        for col in ['Entry', 'TP1', 'TP2', 'TP3', 'SL', 'Live Price']: 
+            display_df[col] = display_df[col].apply(format_price)
+            
         display_df.drop(columns=['Ticker'], inplace=True)
-        display_df = display_df.iloc[::-1]
+        # 🟢 අනිවාර්යයෙන්ම අලුත් ඒවා උඩටම එන්න Date එක අනුව Sort කිරීම
+        display_df = display_df.sort_values(by='Date', ascending=False)
 
-    except Exception:
+    except Exception as e:
+        st.error(f"Error loading history: {e}")
         pass
 
 with tab3:
@@ -1189,12 +1229,16 @@ with tab3:
     auto_refresh = st.checkbox("🔄 Auto Refresh (සෑම තත්පර 15කට වරක් සජීවී මිල සහ Status පමණක් යාවත්කාලීන වීමට මෙහි ටික් එකක් දාන්න)")
 
     if not display_df.empty:
-        html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}}</style>"
-        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
+        html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}} .corrupt-row td {color: #ff4b4b;}</style>"
+        # 🟢 HTML Table එකට Category Column එකතු කළා
+        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Category</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
         for idx, row in display_df.iterrows():
             status_text = str(row['Status'])
             status_td = f"<td><div class='marquee-container'><div class='marquee-scroll'>{status_text}</div></div></td>" if "Pending Entry" in status_text else f"<td>{status_text}</td>"
-            html_table += f"<tr><td style='font-weight:bold; color:#888;'>{idx}</td><td>{row['Date']}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
+            cat_text = str(row.get('Category', 'N/A'))
+            tr_class = " class='corrupt-row'" if "Corrupt Data" in status_text else ""
+            
+            html_table += f"<tr{tr_class}><td style='font-weight:bold; color:#888;'>{idx}</td><td>{row['Date']}</td><td>{cat_text}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
         html_table += "</table></div>"
         st.markdown(html_table, unsafe_allow_html=True)
 
@@ -1215,7 +1259,7 @@ with tab3:
                 cat_val = sel_row.get('Category', 'Crypto 🪙')
                 
                 if "Pending" in sel_row['Status']:
-                    entry_val = float(sel_row['Entry'])
+                    entry_val = float(str(sel_row['Entry']).replace('$', '').replace(',', ''))
                     dp_val = 8 if entry_val < 0.01 else 4
                     col_pend1, col_pend2 = st.columns(2)
                     with col_pend1:
@@ -1256,7 +1300,7 @@ with tab3:
                             except AttributeError: st.experimental_rerun()
                             
                 elif "Active" in sel_row['Status']:
-                    entry_val = float(sel_row['Entry'])
+                    entry_val = float(str(sel_row['Entry']).replace('$', '').replace(',', ''))
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
                         msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
@@ -1264,7 +1308,7 @@ with tab3:
                 
                 elif "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
-                    tp_val, tp_dp = float(sel_row[hit_level]), 8 if float(sel_row[hit_level]) < 0.01 else 4
+                    tp_val, tp_dp = float(str(sel_row[hit_level]).replace('$', '').replace(',', '')), 8 if float(str(sel_row[hit_level]).replace('$', '').replace(',', '')) < 0.01 else 4
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
                         msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🗂 *Category:* {cat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
                         if send_telegram_message(msg): st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
@@ -1325,13 +1369,13 @@ with tab4:
             status = str(row['Status'])
             
             # Skip trades that haven't triggered or were cancelled
-            if "Pending" in status or "Cancelled" in status or "Invalid" in status or "Missed" in status:
+            if "Pending" in status or "Cancelled" in status or "Invalid" in status or "Missed" in status or "Corrupt" in status:
                 continue
                 
             try:
-                entry = float(row['Entry'].replace('$', '').replace(',', ''))
-                sl = float(row['SL'].replace('$', '').replace(',', ''))
-                tp3 = float(row['TP3'].replace('$', '').replace(',', ''))
+                entry = float(str(row['Entry']).replace('$', '').replace(',', ''))
+                sl = float(str(row['SL']).replace('$', '').replace(',', ''))
+                tp3 = float(str(row['TP3']).replace('$', '').replace(',', ''))
                 
                 live_price_str = str(row['Live Price']).replace('$', '').replace(',', '').replace('N/A', '0')
                 live_price = float(live_price_str) if live_price_str != '0' else entry
