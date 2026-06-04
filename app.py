@@ -775,7 +775,7 @@ with tab2:
     st.write("එකින් එක කාසි පරීක්ෂා කිරීම වෙනුවට, එකවර මුළු කැටගරි එකක්ම ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති Assets පමණක් පහසුවෙන් සොයාගන්න.")
     
     # 🟢 Scanner එකටත් කැටගරි මාරු කිරීමේ හැකියාව එක් කිරීම (උඩටම ගෙන ආවා)
-    scan_category = st.radio("ස්කෑන් කළ යුතු ප්‍රවර්ගය තෝරන්න (Select Category to Scan):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)"], horizontal=True, key="scanner_category_radio")
+    scan_category = st.radio("ප්‍රවර්ගය තෝරන්න (Select Category):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)"], horizontal=True, key="scanner_category_radio")
 
     # 🔴 New Mode Selector for Scanner (පහළට ගෙන ගියා)
     strategy_mode_scan = st.radio("Trading Strategy Mode (Scanner):", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True, key="scan_strat")
