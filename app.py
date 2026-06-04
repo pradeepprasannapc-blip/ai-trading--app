@@ -14,7 +14,7 @@ import mplfinance as mpf
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
-st.write("SMC (FVG & Order Blocks), ATR දර්ශකය, ලෝකයේ හොඳම Technical Indicators සහ Candlestick Patterns එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC (FVG & Order Blocks), ATR, VWAP, Supertrend සහ Market Sentiment (Fear & Greed) එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
@@ -107,11 +107,41 @@ def detect_candlestick_pattern(df):
     except:
         return "Standard Price Action"
 
+# 🟢 Manual Supertrend Calculation for AI Features
+def add_supertrend(df, period=10, multiplier=3):
+    hl2 = (df['High'] + df['Low']) / 2
+    atr = df['TR'].rolling(window=period).mean()
+    upper_band = hl2 + (multiplier * atr)
+    lower_band = hl2 - (multiplier * atr)
+    
+    in_uptrend = True
+    supertrend = [0.0] * len(df)
+    st_dir = [1] * len(df)
+    
+    for i in range(1, len(df)):
+        if df['Close'].iloc[i] > upper_band.iloc[i-1]:
+            in_uptrend = True
+        elif df['Close'].iloc[i] < lower_band.iloc[i-1]:
+            in_uptrend = False
+        else:
+            in_uptrend = in_uptrend # keeps previous state
+            if in_uptrend and lower_band.iloc[i] < lower_band.iloc[i-1]:
+                lower_band.iloc[i] = lower_band.iloc[i-1]
+            if not in_uptrend and upper_band.iloc[i] > upper_band.iloc[i-1]:
+                upper_band.iloc[i] = upper_band.iloc[i-1]
+        
+        st_dir[i] = 1 if in_uptrend else -1
+        supertrend[i] = lower_band.iloc[i] if in_uptrend else upper_band.iloc[i]
+        
+    df['Supertrend'] = supertrend
+    df['ST_DIR'] = st_dir
+    return df
+
 # 🟢 Advanced Pro Chart Generator (Dynamic Dark Theme VIP Edition)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, tp3, sl, timeframe, detected_pattern):
     df_plot = df.tail(120).copy()
     
-    # 1. Moving Averages
+    # 1. Moving Averages & VWAP
     df_plot['MA_7'] = df_plot['Close'].rolling(window=7).mean()
     df_plot['MA_25'] = df_plot['Close'].rolling(window=25).mean()
     df_plot['MA_100'] = df_plot['Close'].rolling(window=100).mean()
@@ -184,6 +214,8 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         ap.append(mpf.make_addplot(df_padded['MA_25'], color='#9c27b0', width=1.5)) 
     if not df_padded['MA_100'].isna().all():
         ap.append(mpf.make_addplot(df_padded['MA_100'], color='#66bb6a', width=1.5)) 
+    if 'VWAP' in df_padded.columns and not df_padded['VWAP'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['VWAP'], color='#ff9800', width=1.8, linestyle='-.')) 
         
     # 🟢 Pattern Marker (Chart එකේ Arrow එකක් ඇඳීම)
     pattern_marker = [np.nan] * total_len
@@ -278,26 +310,26 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
             va_align = "bottom"
         ax_main.text(x_max - 5, price + text_y_offset, label, ha="right", va=va_align, color=color, fontsize=10, fontweight='bold')
 
-    # Dynamic Support & Resistance Zones dynamically adjusting per signal
+    # Dynamic Support & Resistance Zones with Order Block (OB) Labels dynamically adjusting per signal
     if direction == "BUY":
         res_y = tp3 + (atr_val * 0.3)
         sup_y = sl - (atr_val * 0.3)
         ax_main.axhline(y=res_y, color='#f23645', linestyle='-', linewidth=1.5, alpha=0.4)
-        ax_main.text(x_max - 15, res_y, "Red Resistance", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
+        ax_main.text(x_max - 15, res_y, "Red Resistance OB", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
         ax_main.axhline(y=sup_y, color='#089981', linestyle='-', linewidth=1.5, alpha=0.4)
-        ax_main.text(x_max - 15, sup_y, "Support Zone", ha="right", va="top", color="#089981", fontsize=9, fontweight='bold')
+        ax_main.text(x_max - 15, sup_y, "Support Zone / Bullish OB", ha="right", va="top", color="#089981", fontsize=9, fontweight='bold')
     else:
         res_y = sl + (atr_val * 0.3)
         sup_y = tp3 - (atr_val * 0.3)
         ax_main.axhline(y=res_y, color='#f23645', linestyle='-', linewidth=1.5, alpha=0.4)
-        ax_main.text(x_max - 15, res_y, "Red Resistance", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
+        ax_main.text(x_max - 15, res_y, "Red Resistance / Bearish OB", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
         ax_main.axhline(y=sup_y, color='#089981', linestyle='-', linewidth=1.5, alpha=0.4)
         ax_main.text(x_max - 15, sup_y, "Support Zone", ha="right", va="top", color="#089981", fontsize=9, fontweight='bold')
 
     # Watermarks
     coin_clean = coin_name.replace('USDT', ' / TetherUS')
     ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#d1d4dc')
-    ax_main.text(0.01, 0.91, "Multi Moving Average (7, 25, 100) & Volume Profile (VPVR)", transform=ax_main.transAxes, fontsize=9, color='#787b86')
+    ax_main.text(0.01, 0.91, "Multi MA + VPVR + Institutional VWAP", transform=ax_main.transAxes, fontsize=9, color='#787b86')
     ax_main.text(0.01, 0.86, f"AI Confidence: {direction} SETUP 🔥", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#089981' if direction=="BUY" else '#f23645')
     ax_main.text(0.01, 0.81, f"🧩 Detected Pattern: {detected_pattern}", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#ff9800')
 
@@ -403,9 +435,18 @@ with tab1:
         
         df['Target'] = np.where(df['Close'].shift(-2) > df['Close'], 1, 0)
         
+        # --- VIP Additions (VWAP, OBV, Supertrend) ---
+        df['Typical_Price'] = (df['High'] + df['Low'] + df['Close']) / 3
+        df['VWAP'] = (df['Typical_Price'] * df['Volume']).cumsum() / df['Volume'].cumsum()
+        df['VWAP_Dist'] = df['Close'] / df['VWAP']
+        df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
+        df['OBV_ROC'] = df['OBV'].pct_change()
+        df = add_supertrend(df)
+        
         detected_pattern = detect_candlestick_pattern(df)
         
-        features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line']
+        # Updated Features including Pro Institutional Indicators
+        features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR']
         last_market_state = df[features].iloc[[-1]].copy()
         
         df_train = df.dropna() 
@@ -458,9 +499,22 @@ with tab1:
                 st.write("---")
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
                 
+                # --- Fear & Greed Index API Fetching ---
+                fng_value = 50
+                fng_class = "Neutral"
+                if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+                    try:
+                        fng_res = requests.get("https://api.alternative.me/fng/?limit=1", timeout=5)
+                        fng_data = fng_res.json()
+                        fng_value = int(fng_data['data'][0]['value'])
+                        fng_class = fng_data['data'][0]['value_classification']
+                        st.info(f"🧭 **Crypto Market Sentiment (Fear & Greed):** {fng_class} ({fng_value}/100)")
+                    except Exception:
+                        pass
+                
                 has_valid_signal = False
                 
-                # 🟢 Smarter Trend & Confluence Filter (WITH REVERSAL LOGIC) 🟢
+                # 🟢 Smarter Trend & Confluence Filter (WITH REVERSAL LOGIC & F&G Protection) 🟢
                 last_ema9 = float(last_market_state['EMA_9'].iloc[0])
                 last_ema21 = float(last_market_state['EMA_21'].iloc[0])
                 last_macd = float(last_market_state['MACD'].iloc[0])
@@ -471,16 +525,20 @@ with tab1:
                 is_reversal = False
                 
                 if prediction == 1: # AI කියන්නේ BUY කියලා
-                    if (last_ema9 < last_ema21) and (last_macd < 0):
-                        # මාකට් එක පල්ලෙහාට යද්දි BUY දුන්නොත්, ඒක Reversal එකක්ද කියලා බලනවා
+                    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value >= 75:
+                        confluence_pass = False
+                        confluence_msg = f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Overbought) මට්ටමේ. මෙවැනි අවස්ථාවක Market එක කඩා වැටෙන්නට (Crash) ඉඩ ඇති බැවින් AI මෙම BUY සිග්නලය ප්‍රතික්ෂේප කරයි."
+                    elif (last_ema9 < last_ema21) and (last_macd < 0):
                         if last_rsi < 40 and ("Hammer" in detected_pattern or "Bullish" in detected_pattern):
                             is_reversal = True
                         else:
                             confluence_pass = False
                             confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව 'Falling Knife' එකක් ඇල්ලීම ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
                 else: # AI කියන්නේ SELL කියලා
-                    if (last_ema9 > last_ema21) and (last_macd > 0):
-                        # මාකට් එක උඩට යද්දි SELL දුන්නොත්, ඒක Reversal එකක්ද කියලා බලනවා
+                    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value <= 25:
+                        confluence_pass = False
+                        confluence_msg = f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Oversold) මට්ටමේ. මෙතැනින් Reversal එකක් වීමට ඉඩ ඇති බැවින් AI මෙම SELL සිග්නලය ප්‍රතික්ෂේප කරයි."
+                    elif (last_ema9 > last_ema21) and (last_macd > 0):
                         if last_rsi > 60 and ("Shooting Star" in detected_pattern or "Bearish" in detected_pattern):
                             is_reversal = True
                         else:
@@ -558,7 +616,7 @@ with tab1:
                     try:
                         # 🟢 Passing ALL TP levels to the dynamic image generator
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
-                        st.image(chart_image_bytes, caption=f"Dynamically Generated Setup for {selected_display_name} (VPVR + {detected_pattern})")
+                        st.image(chart_image_bytes, caption=f"Dynamically Generated Setup for {selected_display_name} (VPVR + VWAP + OB + {detected_pattern})")
                         image_generated_successfully = True
                     except Exception as img_err:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
