@@ -14,7 +14,7 @@ import mplfinance as mpf
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
-st.write("SMC (FVG & Order Blocks), ATR, VWAP, Supertrend සහ Market Sentiment (Fear & Greed) එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC (FVG & Order Blocks), ATR, VWAP, Supertrend, 200 EMA, StochRSI, BB Squeeze සහ Market Sentiment (Fear & Greed) එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 if 'scan_results' not in st.session_state:
     st.session_state.scan_results = []
@@ -167,6 +167,9 @@ def add_supertrend(df, period=10, multiplier=3):
 
 # 🟢 Advanced Pro Chart Generator (Dynamic Dark Theme VIP Edition)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, tp3, sl, timeframe, detected_pattern):
+    # Calculate EMA 200 before tailing
+    df['EMA_200'] = df['Close'].ewm(span=200, adjust=False).mean()
+    
     df_plot = df.tail(120).copy()
     
     # 1. Moving Averages & VWAP
@@ -242,6 +245,8 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         ap.append(mpf.make_addplot(df_padded['MA_25'], color='#9c27b0', width=1.5)) 
     if not df_padded['MA_100'].isna().all():
         ap.append(mpf.make_addplot(df_padded['MA_100'], color='#66bb6a', width=1.5)) 
+    if 'EMA_200' in df_padded.columns and not df_padded['EMA_200'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['EMA_200'], color='#ffeb3b', width=2.0)) # Added 200 EMA 
     if 'VWAP' in df_padded.columns and not df_padded['VWAP'].isna().all():
         ap.append(mpf.make_addplot(df_padded['VWAP'], color='#ff9800', width=1.8, linestyle='-.')) 
         
@@ -475,10 +480,20 @@ with tab1:
         rs = gain / loss
         df['RSI'] = 100 - (100 / (1 + rs))
         
+        # Stochastic RSI Calculation
+        min_val = df['RSI'].rolling(window=14).min()
+        max_val = df['RSI'].rolling(window=14).max()
+        df['StochRSI'] = (df['RSI'] - min_val) / (max_val - min_val)
+        df['StochRSI_K'] = df['StochRSI'].rolling(window=3).mean().fillna(0)
+        df['StochRSI_D'] = df['StochRSI_K'].rolling(window=3).mean().fillna(0)
+        
         df['MA20'] = df['Close'].rolling(window=20).mean()
         df['StdDev'] = df['Close'].rolling(window=20).std()
         df['BB_Upper'] = df['MA20'] + (df['StdDev'] * 2)
         df['BB_Lower'] = df['MA20'] - (df['StdDev'] * 2)
+        
+        # 🟢 Bollinger Band Squeeze (Width) 
+        df['BB_Width'] = (df['BB_Upper'] - df['BB_Lower']) / df['MA20']
         
         df['High-Low'] = df['High'] - df['Low']
         df['High-PrevClose'] = np.abs(df['High'] - df['Close'].shift(1))
@@ -491,19 +506,20 @@ with tab1:
         
         df['Target'] = np.where(df['Close'].shift(-2) > df['Close'], 1, 0)
         
-        # --- VIP Additions (VWAP, OBV, Supertrend) BUG FIXED ---
+        # --- VIP Additions (VWAP, OBV, Supertrend, EMA 200) ---
         df['Typical_Price'] = (df['High'] + df['Low'] + df['Close']) / 3
         vol_cumsum = df['Volume'].cumsum()
         df['VWAP'] = np.where(vol_cumsum > 0, (df['Typical_Price'] * df['Volume']).cumsum() / vol_cumsum, df['Close'])
         df['VWAP_Dist'] = np.where(df['VWAP'] > 0, df['Close'] / df['VWAP'], 1.0)
         df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
         df['OBV_ROC'] = df['OBV'].pct_change().fillna(0)
+        df['EMA_200'] = df['Close'].ewm(span=200, adjust=False).mean().fillna(0)
         df = add_supertrend(df)
         
         detected_pattern = detect_candlestick_pattern(df)
         
-        # Updated Features including Pro Institutional Indicators
-        features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR']
+        # Updated Features including Pro Institutional Indicators + BB Width
+        features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'BB_Width', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR', 'EMA_200', 'StochRSI_K', 'StochRSI_D']
         last_market_state = df[features].iloc[[-1]].copy()
         
         df_train = df.dropna() 
@@ -676,7 +692,7 @@ with tab1:
                     
                     try:
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
-                        st.image(chart_image_bytes, caption=f"Dynamically Generated Setup for {selected_display_name} (VPVR + VWAP + OB + {detected_pattern})")
+                        st.image(chart_image_bytes, caption=f"Dynamically Generated Setup for {selected_display_name} (VPVR + VWAP + 200 EMA + OB + {detected_pattern})")
                         image_generated_successfully = True
                     except Exception as img_err:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
@@ -805,10 +821,20 @@ with tab2:
                     rs = gain / loss
                     df_scan['RSI'] = 100 - (100 / (1 + rs))
                     
+                    # Stochastic RSI Calculation
+                    min_val_s = df_scan['RSI'].rolling(window=14).min()
+                    max_val_s = df_scan['RSI'].rolling(window=14).max()
+                    df_scan['StochRSI'] = (df_scan['RSI'] - min_val_s) / (max_val_s - min_val_s)
+                    df_scan['StochRSI_K'] = df_scan['StochRSI'].rolling(window=3).mean().fillna(0)
+                    df_scan['StochRSI_D'] = df_scan['StochRSI_K'].rolling(window=3).mean().fillna(0)
+                    
                     df_scan['MA20'] = df_scan['Close'].rolling(window=20).mean()
                     df_scan['StdDev'] = df_scan['Close'].rolling(window=20).std()
                     df_scan['BB_Upper'] = df_scan['MA20'] + (df_scan['StdDev'] * 2)
                     df_scan['BB_Lower'] = df_scan['MA20'] - (df_scan['StdDev'] * 2)
+                    
+                    # 🟢 Bollinger Band Squeeze (Width)
+                    df_scan['BB_Width'] = (df_scan['BB_Upper'] - df_scan['BB_Lower']) / df_scan['MA20']
                     
                     df_scan['High-Low'] = df_scan['High'] - df_scan['Low']
                     df_scan['High-PrevClose'] = np.abs(df_scan['High'] - df_scan['Close'].shift(1))
@@ -829,10 +855,14 @@ with tab2:
                     df_scan['OBV'] = (np.sign(df_scan['Close'].diff()) * df_scan['Volume']).fillna(0).cumsum()
                     df_scan['OBV_ROC'] = df_scan['OBV'].pct_change().fillna(0)
                     
+                    df_scan['EMA_200'] = df_scan['Close'].ewm(span=200, adjust=False).mean().fillna(0)
+                    
                     df_scan = add_supertrend(df_scan)
                     
                     scan_pattern = detect_candlestick_pattern(df_scan)
-                    features_scan = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR']
+                    
+                    # Add BB_Width to Scanner Features
+                    features_scan = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'BB_Width', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR', 'EMA_200', 'StochRSI_K', 'StochRSI_D']
                     
                     df_train_scan = df_scan.dropna()
                     
@@ -845,7 +875,7 @@ with tab2:
                         X_train_s, y_train_s = X_s[:split_s], y_s[:split_s]
                         
                         # Use a slightly lighter model for fast scanning
-                        model_s = RandomForestClassifier(n_estimators=50, max_depth=8, min_samples_leaf=3, random_state=42)
+                        model_s = RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=3, random_state=42)
                         model_s.fit(X_train_s, y_train_s)
                         
                         prediction_s = model_s.predict(last_market_state_scan)[0]
