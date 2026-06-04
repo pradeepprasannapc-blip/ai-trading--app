@@ -60,7 +60,7 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
-# 🟢 අලුත්: Candlestick Pattern Detection Function 🟢
+# 🟢 Candlestick Pattern Detection Function 
 def detect_candlestick_pattern(df):
     try:
         if len(df) < 3:
@@ -107,9 +107,9 @@ def detect_candlestick_pattern(df):
     except:
         return "Standard Price Action"
 
-# 🟢 Advanced Pro Chart Generator (With Volume Profile VPVR, Fibonacci & Trendlines)
+# 🟢 Advanced Pro Chart Generator (With Pattern Marker, VPVR, Fibonacci)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, timeframe, detected_pattern):
-    df_plot = df.tail(120).copy() # කෑන්ඩල් 120ක් ගනිමු 
+    df_plot = df.tail(120).copy()
     
     # 1. Moving Averages
     df_plot['MA_7'] = df_plot['Close'].rolling(window=7).mean()
@@ -127,7 +127,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     
     total_len = len(df_padded)
     
-    # 3. Fibonacci Retracement Levels ගණනය කිරීම
+    # 3. Fibonacci Retracement Levels
     low_val = df_plot['Low'].min()
     high_val = df_plot['High'].max()
     low_idx = df_plot['Low'].values.argmin()
@@ -140,7 +140,6 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     start_fib_idx = min(low_idx, high_idx)
     end_fib_idx = max(low_idx, high_idx)
     
-    # Risk/Reward සහ Fib Box සඳහා Masks
     where_mask = np.zeros(total_len, dtype=bool)
     where_mask[-(len(future_dates) + 5):] = True 
     
@@ -153,14 +152,12 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     y_fib_top = np.full(total_len, high_val)
     y_fib_bot = np.full(total_len, low_val)
     
-    # Fills (Shaded boxes)
     fills = [
         dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.25), 
         dict(y1=y_entry, y2=y_sl, where=where_mask, color='#f23645', alpha=0.25), 
         dict(y1=y_fib_top, y2=y_fib_bot, where=where_fib, color='#787b86', alpha=0.06) 
     ]
     
-    # 4. VIP Light Theme + Grid සැකසුම්
     mc = mpf.make_marketcolors(up='#089981', down='#f23645', edge='inherit', wick='inherit', volume='in', ohlc='i')
     s = mpf.make_mpf_style(
         marketcolors=mc, 
@@ -172,7 +169,6 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
         rc={'font.size': 9, 'axes.grid': True}
     )
     
-    # 5. Moving Averages එකතු කිරීම
     ap = []
     if not df_padded['MA_7'].isna().all():
         ap.append(mpf.make_addplot(df_padded['MA_7'], color='#2962ff', width=1.5)) 
@@ -180,8 +176,21 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
         ap.append(mpf.make_addplot(df_padded['MA_25'], color='#9c27b0', width=1.5)) 
     if not df_padded['MA_100'].isna().all():
         ap.append(mpf.make_addplot(df_padded['MA_100'], color='#66bb6a', width=1.5)) 
+        
+    # 🟢 Pattern Marker (Chart එකේ Arrow එකක් ඇඳීම)
+    pattern_marker = [np.nan] * total_len
+    last_candle_idx = len(df_plot) - 1
     
-    # 6. Figure එක Create කිරීම
+    if detected_pattern != "Standard Price Action":
+        if "Bullish" in detected_pattern or "Buy" in direction or "Hammer" in detected_pattern:
+            # කෑන්ඩල් එකට යටින් උඩට ඊතලයක් (Buy/Bullish)
+            pattern_marker[last_candle_idx] = df_plot['Low'].iloc[-1] - (df_plot['ATR'].iloc[-1] * 0.8)
+            ap.append(mpf.make_addplot(pattern_marker, type='scatter', markersize=200, marker='^', color='#089981'))
+        else:
+            # කෑන්ඩල් එකට උඩින් යටට ඊතලයක් (Sell/Bearish)
+            pattern_marker[last_candle_idx] = df_plot['High'].iloc[-1] + (df_plot['ATR'].iloc[-1] * 0.8)
+            ap.append(mpf.make_addplot(pattern_marker, type='scatter', markersize=200, marker='v', color='#f23645'))
+
     fig, axlist = mpf.plot(
         df_padded, 
         type='candle', 
@@ -197,17 +206,15 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     
     ax_main = axlist[0] 
     
-    # 7. Volume Profile (VPVR) එකතු කිරීම
+    # Volume Profile (VPVR)
     vp_bins = 50
     price_min, price_max = df_plot['Low'].min(), df_plot['High'].max()
     bin_size = (price_max - price_min) / vp_bins
     bins = np.linspace(price_min, price_max, vp_bins + 1)
     
-    # Typical price මගින් Volume එක කඩමු
     df_plot['Typical_Price'] = (df_plot['High'] + df_plot['Low'] + df_plot['Close']) / 3
     df_plot['Bin'] = pd.cut(df_plot['Typical_Price'], bins=bins, labels=False, include_lowest=True)
     
-    # Up volume සහ Down volume වෙන් කිරීම
     df_up = df_plot[df_plot['Close'] >= df_plot['Open']]
     df_down = df_plot[df_plot['Close'] < df_plot['Open']]
     
@@ -222,19 +229,16 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     for b, vol in vp_down.items():
         if not np.isnan(b): vp_down_arr[int(b)] = vol
         
-    vp_y = bins[:-1] + (bin_size / 2) # බින් එකේ මැද ලක්ෂ්‍යය
+    vp_y = bins[:-1] + (bin_size / 2)
     max_vol = np.max(vp_up_arr + vp_down_arr)
     
-    # චාට් එකේ වම් පැත්තේ ඉඳන් අඳිමු (TradingView වගේම)
     if max_vol > 0:
-        vp_widths_up = (vp_up_arr / max_vol) * 22  # උපරිම පළල කෑන්ඩල් 22ක තරම්
+        vp_widths_up = (vp_up_arr / max_vol) * 22  
         vp_widths_down = (vp_down_arr / max_vol) * 22
-        
-        # නිල් සහ තැඹිලි පාටින් අඳිමු
         ax_main.barh(vp_y, vp_widths_up, left=0, height=bin_size*0.9, color='#2962ff', alpha=0.3, zorder=1)
         ax_main.barh(vp_y, vp_widths_down, left=vp_widths_up, height=bin_size*0.9, color='#ff9800', alpha=0.3, zorder=1)
 
-    # 8. Fibonacci රේඛා සහ Trendline ඇඳීම
+    # Fibonacci & Lines
     ax_main.plot([low_idx, high_idx], [low_val, high_val], color='#787b86', linestyle='--', linewidth=1.5, alpha=0.8)
     
     fib_levels_to_draw = [(high_val, '1 (100%)'), (fib_618, '0.618'), (fib_382, '0.382'), (low_val, '0 (0%)')]
@@ -242,7 +246,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
         ax_main.plot([start_fib_idx, end_fib_idx], [val, val], color='#787b86', linestyle=':', linewidth=1.2, alpha=0.8)
         ax_main.text(start_fib_idx, val, f" {label}", color='#787b86', fontsize=8, va='bottom', ha='left')
 
-    # 9. TradingView Style Price Tags
+    # Price Tags
     x_max = total_len - 1 
     target_levels = [(entry, '#3b3b3b', 'Entry'), (tp3, '#089981', 'TP 3'), (sl, '#f23645', 'Stop Loss')]
     
@@ -253,13 +257,11 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
         ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white", fontsize=10, fontweight='bold', bbox=bbox_props)
         ax_main.text(x_max - 2, price + (price * 0.002), label, ha="right", va="bottom", color=color, fontsize=10, fontweight='bold')
 
-    # 10. Top-Left Watermark / Legend
+    # Watermarks
     coin_clean = coin_name.replace('USDT', ' / TetherUS')
     ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#131722')
     ax_main.text(0.01, 0.91, "Multi Moving Average (7, 25, 100) & Volume Profile (VPVR)", transform=ax_main.transAxes, fontsize=9, color='#787b86')
     ax_main.text(0.01, 0.86, f"AI Confidence: {direction} SETUP 🔥", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#089981' if direction=="BUY" else '#f23645')
-    
-    # 🟢 Pattern Watermark
     ax_main.text(0.01, 0.81, f"🧩 Detected Pattern: {detected_pattern}", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#ff9800')
 
     buf = io.BytesIO()
@@ -314,10 +316,15 @@ with tab1:
         selected_display_name = f"Custom Symbol ({ticker})"
 
     tf_display = st.selectbox("Timeframe එක තෝරන්න:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"])
+    
+    # 🟢 Training Data ප්‍රමාණය වැඩි කිරීම (Period Update) 🟢
     tf_mapping = {
-        "5 min": {"yf": "5m", "tv": "5", "period": "7d"}, "15 min": {"yf": "15m", "tv": "15", "period": "7d"},
-        "30 min": {"yf": "30m", "tv": "30", "period": "30d"}, "1 hour": {"yf": "1h", "tv": "60", "period": "60d"},
-        "4 hour": {"yf": "4h", "tv": "240", "period": "90d"}, "1 day": {"yf": "1d", "tv": "D", "period": "max"}
+        "5 min": {"yf": "5m", "tv": "5", "period": "60d"}, 
+        "15 min": {"yf": "15m", "tv": "15", "period": "60d"},
+        "30 min": {"yf": "30m", "tv": "30", "period": "60d"}, 
+        "1 hour": {"yf": "1h", "tv": "60", "period": "730d"},
+        "4 hour": {"yf": "4h", "tv": "240", "period": "730d"}, 
+        "1 day": {"yf": "1d", "tv": "D", "period": "max"}
     }
     selected_tf = tf_mapping[tf_display]
 
@@ -334,6 +341,10 @@ with tab1:
         df['Returns'] = df['Close'].pct_change()
         df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
         df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
+        
+        # 🟢 අලුත් Feature: MACD 🟢
+        df['MACD'] = df['Close'].ewm(span=12, adjust=False).mean() - df['Close'].ewm(span=26, adjust=False).mean()
+        df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
         
         delta = df['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
@@ -357,7 +368,6 @@ with tab1:
         
         df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
         
-        # 🟢 Pattern එක ලබා ගැනීම 🟢
         detected_pattern = detect_candlestick_pattern(df)
         
         df.dropna(inplace=True) 
@@ -366,14 +376,16 @@ with tab1:
             st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
         else:
             try:
-                features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear']
+                # 🟢 MACD එකත් AI Features වලට දැම්මා 🟢
+                features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line']
                 X = df[features]
                 y = df['Target']
                 
                 split = int(0.85 * len(df))
                 X_train, y_train = X[:split], y[:split]
                 
-                model = RandomForestClassifier(n_estimators=150, max_depth=8, min_samples_leaf=3, random_state=42)
+                # Model parameters ටිකක් දියුණු කළා
+                model = RandomForestClassifier(n_estimators=200, max_depth=10, min_samples_leaf=3, random_state=42)
                 model.fit(X_train, y_train)
                 
                 last_market_state = X.iloc[[-1]]
@@ -390,27 +402,33 @@ with tab1:
                 ai_confidence = max(probability) * 100
                 dp = 8 if current_price < 0.01 else 4
                 
-                pullback_amount = atr_val * 0.2  
+                # 🟢 Risk Management දියුණු කිරීම (SL දුර වැඩි කළා) 🟢
+                pullback_amount = atr_val * 0.3  
+                sl_multiplier = 2.0  
+                tp1_multiplier = 1.5
+                tp2_multiplier = 3.0
+                tp3_multiplier = 5.0
                 
                 if prediction == 1: 
                     entry_price = current_price - pullback_amount 
-                    tp1_price = entry_price + (atr_val * 1.2)
-                    tp2_price = entry_price + (atr_val * 2.2)
-                    tp3_price = entry_price + (atr_val * 3.5)
-                    sl_price = entry_price - (atr_val * 1.5) 
+                    tp1_price = entry_price + (atr_val * tp1_multiplier)
+                    tp2_price = entry_price + (atr_val * tp2_multiplier)
+                    tp3_price = entry_price + (atr_val * tp3_multiplier)
+                    sl_price = entry_price - (atr_val * sl_multiplier) 
                 else: 
                     entry_price = current_price + pullback_amount 
-                    tp1_price = entry_price - (atr_val * 1.2)
-                    tp2_price = entry_price - (atr_val * 2.2)
-                    tp3_price = entry_price - (atr_val * 3.5)
-                    sl_price = entry_price + (atr_val * 1.5) 
+                    tp1_price = entry_price - (atr_val * tp1_multiplier)
+                    tp2_price = entry_price - (atr_val * tp2_multiplier)
+                    tp3_price = entry_price - (atr_val * tp3_multiplier)
+                    sl_price = entry_price + (atr_val * sl_multiplier) 
         
                 st.write("---")
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
                 
                 has_valid_signal = False
-                if ai_confidence < 60.0:
-                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%).")
+                # 🟢 Confidence Threshold එක 72% කට දැම්මා 🟢
+                if ai_confidence < 72.0:
+                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 72% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
                 else:
                     has_valid_signal = True
                     if prediction == 1:
@@ -418,7 +436,7 @@ with tab1:
                     else:
                         st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
         
-                chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies"]'
+                chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies", "MACD@tv-basicstudies"]'
                 tradingview_html = f"""
                 <div class="tradingview-widget-container" style="height:500px; width:100%;">
                   <div id="tradingview_chart" style="height:500px;"></div>
@@ -467,7 +485,6 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        # 🟢 Pattern එකත් එක්ක Chart එක හදමු
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp3_price, sl_price, tf_display, detected_pattern)
                         st.image(chart_image_bytes, caption=f"Generated VIP Setup (VPVR + {detected_pattern})")
                         image_generated_successfully = True
@@ -492,13 +509,12 @@ with tab1:
                         if not is_safe_to_send:
                             st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                         else:
-                            # 🟢 Telegram මැසේජ් එකටත් Pattern එක ඇතුළත් කළා
                             telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                 success = False
                                 if image_generated_successfully:
-                                    success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                                success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
                                 
                                 if not success:
                                     success = send_telegram_message(telegram_text)
