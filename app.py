@@ -60,6 +60,16 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
+# --- Global Fear & Greed Fetcher (Cached) ---
+@st.cache_data(ttl=3600)
+def get_fear_and_greed():
+    try:
+        res = requests.get("https://api.alternative.me/fng/?limit=1", timeout=5)
+        data = res.json()
+        return int(data['data'][0]['value']), data['data'][0]['value_classification']
+    except:
+        return 50, "Neutral"
+
 # 🟢 Candlestick Pattern Detection Function 
 def detect_candlestick_pattern(df):
     try:
@@ -124,7 +134,7 @@ def add_supertrend(df, period=10, multiplier=3):
         elif df['Close'].iloc[i] < lower_band.iloc[i-1]:
             in_uptrend = False
         else:
-            in_uptrend = in_uptrend # keeps previous state
+            in_uptrend = in_uptrend 
             if in_uptrend and lower_band.iloc[i] < lower_band.iloc[i-1]:
                 lower_band.iloc[i] = lower_band.iloc[i-1]
             if not in_uptrend and upper_band.iloc[i] > upper_band.iloc[i-1]:
@@ -341,39 +351,55 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
 
 HISTORY_FILE = "signal_history.csv"
 
-tab1, tab2, tab3 = st.tabs(["⚡ Live AI Signals", "📂 Auto Signal History", "💼 VIP Demo Trading"])
+# Global options for mapping
+market_options = {
+    "Bitcoin (BTC/USD)": "BTC-USD", "Ethereum (ETH/USD)": "ETH-USD",
+    "Solana (SOL/USD)": "SOL-USD", "Binance Coin (BNB/USD)": "BNB-USD",
+    "Ripple (XRP/USD)": "XRP-USD", "Cardano (ADA/USD)": "ADA-USD",
+    "Dogwifhat (WIF/USD)": "WIF-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD",
+    "Pepe (PEPE/USD)": "PEPE-USD", "Avalanche (AVAX/USD)": "AVAX-USD",
+    "Chainlink (LINK/USD)": "LINK-USD", "Polkadot (DOT/USD)": "DOT-USD",
+    "Fantom (FTM/USD)": "FTM-USD", "Polygon (MATIC/USD)": "MATIC-USD",
+    "Injective (INJ/USD)": "INJ-USD"
+}
+
+tf_mapping = {
+    "5 min": {"yf": "5m", "tv": "5", "period": "60d"}, 
+    "15 min": {"yf": "15m", "tv": "15", "period": "60d"},
+    "30 min": {"yf": "30m", "tv": "30", "period": "60d"}, 
+    "1 hour": {"yf": "1h", "tv": "60", "period": "730d"},
+    "4 hour": {"yf": "4h", "tv": "240", "period": "730d"}, 
+    "1 day": {"yf": "1d", "tv": "D", "period": "max"}
+}
+
+@st.cache_data
+def get_market_data(symbol, tf, prd):
+    df = yf.download(symbol, period=prd, interval=tf, auto_adjust=True)
+    return df
+
+tab1, tab2, tab3, tab4 = st.tabs(["⚡ Live AI Signals", "📂 Auto Signal History", "💼 VIP Demo Trading", "🔍 Market Scanner"])
 
 with tab1:
     st.subheader("🌐 වෙළඳපොල සහ කාසිය තෝරන්න:")
     category = st.radio("ප්‍රවර්ගය තෝරන්න:", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ", "💱 ෆොරෙක්ස්", "✨ ලෝහ සහ තෙල්", "✏️ වෙනත් (Custom)"], horizontal=True)
 
     if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
-        market_options = {
-            "Bitcoin (BTC/USD)": "BTC-USD", "Ethereum (ETH/USD)": "ETH-USD",
-            "Solana (SOL/USD)": "SOL-USD", "Binance Coin (BNB/USD)": "BNB-USD",
-            "Ripple (XRP/USD)": "XRP-USD", "Cardano (ADA/USD)": "ADA-USD",
-            "Dogwifhat (WIF/USD)": "WIF-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD",
-            "Pepe (PEPE/USD)": "PEPE-USD", "Avalanche (AVAX/USD)": "AVAX-USD",
-            "Chainlink (LINK/USD)": "LINK-USD", "Polkadot (DOT/USD)": "DOT-USD",
-            "Fantom (FTM/USD)": "FTM-USD", "Polygon (MATIC/USD)": "MATIC-USD",
-            "Injective (INJ/USD)": "INJ-USD"
-        }
         selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
         ticker = market_options[selected_display_name]
         clean_symbol = ticker.replace('-USD', 'USDT')
         full_tv_ticker = f"BINANCE:{clean_symbol}"
 
     elif category == "💱 ෆොරෙක්ස්":
-        market_options = {"Euro / US Dollar (EUR/USD)": "EURUSD=X", "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X", "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X", "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X"}
-        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
-        ticker = market_options[selected_display_name]
+        fx_options = {"Euro / US Dollar (EUR/USD)": "EURUSD=X", "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X", "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X", "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X"}
+        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(fx_options.keys()))
+        ticker = fx_options[selected_display_name]
         clean_symbol = ticker.replace('=X', '')
         full_tv_ticker = f"FX_IDC:{clean_symbol}"
 
     elif category == "✨ ලෝහ සහ තෙල්":
-        market_options = {"රන් / Gold (XAU/USD)": "GC=F", "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"}
-        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(market_options.keys()))
-        ticker = market_options[selected_display_name]
+        com_options = {"රන් / Gold (XAU/USD)": "GC=F", "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"}
+        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(com_options.keys()))
+        ticker = com_options[selected_display_name]
         clean_symbol = ticker.replace('=F', '')
         full_tv_ticker = f"COMEX:{clean_symbol}" if "GC" in ticker else f"NYMEX:{clean_symbol}"
 
@@ -384,22 +410,8 @@ with tab1:
         with col_c2: full_tv_ticker = st.text_input("TradingView Symbol:", "BINANCE:DOGEUSDT")
         selected_display_name = f"Custom Symbol ({ticker})"
 
-    tf_display = st.selectbox("Timeframe එක තෝරන්න:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"])
-    
-    tf_mapping = {
-        "5 min": {"yf": "5m", "tv": "5", "period": "60d"}, 
-        "15 min": {"yf": "15m", "tv": "15", "period": "60d"},
-        "30 min": {"yf": "30m", "tv": "30", "period": "60d"}, 
-        "1 hour": {"yf": "1h", "tv": "60", "period": "730d"},
-        "4 hour": {"yf": "4h", "tv": "240", "period": "730d"}, 
-        "1 day": {"yf": "1d", "tv": "D", "period": "max"}
-    }
+    tf_display = st.selectbox("Timeframe එක තෝරන්න:", list(tf_mapping.keys()))
     selected_tf = tf_mapping[tf_display]
-
-    @st.cache_data
-    def get_market_data(symbol, tf, prd):
-        df = yf.download(symbol, period=prd, interval=tf, auto_adjust=True)
-        return df
 
     df = get_market_data(ticker, selected_tf["yf"], selected_tf["period"])
 
@@ -499,18 +511,10 @@ with tab1:
                 st.write("---")
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
                 
-                # --- Fear & Greed Index API Fetching ---
-                fng_value = 50
-                fng_class = "Neutral"
+                # --- Fear & Greed Index Fetching ---
+                fng_value, fng_class = get_fear_and_greed()
                 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
-                    try:
-                        fng_res = requests.get("https://api.alternative.me/fng/?limit=1", timeout=5)
-                        fng_data = fng_res.json()
-                        fng_value = int(fng_data['data'][0]['value'])
-                        fng_class = fng_data['data'][0]['value_classification']
-                        st.info(f"🧭 **Crypto Market Sentiment (Fear & Greed):** {fng_class} ({fng_value}/100)")
-                    except Exception:
-                        pass
+                    st.info(f"🧭 **Crypto Market Sentiment (Fear & Greed):** {fng_class} ({fng_value}/100)")
                 
                 has_valid_signal = False
                 
@@ -614,7 +618,6 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        # 🟢 Passing ALL TP levels to the dynamic image generator
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
                         st.image(chart_image_bytes, caption=f"Dynamically Generated Setup for {selected_display_name} (VPVR + VWAP + OB + {detected_pattern})")
                         image_generated_successfully = True
@@ -677,7 +680,6 @@ if os.path.exists(HISTORY_FILE):
         updated = False
         live_prices_dict = {}
         
-        # Check if we need to fetch live prices (Optimized)
         with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
             for index, row in history_df.iterrows():
                 if "Cancelled" in str(row['Status']):
@@ -954,3 +956,135 @@ with tab3:
             st.info("තවම Trade කිසිවක් Close වී නොමැත.")
     else:
         st.info("ඔබ තවමත් Signals කිසිවක් ලබාගෙන නැත. පළමු ටැබ් එකෙන් Signals ලබාගත් පසු ඒවා ස්වයංක්‍රීයව මෙහි Trade වේ.")
+
+# --- Tab 4: Auto Market Scanner ---
+with tab4:
+    st.subheader("🔍 VIP Market Scanner (Auto Signal Finder)")
+    st.write("එකින් එක කාසි පරීක්ෂා කිරීම වෙනුවට, එකවර කාසි රාශියක් ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති කාසි පමණක් පහසුවෙන් සොයාගන්න.")
+    
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        scan_tf_display = st.selectbox("ස්කෑන් කළ යුතු Timeframe එක තෝරන්න:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"])
+        scan_tf = tf_mapping[scan_tf_display]
+        
+    with col_s2:
+        st.write("")
+        st.write("")
+        start_scan = st.button("🚀 Market එක ස්කෑන් කිරීම ආරම්භ කරන්න", use_container_width=True)
+        
+    if start_scan:
+        valid_signals = []
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        fng_value, fng_class = get_fear_and_greed()
+        
+        coins_to_scan = list(market_options.keys())
+        total_coins = len(coins_to_scan)
+        
+        for i, coin_name in enumerate(coins_to_scan):
+            ticker_to_scan = market_options[coin_name]
+            status_text.text(f"🔍 ස්කෑන් කරමින් පවතී: {coin_name}... ({i+1}/{total_coins})")
+            
+            try:
+                df_scan = yf.download(ticker_to_scan, period=scan_tf["period"], interval=scan_tf["yf"], auto_adjust=True, progress=False)
+                
+                if not df_scan.empty and len(df_scan) > 125:
+                    if isinstance(df_scan.columns, pd.MultiIndex): df_scan.columns = df_scan.columns.get_level_values(0)
+                    
+                    df_scan['Returns'] = df_scan['Close'].pct_change()
+                    df_scan['EMA_9'] = df_scan['Close'].ewm(span=9, adjust=False).mean()
+                    df_scan['EMA_21'] = df_scan['Close'].ewm(span=21, adjust=False).mean()
+                    df_scan['MACD'] = df_scan['Close'].ewm(span=12, adjust=False).mean() - df_scan['Close'].ewm(span=26, adjust=False).mean()
+                    df_scan['Signal_Line'] = df_scan['MACD'].ewm(span=9, adjust=False).mean()
+                    
+                    delta = df_scan['Close'].diff()
+                    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                    rs = gain / loss
+                    df_scan['RSI'] = 100 - (100 / (1 + rs))
+                    
+                    df_scan['MA20'] = df_scan['Close'].rolling(window=20).mean()
+                    df_scan['StdDev'] = df_scan['Close'].rolling(window=20).std()
+                    df_scan['BB_Upper'] = df_scan['MA20'] + (df_scan['StdDev'] * 2)
+                    df_scan['BB_Lower'] = df_scan['MA20'] - (df_scan['StdDev'] * 2)
+                    
+                    df_scan['High-Low'] = df_scan['High'] - df_scan['Low']
+                    df_scan['High-PrevClose'] = np.abs(df_scan['High'] - df_scan['Close'].shift(1))
+                    df_scan['Low-PrevClose'] = np.abs(df_scan['Low'] - df_scan['Close'].shift(1))
+                    df_scan['TR'] = df_scan[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
+                    df_scan['ATR'] = df_scan['TR'].rolling(window=14).mean()
+                    
+                    df_scan['FVG_Bull'] = np.where(df_scan['Low'] > df_scan['High'].shift(2), 1, 0)
+                    df_scan['FVG_Bear'] = np.where(df_scan['High'] < df_scan['Low'].shift(2), 1, 0)
+                    df_scan['Target'] = np.where(df_scan['Close'].shift(-2) > df_scan['Close'], 1, 0)
+                    
+                    df_scan['Typical_Price'] = (df_scan['High'] + df_scan['Low'] + df_scan['Close']) / 3
+                    df_scan['VWAP'] = (df_scan['Typical_Price'] * df_scan['Volume']).cumsum() / df_scan['Volume'].cumsum()
+                    df_scan['VWAP_Dist'] = df_scan['Close'] / df_scan['VWAP']
+                    df_scan['OBV'] = (np.sign(df_scan['Close'].diff()) * df_scan['Volume']).fillna(0).cumsum()
+                    df_scan['OBV_ROC'] = df_scan['OBV'].pct_change()
+                    df_scan = add_supertrend(df_scan)
+                    
+                    scan_pattern = detect_candlestick_pattern(df_scan)
+                    features_scan = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR']
+                    
+                    df_train_scan = df_scan.dropna()
+                    
+                    if len(df_train_scan) >= 20:
+                        last_market_state_scan = df_scan[features_scan].iloc[[-1]].copy()
+                        X_s = df_train_scan[features_scan]
+                        y_s = df_train_scan['Target']
+                        
+                        split_s = int(0.85 * len(df_train_scan))
+                        X_train_s, y_train_s = X_s[:split_s], y_s[:split_s]
+                        
+                        # Use a slightly lighter model for fast scanning
+                        model_s = RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=3, random_state=42)
+                        model_s.fit(X_train_s, y_train_s)
+                        
+                        prediction_s = model_s.predict(last_market_state_scan)[0]
+                        probability_s = model_s.predict_proba(last_market_state_scan)[0]
+                        ai_confidence_s = max(probability_s) * 100
+                        
+                        # Confluence Logic
+                        last_ema9_s = float(last_market_state_scan['EMA_9'].iloc[0])
+                        last_ema21_s = float(last_market_state_scan['EMA_21'].iloc[0])
+                        last_macd_s = float(last_market_state_scan['MACD'].iloc[0])
+                        last_rsi_s = float(last_market_state_scan['RSI'].iloc[0])
+                        
+                        confluence_pass_s = True
+                        if prediction_s == 1:
+                            if fng_value >= 75: 
+                                confluence_pass_s = False
+                            elif (last_ema9_s < last_ema21_s) and (last_macd_s < 0):
+                                if not (last_rsi_s < 40 and ("Hammer" in scan_pattern or "Bullish" in scan_pattern)):
+                                    confluence_pass_s = False
+                        else:
+                            if fng_value <= 25: 
+                                confluence_pass_s = False
+                            elif (last_ema9_s > last_ema21_s) and (last_macd_s > 0):
+                                if not (last_rsi_s > 60 and ("Shooting Star" in scan_pattern or "Bearish" in scan_pattern)):
+                                    confluence_pass_s = False
+                                    
+                        if ai_confidence_s >= 65.0 and confluence_pass_s:
+                            dir_str = "🟢 BUY" if prediction_s == 1 else "🔴 SELL"
+                            valid_signals.append({
+                                "Coin / Pair": coin_name, 
+                                "Direction": dir_str, 
+                                "AI Confidence": f"{ai_confidence_s:.1f}%", 
+                                "Detected Pattern": scan_pattern
+                            })
+            except Exception:
+                pass
+                
+            progress_bar.progress((i + 1) / total_coins)
+            
+        status_text.text("✅ ස්කෑන් කිරීම අවසන්!")
+        
+        if valid_signals:
+            st.success(f"🎉 Valid Signals {len(valid_signals)} ක් සොයාගන්නා ලදී!")
+            st.dataframe(pd.DataFrame(valid_signals), use_container_width=True)
+            st.info("💡 දැන් පළමු ටැබ් එකට (Live AI Signals) ගොස් ඉහත වගුවේ ඇති කාසි සහ Timeframe එක තෝරා Signal එක Telegram යවන්න.")
+        else:
+            st.warning(f"⚠️ මේ මොහොතේ {scan_tf_display} Timeframe එක සඳහා කිසිදු කාසියක පැහැදිලි (Valid) Signal එකක් නොමැත. ටික වෙලාවකින් නැවත උත්සාහ කරන්න.")
