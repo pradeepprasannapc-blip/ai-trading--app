@@ -16,7 +16,6 @@ st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layo
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
 st.write("SMC (FVG & Order Blocks), ATR, VWAP, Supertrend සහ Market Sentiment (Fear & Greed) එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
-# State Variables Initialization
 if 'scan_results' not in st.session_state:
     st.session_state.scan_results = []
 if 'scan_tf' not in st.session_state:
@@ -550,7 +549,7 @@ with tab1:
                 
                 has_valid_signal = False
                 
-                # 🟢 Smarter Trend & Confluence Filter (WITH REVERSAL LOGIC & F&G Protection) 🟢
+                # 🟢 RELAXED Trend & Confluence Filter (WITH REVERSAL LOGIC & F&G Protection) 🟢
                 last_ema9 = float(last_market_state['EMA_9'].iloc[0])
                 last_ema21 = float(last_market_state['EMA_21'].iloc[0])
                 last_macd = float(last_market_state['MACD'].iloc[0])
@@ -561,28 +560,33 @@ with tab1:
                 is_reversal = False
                 
                 if prediction == 1: # AI කියන්නේ BUY කියලා
-                    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value >= 75:
+                    # Relaxed F&G limit to 80
+                    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value >= 80:
                         confluence_pass = False
                         confluence_msg = f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Overbought) මට්ටමේ. මෙවැනි අවස්ථාවක Market එක කඩා වැටෙන්නට (Crash) ඉඩ ඇති බැවින් AI මෙම BUY සිග්නලය ප්‍රතික්ෂේප කරයි."
                     elif (last_ema9 < last_ema21) and (last_macd < 0):
-                        if last_rsi < 40 and ("Hammer" in detected_pattern or "Bullish" in detected_pattern):
+                        # Relaxed RSI requirement for reversals (from 40 to 45)
+                        if last_rsi < 45 and ("Hammer" in detected_pattern or "Bullish" in detected_pattern):
                             is_reversal = True
                         else:
                             confluence_pass = False
                             confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව 'Falling Knife' එකක් ඇල්ලීම ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
                 else: # AI කියන්නේ SELL කියලා
-                    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value <= 25:
+                    # Relaxed F&G limit to 20
+                    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value <= 20:
                         confluence_pass = False
                         confluence_msg = f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Oversold) මට්ටමේ. මෙතැනින් Reversal එකක් වීමට ඉඩ ඇති බැවින් AI මෙම SELL සිග්නලය ප්‍රතික්ෂේප කරයි."
                     elif (last_ema9 > last_ema21) and (last_macd > 0):
-                        if last_rsi > 60 and ("Shooting Star" in detected_pattern or "Bearish" in detected_pattern):
+                        # Relaxed RSI requirement for reversals (from 60 to 55)
+                        if last_rsi > 55 and ("Shooting Star" in detected_pattern or "Bearish" in detected_pattern):
                             is_reversal = True
                         else:
                             confluence_pass = False
                             confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
 
-                if ai_confidence < 65.0:
-                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 65% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
+                # Relaxed Confidence threshold to 60.0%
+                if ai_confidence < 60.0:
+                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 60% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
                 elif not confluence_pass:
                     st.error(confluence_msg)
                 else:
@@ -610,7 +614,7 @@ with tab1:
                     "theme": "dark",
                     "style": "1",
                     "locale": "en",
-                    "toolbar_bg": "#131722",
+                    "toolbar_bg": "#f1f3f6",
                     "enable_publishing": false,
                     "withdateranges": true,
                     "hide_side_toolbar": false,
@@ -819,19 +823,21 @@ with tab2:
                         
                         confluence_pass_s = True
                         if prediction_s == 1:
-                            if fng_value >= 75: 
+                            # RELAXED RULES FOR SCANNER TOO
+                            if fng_value >= 80: 
                                 confluence_pass_s = False
                             elif (last_ema9_s < last_ema21_s) and (last_macd_s < 0):
-                                if not (last_rsi_s < 40 and ("Hammer" in scan_pattern or "Bullish" in scan_pattern)):
+                                if not (last_rsi_s < 45 and ("Hammer" in scan_pattern or "Bullish" in scan_pattern)):
                                     confluence_pass_s = False
                         else:
-                            if fng_value <= 25: 
+                            if fng_value <= 20: 
                                 confluence_pass_s = False
                             elif (last_ema9_s > last_ema21_s) and (last_macd_s > 0):
-                                if not (last_rsi_s > 60 and ("Shooting Star" in scan_pattern or "Bearish" in scan_pattern)):
+                                if not (last_rsi_s > 55 and ("Shooting Star" in scan_pattern or "Bearish" in scan_pattern)):
                                     confluence_pass_s = False
                                     
-                        if ai_confidence_s >= 65.0 and confluence_pass_s:
+                        # RELAXED CONFIDENCE THRESHOLD
+                        if ai_confidence_s >= 60.0 and confluence_pass_s:
                             dir_str = "🟢 BUY" if prediction_s == 1 else "🔴 SELL"
                             dir_text = "BUY" if prediction_s == 1 else "SELL"
                             
@@ -876,12 +882,11 @@ with tab2:
                                 "Chart_DF": df_scan.tail(120).copy()
                             })
                             
-                            # Real-time Update to the Static Table (No dancing!)
                             if st.session_state.scan_results:
                                 df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
                                 df_show.columns = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern']
                                 df_show['Confidence'] = df_show['Confidence'].apply(lambda x: f"{x:.1f}%")
-                                results_placeholder.table(df_show)
+                                results_placeholder.table(df_show) # Using static table to prevent jitter
             except Exception:
                 pass
                 
