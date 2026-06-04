@@ -112,7 +112,8 @@ def detect_candlestick_pattern(df):
             return "Shooting Star (Bearish) 🌠"
             
         # 5. Doji
-        if last_body < (0.01 * last['Open']):
+        open_price = last['Open'] if last['Open'] > 0 else 0.0001
+        if last_body < (0.01 * open_price):
             return "Doji (Indecision) ⚖️"
             
         # 6. Fair Value Gap (FVG)
@@ -126,31 +127,39 @@ def detect_candlestick_pattern(df):
     except:
         return "Standard Price Action"
 
-# 🟢 Manual Supertrend Calculation for AI Features
+# 🟢 ROBUST Supertrend Calculation for AI Features
 def add_supertrend(df, period=10, multiplier=3):
     hl2 = (df['High'] + df['Low']) / 2
     atr = df['TR'].rolling(window=period).mean()
     upper_band = hl2 + (multiplier * atr)
     lower_band = hl2 - (multiplier * atr)
     
+    # Fill NaNs safely to prevent loop crashes
+    upper_band = upper_band.bfill().ffill()
+    lower_band = lower_band.bfill().ffill()
+    
     in_uptrend = True
-    supertrend = [0.0] * len(df)
-    st_dir = [1] * len(df)
+    supertrend = np.zeros(len(df))
+    st_dir = np.ones(len(df))
+    
+    close_vals = df['Close'].values
+    ub_vals = upper_band.values
+    lb_vals = lower_band.values
     
     for i in range(1, len(df)):
-        if df['Close'].iloc[i] > upper_band.iloc[i-1]:
+        if close_vals[i] > ub_vals[i-1]:
             in_uptrend = True
-        elif df['Close'].iloc[i] < lower_band.iloc[i-1]:
+        elif close_vals[i] < lb_vals[i-1]:
             in_uptrend = False
         else:
             in_uptrend = in_uptrend 
-            if in_uptrend and lower_band.iloc[i] < lower_band.iloc[i-1]:
-                lower_band.iloc[i] = lower_band.iloc[i-1]
-            if not in_uptrend and upper_band.iloc[i] > upper_band.iloc[i-1]:
-                upper_band.iloc[i] = upper_band.iloc[i-1]
+            if in_uptrend and lb_vals[i] < lb_vals[i-1]:
+                lb_vals[i] = lb_vals[i-1]
+            if not in_uptrend and ub_vals[i] > ub_vals[i-1]:
+                ub_vals[i] = ub_vals[i-1]
         
         st_dir[i] = 1 if in_uptrend else -1
-        supertrend[i] = lower_band.iloc[i] if in_uptrend else upper_band.iloc[i]
+        supertrend[i] = lb_vals[i] if in_uptrend else ub_vals[i]
         
     df['Supertrend'] = supertrend
     df['ST_DIR'] = st_dir
@@ -482,12 +491,13 @@ with tab1:
         
         df['Target'] = np.where(df['Close'].shift(-2) > df['Close'], 1, 0)
         
-        # --- VIP Additions (VWAP, OBV, Supertrend) ---
+        # --- VIP Additions (VWAP, OBV, Supertrend) BUG FIXED ---
         df['Typical_Price'] = (df['High'] + df['Low'] + df['Close']) / 3
-        df['VWAP'] = (df['Typical_Price'] * df['Volume']).cumsum() / df['Volume'].cumsum()
-        df['VWAP_Dist'] = df['Close'] / df['VWAP']
+        vol_cumsum = df['Volume'].cumsum()
+        df['VWAP'] = np.where(vol_cumsum > 0, (df['Typical_Price'] * df['Volume']).cumsum() / vol_cumsum, df['Close'])
+        df['VWAP_Dist'] = np.where(df['VWAP'] > 0, df['Close'] / df['VWAP'], 1.0)
         df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
-        df['OBV_ROC'] = df['OBV'].pct_change()
+        df['OBV_ROC'] = df['OBV'].pct_change().fillna(0)
         df = add_supertrend(df)
         
         detected_pattern = detect_candlestick_pattern(df)
@@ -508,7 +518,7 @@ with tab1:
                 split = int(0.85 * len(df_train))
                 X_train, y_train = X[:split], y[:split]
                 
-                model = RandomForestClassifier(n_estimators=200, max_depth=10, min_samples_leaf=3, random_state=42)
+                model = RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=3, random_state=42)
                 model.fit(X_train, y_train)
                 
                 prediction = model.predict(last_market_state)[0]
@@ -564,7 +574,7 @@ with tab1:
                 
                 # 🔴 Mode Logic Switch
                 if "Aggressive" in strategy_mode:
-                    min_conf = 51.0
+                    min_conf = 50.1
                     if prediction == 1: # BUY
                         if last_rsi > 75:
                             confluence_pass = False
@@ -625,7 +635,7 @@ with tab1:
                     "theme": "dark",
                     "style": "1",
                     "locale": "en",
-                    "toolbar_bg": "#131722",
+                    "toolbar_bg": "#f1f3f6",
                     "enable_publishing": false,
                     "withdateranges": true,
                     "hide_side_toolbar": false,
@@ -774,10 +784,14 @@ with tab2:
             status_text.info(f"🔍 ස්කෑන් කරමින් පවතී: {coin_name}... ({i+1}/{total_coins})")
             
             try:
+                # Add delay to prevent Yahoo Finance blocking the app
+                time.sleep(0.05)
                 df_scan = yf.download(ticker_to_scan, period=scan_tf["period"], interval=scan_tf["yf"], auto_adjust=True, progress=False)
                 
                 if not df_scan.empty and len(df_scan) > 125:
                     if isinstance(df_scan.columns, pd.MultiIndex): df_scan.columns = df_scan.columns.get_level_values(0)
+                    
+                    df_scan = df_scan.tail(600).copy() # Use last 600 candles for faster processing
                     
                     df_scan['Returns'] = df_scan['Close'].pct_change()
                     df_scan['EMA_9'] = df_scan['Close'].ewm(span=9, adjust=False).mean()
@@ -806,11 +820,15 @@ with tab2:
                     df_scan['FVG_Bear'] = np.where(df_scan['High'] < df_scan['Low'].shift(2), 1, 0)
                     df_scan['Target'] = np.where(df_scan['Close'].shift(-2) > df_scan['Close'], 1, 0)
                     
+                    # VWAP FIX: Handle coins with 0 volume safely
                     df_scan['Typical_Price'] = (df_scan['High'] + df_scan['Low'] + df_scan['Close']) / 3
-                    df_scan['VWAP'] = (df_scan['Typical_Price'] * df_scan['Volume']).cumsum() / df_scan['Volume'].cumsum()
-                    df_scan['VWAP_Dist'] = df_scan['Close'] / df_scan['VWAP']
+                    vol_cumsum = df_scan['Volume'].cumsum()
+                    df_scan['VWAP'] = np.where(vol_cumsum > 0, (df_scan['Typical_Price'] * df_scan['Volume']).cumsum() / vol_cumsum, df_scan['Close'])
+                    df_scan['VWAP_Dist'] = np.where(df_scan['VWAP'] > 0, df_scan['Close'] / df_scan['VWAP'], 1.0)
+                    
                     df_scan['OBV'] = (np.sign(df_scan['Close'].diff()) * df_scan['Volume']).fillna(0).cumsum()
-                    df_scan['OBV_ROC'] = df_scan['OBV'].pct_change()
+                    df_scan['OBV_ROC'] = df_scan['OBV'].pct_change().fillna(0)
+                    
                     df_scan = add_supertrend(df_scan)
                     
                     scan_pattern = detect_candlestick_pattern(df_scan)
@@ -823,13 +841,18 @@ with tab2:
                         X_s = df_train_scan[features_scan]
                         y_s = df_train_scan['Target']
                         
-                        model_s = RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=3, random_state=42)
+                        split_s = int(0.85 * len(df_train_scan))
+                        X_train_s, y_train_s = X_s[:split_s], y_s[:split_s]
+                        
+                        # Use a slightly lighter model for fast scanning
+                        model_s = RandomForestClassifier(n_estimators=50, max_depth=8, min_samples_leaf=3, random_state=42)
                         model_s.fit(X_train_s, y_train_s)
                         
                         prediction_s = model_s.predict(last_market_state_scan)[0]
                         probability_s = model_s.predict_proba(last_market_state_scan)[0]
                         ai_confidence_s = max(probability_s) * 100
                         
+                        # Confluence Logic
                         last_ema9_s = float(last_market_state_scan['EMA_9'].iloc[0])
                         last_ema21_s = float(last_market_state_scan['EMA_21'].iloc[0])
                         last_macd_s = float(last_market_state_scan['MACD'].iloc[0])
@@ -839,11 +862,11 @@ with tab2:
                         
                         # 🔴 Mode Logic Switch for Scanner
                         if "Aggressive" in strategy_mode_scan:
-                            min_conf_s = 51.0
+                            min_conf_s = 50.1 # Relaxed for aggressive
                             if prediction_s == 1: 
-                                if last_rsi_s > 75: confluence_pass_s = False
+                                if last_rsi_s > 80: confluence_pass_s = False
                             else:
-                                if last_rsi_s < 25: confluence_pass_s = False
+                                if last_rsi_s < 20: confluence_pass_s = False
                         else:
                             min_conf_s = 60.0
                             if prediction_s == 1:
