@@ -408,6 +408,18 @@ market_options = {
     "Coti (COTI/USD)": "COTI-USD", "NKN (NKN/USD)": "NKN-USD"
 }
 
+fx_options_dict = {
+    "Euro / US Dollar (EUR/USD)": "EURUSD=X", 
+    "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X", 
+    "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X", 
+    "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X"
+}
+
+com_options_dict = {
+    "රන් / Gold (XAU/USD)": "GC=F", 
+    "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"
+}
+
 tf_mapping = {
     "5 min": {"yf": "5m", "tv": "5", "period": "60d"}, 
     "15 min": {"yf": "15m", "tv": "15", "period": "60d"},
@@ -439,16 +451,14 @@ with tab1:
         full_tv_ticker = f"BINANCE:{clean_symbol}"
 
     elif category == "💱 ෆොරෙක්ස්":
-        fx_options = {"Euro / US Dollar (EUR/USD)": "EURUSD=X", "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X", "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X", "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X"}
-        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(fx_options.keys()))
-        ticker = fx_options[selected_display_name]
+        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(fx_options_dict.keys()))
+        ticker = fx_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=X', '')
         full_tv_ticker = f"FX_IDC:{clean_symbol}"
 
     elif category == "✨ ලෝහ සහ තෙල්":
-        com_options = {"රන් / Gold (XAU/USD)": "GC=F", "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"}
-        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(com_options.keys()))
-        ticker = com_options[selected_display_name]
+        selected_display_name = st.selectbox("කාසිය තෝරන්න:", list(com_options_dict.keys()))
+        ticker = com_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=F', '')
         full_tv_ticker = f"COMEX:{clean_symbol}" if "GC" in ticker else f"NYMEX:{clean_symbol}"
 
@@ -715,7 +725,17 @@ with tab1:
                         if not is_safe_to_send:
                             st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                         else:
-                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            # 🟢 Category එක තීරණය කිරීම (Crypto, Forex, ආදිය)
+                            if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+                                cat_name = "Crypto 🪙"
+                            elif category == "💱 ෆොරෙක්ස්":
+                                cat_name = "Forex 💱"
+                            elif category == "✨ ලෝහ සහ තෙල්":
+                                cat_name = "Commodities ✨"
+                            else:
+                                cat_name = "Custom ✏️"
+                                
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Category:* {cat_name}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                 success = False
@@ -743,10 +763,13 @@ with tab1:
 # --- Tab 2: Auto Market Scanner ---
 with tab2:
     st.subheader("🔍 VIP Market Scanner (Auto Signal Finder)")
-    st.write("එකින් එක කාසි පරීක්ෂා කිරීම වෙනුවට, එකවර කාසි රාශියක් ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති කාසි පමණක් පහසුවෙන් සොයාගන්න.")
+    st.write("එකින් එක කාසි පරීක්ෂා කිරීම වෙනුවට, එකවර මුළු කැටගරි එකක්ම ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති Assets පමණක් පහසුවෙන් සොයාගන්න.")
     
     # 🔴 New Mode Selector for Scanner
     strategy_mode_scan = st.radio("Trading Strategy Mode (Scanner):", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True, key="scan_strat")
+    
+    # 🟢 Scanner එකටත් කැටගරි මාරු කිරීමේ හැකියාව එක් කිරීම
+    scan_category = st.radio("ස්කෑන් කළ යුතු ප්‍රවර්ගය තෝරන්න:", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ", "💱 ෆොරෙක්ස්", "✨ ලෝහ සහ තෙල්"], horizontal=True, key="scanner_category_radio")
     
     col_s1, col_s2, col_s3 = st.columns(3)
     with col_s1:
@@ -755,8 +778,20 @@ with tab2:
             ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"], 
             index=["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"].index(st.session_state.scan_tf)
         )
+        
+    # තෝරාගත් කැටගරියට අදාළ Asset Options ටික සකස් කිරීම
+    if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+        current_scan_options = market_options
+        max_limit_val = len(market_options)
+    elif scan_category == "💱 ෆොරෙක්ස්":
+        current_scan_options = fx_options_dict
+        max_limit_val = len(fx_options_dict)
+    else:
+        current_scan_options = com_options_dict
+        max_limit_val = len(com_options_dict)
+        
     with col_s2:
-        scan_limit = st.slider("ස්කෑන් කරන කාසි ගණන (වේගවත් කිරීම සඳහා):", min_value=5, max_value=len(market_options), value=30, step=5)
+        scan_limit = st.slider("ස්කෑන් කරන උපරිම Asset ගණන:", min_value=1, max_value=max_limit_val, value=min(30, max_limit_val), step=1)
         
     with col_s3:
         st.write("")
@@ -783,21 +818,21 @@ with tab2:
         
         # Show an empty table placeholder so it doesn't look like it disappeared
         if not st.session_state.scan_results:
-            empty_df = pd.DataFrame(columns=['Coin / Pair', 'Direction', 'Confidence', 'Pattern'])
+            empty_df = pd.DataFrame(columns=['Asset / Pair', 'Direction', 'Confidence', 'Pattern'])
             results_placeholder.table(empty_df)
         
         fng_value, fng_class = get_fear_and_greed()
         
-        coins_to_scan = list(market_options.keys())[:scan_limit]
-        total_coins = len(coins_to_scan)
+        assets_to_scan = list(current_scan_options.keys())[:scan_limit]
+        total_assets = len(assets_to_scan)
         scan_tf = tf_mapping[st.session_state.scan_tf]
         
-        for i, coin_name in enumerate(coins_to_scan):
+        for i, asset_name in enumerate(assets_to_scan):
             if not st.session_state.scanning:
                 break
                 
-            ticker_to_scan = market_options[coin_name]
-            status_text.info(f"🔍 ස්කෑන් කරමින් පවතී: {coin_name}... ({i+1}/{total_coins})")
+            ticker_to_scan = current_scan_options[asset_name]
+            status_text.info(f"🔍 ස්කෑන් කරමින් පවතී: {asset_name}... ({i+1}/{total_assets})")
             
             try:
                 # Add delay to prevent Yahoo Finance blocking the app
@@ -807,6 +842,12 @@ with tab2:
                 if not df_scan.empty and len(df_scan) > 125:
                     if isinstance(df_scan.columns, pd.MultiIndex): df_scan.columns = df_scan.columns.get_level_values(0)
                     
+                    # Forex/Metals වල Volume එක නැතිනම් (0 නම්) Safe Handle කිරීම
+                    if 'Volume' not in df_scan.columns or df_scan['Volume'].isna().all() or (df_scan['Volume'] == 0).all():
+                        df_scan['Volume'] = 1.0  # Fallback to prevent math errors
+                    else:
+                        df_scan['Volume'] = df_scan['Volume'].fillna(1.0)
+                        
                     df_scan = df_scan.tail(600).copy() # Use last 600 candles for faster processing
                     
                     df_scan['Returns'] = df_scan['Close'].pct_change()
@@ -846,7 +887,6 @@ with tab2:
                     df_scan['FVG_Bear'] = np.where(df_scan['High'] < df_scan['Low'].shift(2), 1, 0)
                     df_scan['Target'] = np.where(df_scan['Close'].shift(-2) > df_scan['Close'], 1, 0)
                     
-                    # VWAP FIX: Handle coins with 0 volume safely
                     df_scan['Typical_Price'] = (df_scan['High'] + df_scan['Low'] + df_scan['Close']) / 3
                     vol_cumsum = df_scan['Volume'].cumsum()
                     df_scan['VWAP'] = np.where(vol_cumsum > 0, (df_scan['Typical_Price'] * df_scan['Volume']).cumsum() / vol_cumsum, df_scan['Close'])
@@ -874,7 +914,6 @@ with tab2:
                         split_s = int(0.85 * len(df_train_scan))
                         X_train_s, y_train_s = X_s[:split_s], y_s[:split_s]
                         
-                        # Use a slightly lighter model for fast scanning
                         model_s = RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=3, random_state=42)
                         model_s.fit(X_train_s, y_train_s)
                         
@@ -892,7 +931,7 @@ with tab2:
                         
                         # 🔴 Mode Logic Switch for Scanner
                         if "Aggressive" in strategy_mode_scan:
-                            min_conf_s = 50.1 # Relaxed for aggressive
+                            min_conf_s = 50.1 
                             if prediction_s == 1: 
                                 if last_rsi_s > 80: confluence_pass_s = False
                             else:
@@ -900,13 +939,13 @@ with tab2:
                         else:
                             min_conf_s = 60.0
                             if prediction_s == 1:
-                                if fng_value >= 80: 
+                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value >= 80: 
                                     confluence_pass_s = False
                                 elif (last_ema9_s < last_ema21_s) and (last_macd_s < 0):
                                     if not (last_rsi_s < 45 and ("Hammer" in scan_pattern or "Bullish" in scan_pattern)):
                                         confluence_pass_s = False
                             else:
-                                if fng_value <= 20: 
+                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ" and fng_value <= 20: 
                                     confluence_pass_s = False
                                 elif (last_ema9_s > last_ema21_s) and (last_macd_s > 0):
                                     if not (last_rsi_s > 55 and ("Shooting Star" in scan_pattern or "Bearish" in scan_pattern)):
@@ -938,10 +977,16 @@ with tab2:
                                 tp3_price_s = entry_price_s - (atr_val_s * 5.0)
                                 sl_price_s = entry_price_s + (atr_val_s * 2.0)
                                 
-                            clean_symbol = ticker_to_scan.replace('-USD', 'USDT')
+                            # clean symbol සැකසීම ටෙලිග්‍රෑම් චාර්ට් එක වෙනුවෙන්
+                            if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+                                clean_symbol = ticker_to_scan.replace('-USD', 'USDT')
+                            elif scan_category == "💱 ෆොරෙක්ස්":
+                                clean_symbol = ticker_to_scan.replace('=X', '')
+                            else:
+                                clean_symbol = ticker_to_scan.replace('=F', '')
 
                             st.session_state.scan_results.append({
-                                "Coin": coin_name,
+                                "Asset": asset_name,
                                 "Ticker": ticker_to_scan,
                                 "Clean_Symbol": clean_symbol,
                                 "Direction_Label": dir_str,
@@ -954,19 +999,20 @@ with tab2:
                                 "TP3": tp3_price_s,
                                 "SL": sl_price_s,
                                 "TF": st.session_state.scan_tf,
+                                "Category": scan_category,
                                 "Chart_DF": df_scan.tail(120).copy()
                             })
                             
                             # Real-time Update to the Static Table
                             if st.session_state.scan_results:
-                                df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
-                                df_show.columns = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern']
+                                df_show = pd.DataFrame(st.session_state.scan_results)[['Asset', 'Direction_Label', 'Confidence', 'Pattern']]
+                                df_show.columns = ['Asset / Pair', 'Direction', 'Confidence', 'Pattern']
                                 df_show['Confidence'] = df_show['Confidence'].apply(lambda x: f"{x:.1f}%")
                                 results_placeholder.table(df_show) 
             except Exception:
                 pass
                 
-            progress_bar.progress((i + 1) / total_coins)
+            progress_bar.progress((i + 1) / total_assets)
             
         st.session_state.scanning = False
         if len(st.session_state.scan_results) == 0:
@@ -980,15 +1026,15 @@ with tab2:
         if st.session_state.get('scan_results'):
             st.success(f"🎉 Valid Signals {len(st.session_state.scan_results)} ක් සොයාගන්නා ලදී!")
             
-            df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
-            df_show.columns = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern']
+            df_show = pd.DataFrame(st.session_state.scan_results)[['Asset', 'Direction_Label', 'Confidence', 'Pattern']]
+            df_show.columns = ['Asset / Pair', 'Direction', 'Confidence', 'Pattern']
             df_show['Confidence'] = df_show['Confidence'].apply(lambda x: f"{x:.1f}%" if isinstance(x, float) else x)
             st.table(df_show)
             
             st.write("---")
             st.write("### 🚀 සොයාගත් Signals Telegram වෙත යවන්න")
             
-            options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
+            options = [f"{s['Asset']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
             
             # 'Select All' functionality
             select_all = st.checkbox("සියල්ල තෝරන්න (Select All)")
@@ -1007,9 +1053,17 @@ with tab2:
                         dp = 8 if sel_s['Entry'] < 0.01 else 4
                         dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                         
-                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        # Dynamic Category Name set dynamically based on scanner type chosen
+                        if sel_s['Category'] == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ":
+                            cat_tag = "Crypto 🪙"
+                        elif sel_s['Category'] == "💱 ෆොරෙක්ස්":
+                            cat_tag = "Forex 💱"
+                        else:
+                            cat_tag = "Commodities ✨"
+                            
+                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Category:* {cat_tag}\n🪙 *Coin/Pair:* {sel_s['Asset']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         
-                        with st.spinner(f"⏳ {sel_s['Coin']} යවමින් පවතී..."):
+                        with st.spinner(f"⏳ {sel_s['Asset']} යවමින් පවතී..."):
                             try:
                                 chart_image_bytes = generate_candlestick_image_bytes(
                                     sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], 
@@ -1023,17 +1077,17 @@ with tab2:
                                 success = send_telegram_message(telegram_text)
                                 
                         if success:
-                            st.success(f"✅ {sel_s['Coin']} සාර්ථකව යැව්වා!")
+                            st.success(f"✅ {sel_s['Asset']} සාර්ථකව යැව්වා!")
                             date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                            data = {"Date": [date_str], "Ticker": [sel_s['Ticker']], "Coin": [sel_s['Coin'].split()[0]], "Direction": [sel_s['Direction']], "Entry": [sel_s['Entry']], "TP1": [sel_s['TP1']], "TP2": [sel_s['TP2']], "TP3": [sel_s['TP3']], "SL": [sel_s['SL']], "Status": ["⏳ Pending Entry"]}
+                            data = {"Date": [date_str], "Ticker": [sel_s['Ticker']], "Coin": [sel_s['Asset'].split()[0]], "Direction": [sel_s['Direction']], "Entry": [sel_s['Entry']], "TP1": [sel_s['TP1']], "TP2": [sel_s['TP2']], "TP3": [sel_s['TP3']], "SL": [sel_s['SL']], "Status": ["⏳ Pending Entry"]}
                             df_new = pd.DataFrame(data)
                             if os.path.exists(HISTORY_FILE): df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
                             else: df_new.to_csv(HISTORY_FILE, index=False)
                         else:
-                            st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
+                            st.error(f"❌ {sel_s['Asset']} යැවීම අසාර්ථකයි.")
                             
         elif st.session_state.get('last_scan_empty', False):
-            st.warning(f"⚠️ ස්කෑන් කිරීම අවසන්! නමුත් මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා කිසිදු කාසියක පැහැදිලි (Valid) Signal එකක් නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරා නැවත උත්සාහ කරන්න.")
+            st.warning(f"⚠️ ස්කෑන් කිරීම අවසන්! නමුත් මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා තෝරාගත් ප්‍රවර්ගයේ කිසිදු Asset එකක පැහැදිලි (Valid) Signal එකක් නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරා නැවත උත්සාහ කරන්න.")
         else:
             st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
 
@@ -1236,7 +1290,7 @@ with tab3:
             time.sleep(15)
             try: st.rerun()
             except AttributeError: st.experimental_rerun()
-    else: st.info("දැනට කිසිම Signal එකක් Save වෙලා නෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
+    else: st.info("දැනට කිසිම Signal එකක් Save වෙලා นෑ. අලුත් Signal එකක් Telegram එකට යැව්වම මෙතනට වැටෙයි.")
 
 # --- Tab 4: Auto Demo Trading Account ---
 with tab4:
@@ -1323,4 +1377,4 @@ with tab4:
         else:
             st.info("තවම Trade කිසිවක් Close වී නොමැත.")
     else:
-        st.info("ඔබ තවමත් Signals කිසිවක් ලබාගෙන නැත. පළමු ටැබ් එකෙන් Signals ලබාගත් පසු ඒවා ස්වයංක්‍රීයව මෙහි Trade වේ.")
+        st.info("ඔබ තවමත් Signals කිසිවක් ලබාගෙන නැත.  පළමු ටැබ් එකෙන් Signals ලබාගත් පසු ඒවා ස්වයංක්‍රීයව මෙහි Trade වේ.")
