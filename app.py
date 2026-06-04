@@ -421,32 +421,42 @@ with tab1:
                 
                 has_valid_signal = False
                 
-                # 🟢 Smarter Trend & Confluence Filter 🟢
+                # 🟢 Smarter Trend & Confluence Filter (WITH REVERSAL LOGIC) 🟢
                 last_ema9 = float(last_market_state['EMA_9'].iloc[0])
                 last_ema21 = float(last_market_state['EMA_21'].iloc[0])
                 last_macd = float(last_market_state['MACD'].iloc[0])
+                last_rsi = float(last_market_state['RSI'].iloc[0])
                 
                 confluence_pass = True
                 confluence_msg = ""
+                is_reversal = False
                 
                 if prediction == 1: # AI කියන්නේ BUY කියලා
-                    # EMA 9 රේඛාව EMA 21 ට පහළින් නම් සහ MACD සෘණ නම්, ඒක පැහැදිලි Downtrend එකක්.
                     if (last_ema9 < last_ema21) and (last_macd < 0):
-                        confluence_pass = False
-                        confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක් (EMA 9 රේඛාව EMA 21 ට පහළින් සහ MACD සෘණ අගයක). මෙවැනි අවස්ථාවක අලුතින් BUY සිග්නල් එකක් ගැනීම 'Falling Knife' එකක් ඇල්ලීමක් වැනි ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+                        # මාකට් එක පල්ලෙහාට යද්දි BUY දුන්නොත්, ඒක Reversal එකක්ද කියලා බලනවා
+                        if last_rsi < 40 and ("Hammer" in detected_pattern or "Bullish" in detected_pattern):
+                            is_reversal = True
+                        else:
+                            confluence_pass = False
+                            confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව 'Falling Knife' එකක් ඇල්ලීම ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
                 else: # AI කියන්නේ SELL කියලා
-                    # EMA 9 රේඛාව EMA 21 ට ඉහළින් නම් සහ MACD ධන නම්, ඒක පැහැදිලි Uptrend එකක්.
                     if (last_ema9 > last_ema21) and (last_macd > 0):
-                        confluence_pass = False
-                        confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක් (EMA 9 රේඛාව EMA 21 ට ඉහළින් සහ MACD ධන අගයක). මෙවැනි අවස්ථාවක අලුතින් SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+                        # මාකට් එක උඩට යද්දි SELL දුන්නොත්, ඒක Reversal එකක්ද කියලා බලනවා
+                        if last_rsi > 60 and ("Shooting Star" in detected_pattern or "Bearish" in detected_pattern):
+                            is_reversal = True
+                        else:
+                            confluence_pass = False
+                            confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
 
-                # 🟢 Confidence Threshold එක 65% කට වෙනස් කළා (සිග්නල් ලේසියෙන් හොයාගන්න) 🟢
                 if ai_confidence < 65.0:
                     st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් 65% ක විශ්වාසයක් (Confidence) අවශ්‍යයි.")
                 elif not confluence_pass:
                     st.error(confluence_msg)
                 else:
                     has_valid_signal = True
+                    if is_reversal:
+                        st.info("🔥 **SMART REVERSAL DETECTED!** AI එක Trend Reversal එකක් (හැරවුම් ලක්ෂ්‍යයක්) හඳුනාගත්තා!")
+                        
                     if prediction == 1:
                         st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
                     else:
@@ -482,8 +492,14 @@ with tab1:
         
                 st.write("---")
                 if has_valid_signal:
-                    dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
-                    direction_text = "BUY" if prediction == 1 else "SELL"
+                    if prediction == 1:
+                        dir_text = "🟢 BUY / LONG 📈 ⬆️" 
+                        if is_reversal: dir_text += " (🔥 Reversal Setup)"
+                        direction_text = "BUY"
+                    else:
+                        dir_text = "🔴 SELL / SHORT 📉 ⬇️"
+                        if is_reversal: dir_text += " (🔥 Reversal Setup)"
+                        direction_text = "SELL"
                     
                     target_msg = (
                         f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (ATR & SMC Visual Targets):**\n\n"
