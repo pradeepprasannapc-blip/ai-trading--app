@@ -772,12 +772,11 @@ with tab1:
 # --- Tab 2: Auto Market Scanner ---
 with tab2:
     st.subheader("🔍 VIP Market Scanner (Auto Signal Finder)")
-    st.write("එකින් එක කාසි පරීක්ෂා කිරීම වෙනුවට, එකවර මුළු කැටගරි එකක්ම ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති කාසි පමණක් පහසුවෙන් සොයාගන්න.")
+    # 🟢 Description Updated with 'Coins' and 'Category'
+    st.write("එකින් එක Coins පරීක්ෂා කිරීම වෙනුවට, එකවර මුළු Category එකක්ම ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති Coins පමණක් පහසුවෙන් සොයාගන්න.")
     
-    # 🟢 Scanner එකටත් කැටගරි මාරු කිරීමේ හැකියාව එක් කිරීම (උඩටම ගෙන ආවා)
     scan_category = st.radio("ප්‍රවර්ගය තෝරන්න (Select Category):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)"], horizontal=True, key="scanner_category_radio")
 
-    # 🔴 New Mode Selector for Scanner (පහළට ගෙන ගියා)
     strategy_mode_scan = st.radio("Trading Strategy Mode (Scanner):", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True, key="scan_strat")
     
     col_s1, col_s2, col_s3 = st.columns(3)
@@ -788,7 +787,6 @@ with tab2:
             index=["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"].index(st.session_state.scan_tf)
         )
         
-    # තෝරාගත් කැටගරියට අදාළ Asset Options ටික සකස් කිරීම
     if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
         current_scan_options = market_options
         max_limit_val = len(market_options)
@@ -800,7 +798,8 @@ with tab2:
         max_limit_val = len(com_options_dict)
         
     with col_s2:
-        scan_limit = st.slider("ස්කෑන් කරන කාසි ගණන (වේගවත් කිරීම සඳහා):", min_value=1, max_value=max_limit_val, value=min(30, max_limit_val), step=1)
+        # 🟢 Slider Updated to 'Coins'
+        scan_limit = st.slider("ස්කෑන් කරන Coins ගණන (වේගවත් කිරීම සඳහා):", min_value=1, max_value=max_limit_val, value=min(30, max_limit_val), step=1)
         
     with col_s3:
         st.write("")
@@ -825,7 +824,6 @@ with tab2:
         status_text = st.empty()
         results_placeholder = st.empty()
         
-        # Show an empty table placeholder so it doesn't look like it disappeared
         if not st.session_state.scan_results:
             empty_df = pd.DataFrame(columns=['Coin / Pair', 'Direction', 'Confidence', 'Pattern'])
             results_placeholder.table(empty_df)
@@ -844,20 +842,18 @@ with tab2:
             status_text.info(f"🔍 ස්කෑන් කරමින් පවතී: {coin_name}... ({i+1}/{total_coins})")
             
             try:
-                # Add delay to prevent Yahoo Finance blocking the app
                 time.sleep(0.05)
                 df_scan = yf.download(ticker_to_scan, period=scan_tf["period"], interval=scan_tf["yf"], auto_adjust=True, progress=False)
                 
                 if not df_scan.empty and len(df_scan) > 125:
                     if isinstance(df_scan.columns, pd.MultiIndex): df_scan.columns = df_scan.columns.get_level_values(0)
                     
-                    # Forex/Metals වල Volume එක නැතිනම් (0 නම්) Safe Handle කිරීම
                     if 'Volume' not in df_scan.columns or df_scan['Volume'].isna().all() or (df_scan['Volume'] == 0).all():
-                        df_scan['Volume'] = 1.0  # Fallback to prevent math errors
+                        df_scan['Volume'] = 1.0  
                     else:
                         df_scan['Volume'] = df_scan['Volume'].fillna(1.0)
                         
-                    df_scan = df_scan.tail(600).copy() # Use last 600 candles for faster processing
+                    df_scan = df_scan.tail(600).copy() 
                     
                     df_scan['Returns'] = df_scan['Close'].pct_change()
                     df_scan['EMA_9'] = df_scan['Close'].ewm(span=9, adjust=False).mean()
@@ -871,7 +867,6 @@ with tab2:
                     rs = gain / loss
                     df_scan['RSI'] = 100 - (100 / (1 + rs))
                     
-                    # Stochastic RSI Calculation
                     min_val_s = df_scan['RSI'].rolling(window=14).min()
                     max_val_s = df_scan['RSI'].rolling(window=14).max()
                     df_scan['StochRSI'] = (df_scan['RSI'] - min_val_s) / (max_val_s - min_val_s)
@@ -883,7 +878,6 @@ with tab2:
                     df_scan['BB_Upper'] = df_scan['MA20'] + (df_scan['StdDev'] * 2)
                     df_scan['BB_Lower'] = df_scan['MA20'] - (df_scan['StdDev'] * 2)
                     
-                    # 🟢 Bollinger Band Squeeze (Width)
                     df_scan['BB_Width'] = (df_scan['BB_Upper'] - df_scan['BB_Lower']) / df_scan['MA20']
                     
                     df_scan['High-Low'] = df_scan['High'] - df_scan['Low']
@@ -910,7 +904,6 @@ with tab2:
                     
                     scan_pattern = detect_candlestick_pattern(df_scan)
                     
-                    # Add BB_Width to Scanner Features
                     features_scan = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'BB_Width', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR', 'EMA_200', 'StochRSI_K', 'StochRSI_D']
                     
                     df_train_scan = df_scan.dropna()
@@ -930,7 +923,6 @@ with tab2:
                         probability_s = model_s.predict_proba(last_market_state_scan)[0]
                         ai_confidence_s = max(probability_s) * 100
                         
-                        # Confluence Logic
                         last_ema9_s = float(last_market_state_scan['EMA_9'].iloc[0])
                         last_ema21_s = float(last_market_state_scan['EMA_21'].iloc[0])
                         last_macd_s = float(last_market_state_scan['MACD'].iloc[0])
@@ -938,7 +930,6 @@ with tab2:
                         
                         confluence_pass_s = True
                         
-                        # 🔴 Mode Logic Switch for Scanner
                         if "Aggressive" in strategy_mode_scan:
                             min_conf_s = 50.1 
                             if prediction_s == 1: 
@@ -986,7 +977,6 @@ with tab2:
                                 tp3_price_s = entry_price_s - (atr_val_s * 5.0)
                                 sl_price_s = entry_price_s + (atr_val_s * 2.0)
                                 
-                            # clean symbol සැකසීම ටෙලිග්‍රෑම් චාර්ට් එක වෙනුවෙන්
                             if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
                                 clean_symbol = ticker_to_scan.replace('-USD', 'USDT')
                             elif scan_category == "💱 ෆොරෙක්ස් (Forex)":
@@ -1013,7 +1003,6 @@ with tab2:
                                 "Chart_DF": df_scan.tail(120).copy()
                             })
                             
-                            # Real-time Update to the Static Table
                             if st.session_state.scan_results:
                                 df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
                                 df_show.columns = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern']
@@ -1031,7 +1020,6 @@ with tab2:
             st.session_state.last_scan_empty = False
         st.rerun()
 
-    # Results & Send Section (Displays ONLY when NOT actively scanning)
     if not st.session_state.get('scanning', False):
         if st.session_state.get('scan_results'):
             st.success(f"🎉 Valid Signals {len(st.session_state.scan_results)} ක් සොයාගන්නා ලදී!")
@@ -1046,7 +1034,6 @@ with tab2:
             
             options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
             
-            # 'Select All' functionality
             select_all = st.checkbox("සියල්ල තෝරන්න (Select All)")
             if select_all:
                 selected_opts = st.multiselect("යැවිය යුතු Signals තෝරන්න:", options, default=options)
@@ -1063,7 +1050,6 @@ with tab2:
                         dp = 8 if sel_s['Entry'] < 0.01 else 4
                         dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                         
-                        # Dynamic Category Name set dynamically based on scanner type chosen
                         if sel_s['Category'] == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
                             cat_tag = "Crypto 🪙"
                         elif sel_s['Category'] == "💱 ෆොරෙක්ස් (Forex)":
@@ -1089,7 +1075,6 @@ with tab2:
                         if success:
                             st.success(f"✅ {sel_s['Coin']} සාර්ථකව යැව්වා!")
                             date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                            # 🟢 Safe CSV Saving Logic (දත්ත පැටලෙන්නේ නැති වෙන්න pd.concat භාවිතය)
                             data = {
                                 "Date": [date_str], "Ticker": [sel_s['Ticker']], "Coin": [sel_s['Coin'].split()[0]], 
                                 "Category": [cat_tag], "Strategy": [sel_s['Strategy_Mode']], "Direction": [sel_s['Direction']], 
@@ -1110,7 +1095,7 @@ with tab2:
                             st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
                             
         elif st.session_state.get('last_scan_empty', False):
-            st.warning(f"⚠️ ස්කෑන් කිරීම අවසන්! නමුත් මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා තෝරාගත් ප්‍රවර්ගයේ කිසිදු කාසියක පැහැදිලි (Valid) Signal එකක් නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරා නැවත උත්සාහ කරන්න.")
+            st.warning(f"⚠️ ස්කෑන් කිරීම අවසන්! නමුත් මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා තෝරාගත් ප්‍රවර්ගයේ කිසිදු Coin එකක පැහැදිලි (Valid) Signal එකක් නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරා නැවත උත්සාහ කරන්න.")
         else:
             st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
 
@@ -1124,7 +1109,6 @@ if os.path.exists(HISTORY_FILE):
             st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
             st.stop()
             
-        # 🟢 පරණ History Files වල Category එක නැත්නම් Ticker එකෙන් ඒක හොයාගෙන අලුතින් Save කරනවා
         if "Category" not in history_df.columns:
             def infer_category(t):
                 if "=X" in str(t): return "Forex 💱"
@@ -1133,7 +1117,6 @@ if os.path.exists(HISTORY_FILE):
             history_df.insert(3, "Category", history_df["Ticker"].apply(infer_category))
             history_df.to_csv(HISTORY_FILE, index=False)
 
-        # 🟢 පරණ History Files වල Strategy එක නැත්නම් Default N/A දාලා Save කරනවා
         if "Strategy" not in history_df.columns:
             history_df.insert(4, "Strategy", "N/A")
             history_df.to_csv(HISTORY_FILE, index=False)
@@ -1147,7 +1130,6 @@ if os.path.exists(HISTORY_FILE):
                     live_prices_dict[index] = np.nan
                     continue
                 try:
-                    # 🟢 Corrupt Data Handler: Error එකක් ආවොත් ඒ පේළිය මඟහරින්න
                     entry_str = str(row['Entry']).replace('$', '').replace(',', '')
                     if entry_str.isalpha() or entry_str == 'nan' or entry_str.strip() == '':
                         live_prices_dict[index] = np.nan
@@ -1217,7 +1199,6 @@ if os.path.exists(HISTORY_FILE):
             display_df[col] = display_df[col].apply(format_price)
             
         display_df.drop(columns=['Ticker'], inplace=True)
-        # 🟢 අනිවාර්යයෙන්ම අලුත් ඒවා උඩටම එන්න Date එක අනුව Sort කිරීම
         display_df = display_df.sort_values(by='Date', ascending=False)
 
     except Exception as e:
@@ -1231,7 +1212,6 @@ with tab3:
 
     if not display_df.empty:
         html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}} .corrupt-row td {color: #ff4b4b;}</style>"
-        # 🟢 HTML Table එකට Strategy Column එකත් එකතු කළා
         html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Category</th><th>Strategy</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
         for idx, row in display_df.iterrows():
             status_text = str(row['Status'])
@@ -1257,7 +1237,6 @@ with tab3:
                 actual_index = sel_row.name 
                 dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️" if sel_row['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                 
-                # Category සහ Strategy එක ලබා ගැනීම (නැත්නම් පරණ ඒවාට Default අගයන් දෙනවා)
                 cat_val = sel_row.get('Category', 'Crypto 🪙')
                 strat_val = sel_row.get('Strategy', 'N/A')
                 
