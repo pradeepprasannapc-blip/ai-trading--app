@@ -14,7 +14,7 @@ import mplfinance as mpf
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
-st.write("SMC (FVG & Order Blocks), ATR දර්ශකය සහ ලෝකයේ හොඳම Technical Indicators එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("SMC (FVG & Order Blocks), ATR දර්ශකය, ලෝකයේ හොඳම Technical Indicators සහ Candlestick Patterns එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
 try:
     TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
@@ -60,8 +60,55 @@ def send_telegram_photo_bytes(caption, photo_bytes):
             
     return success
 
+# 🟢 අලුත්: Candlestick Pattern Detection Function 🟢
+def detect_candlestick_pattern(df):
+    try:
+        if len(df) < 3:
+            return "Not Enough Data"
+        
+        last = df.iloc[-1]
+        prev = df.iloc[-2]
+        
+        last_body = abs(last['Close'] - last['Open'])
+        last_is_green = last['Close'] > last['Open']
+        prev_is_green = prev['Close'] > prev['Open']
+        
+        last_upper_wick = last['High'] - max(last['Open'], last['Close'])
+        last_lower_wick = min(last['Open'], last['Close']) - last['Low']
+        
+        # 1. Bullish Engulfing
+        if not prev_is_green and last_is_green and (last['Close'] > prev['Open']) and (last['Open'] < prev['Close']):
+            return "Bullish Engulfing 📈"
+            
+        # 2. Bearish Engulfing
+        if prev_is_green and not last_is_green and (last['Close'] < prev['Open']) and (last['Open'] > prev['Close']):
+            return "Bearish Engulfing 📉"
+            
+        # 3. Hammer (Bullish Reversal)
+        if last_lower_wick > (2 * last_body) and last_upper_wick < (0.2 * last_body):
+            return "Hammer (Bullish) 🔨"
+            
+        # 4. Shooting Star (Bearish Reversal)
+        if last_upper_wick > (2 * last_body) and last_lower_wick < (0.2 * last_body):
+            return "Shooting Star (Bearish) 🌠"
+            
+        # 5. Doji
+        if last_body < (0.01 * last['Open']):
+            return "Doji (Indecision) ⚖️"
+            
+        # 6. Fair Value Gap (FVG)
+        prev3 = df.iloc[-3]
+        if last['Low'] > prev3['High']:
+            return "Bullish FVG 🟢"
+        if last['High'] < prev3['Low']:
+            return "Bearish FVG 🔴"
+            
+        return "Standard Price Action"
+    except:
+        return "Standard Price Action"
+
 # 🟢 Advanced Pro Chart Generator (With Volume Profile VPVR, Fibonacci & Trendlines)
-def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, timeframe):
+def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, timeframe, detected_pattern):
     df_plot = df.tail(120).copy() # කෑන්ඩල් 120ක් ගනිමු 
     
     # 1. Moving Averages
@@ -150,7 +197,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     
     ax_main = axlist[0] 
     
-    # 🟢 7. අලුත්: Volume Profile (VPVR) එකතු කිරීම 🟢
+    # 7. Volume Profile (VPVR) එකතු කිරීම
     vp_bins = 50
     price_min, price_max = df_plot['Low'].min(), df_plot['High'].max()
     bin_size = (price_max - price_min) / vp_bins
@@ -211,6 +258,9 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp3, sl, t
     ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#131722')
     ax_main.text(0.01, 0.91, "Multi Moving Average (7, 25, 100) & Volume Profile (VPVR)", transform=ax_main.transAxes, fontsize=9, color='#787b86')
     ax_main.text(0.01, 0.86, f"AI Confidence: {direction} SETUP 🔥", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#089981' if direction=="BUY" else '#f23645')
+    
+    # 🟢 Pattern Watermark
+    ax_main.text(0.01, 0.81, f"🧩 Detected Pattern: {detected_pattern}", transform=ax_main.transAxes, fontsize=10, fontweight='bold', color='#ff9800')
 
     buf = io.BytesIO()
     fig.savefig(buf, dpi=120, bbox_inches='tight')
@@ -306,6 +356,10 @@ with tab1:
         df['FVG_Bear'] = np.where(df['High'] < df['Low'].shift(2), 1, 0)
         
         df['Target'] = np.where(df['Close'].shift(-1) > df['Close'], 1, 0)
+        
+        # 🟢 Pattern එක ලබා ගැනීම 🟢
+        detected_pattern = detect_candlestick_pattern(df)
+        
         df.dropna(inplace=True) 
         
         if len(df) < 20:
@@ -401,6 +455,7 @@ with tab1:
                         f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (ATR & SMC Visual Targets):**\n\n"
                         f"🪙 **Coin:** {selected_display_name}\n\n"
                         f"🔥 **Signal Direction:** {dir_text}\n\n"
+                        f"🧩 **Detected Pattern:** {detected_pattern}\n\n"
                         f"🔵 **Entry Limit Price:** ${entry_price:.{dp}f}\n\n"
                         f"🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n"
                         f"🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n"
@@ -412,9 +467,9 @@ with tab1:
                     st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
-                        # 🟢 Volume Profile + Fibonaci + Watermarks සහිත නවතම Chart එක
-                        chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp3_price, sl_price, tf_display)
-                        st.image(chart_image_bytes, caption="Generated VIP Setup (Volume Profile + Fibonacci)")
+                        # 🟢 Pattern එකත් එක්ක Chart එක හදමු
+                        chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp3_price, sl_price, tf_display, detected_pattern)
+                        st.image(chart_image_bytes, caption=f"Generated VIP Setup (VPVR + {detected_pattern})")
                         image_generated_successfully = True
                     except Exception as img_err:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
@@ -437,7 +492,8 @@ with tab1:
                         if not is_safe_to_send:
                             st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                         else:
-                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            # 🟢 Telegram මැසේජ් එකටත් Pattern එක ඇතුළත් කළා
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                 success = False
