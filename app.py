@@ -631,7 +631,7 @@ with tab1:
                                 is_reversal = True
                             else:
                                 confluence_pass = False
-                                confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේපஞ் කරයි."
+                                confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
 
                 if ai_confidence < min_conf:
                     st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් {min_conf}% ක විශ්වාසයක් අවශ්‍යයි.")
@@ -1285,7 +1285,7 @@ with tab3:
                     entry_val = float(str(sel_row['Entry']).replace('$', '').replace(',', ''))
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
-                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let gross go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg): st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "TP" in sel_row['Status']:
@@ -1302,11 +1302,11 @@ with tab3:
                     dp_3 = 8 if tp3_v < 0.01 else 4
 
                     if hit_level == "TP1":
-                        tp_msg_part = f"🥇 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅"
+                        tp_msg_part = f"🥇 🎯 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅"
                     elif hit_level == "TP2":
-                        tp_msg_part = f"🥇 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅\n🥈 *TP2 Reached:* `${tp2_v:.{dp_2}f}` ✅"
+                        tp_msg_part = f"🥇 🎯 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅\n🥈 🎯 *TP2 Reached:* `${tp2_v:.{dp_2}f}` ✅"
                     elif hit_level == "TP3":
-                        tp_msg_part = f"🥇 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅\n🥈 *TP2 Reached:* `${tp2_v:.{dp_2}f}` ✅\n🥉 *TP3 Reached:* `${tp3_v:.{dp_3}f}` ✅\n\nALL 🎯TARGET 💯% COMPLETE 🏆️🎖️🎉️"
+                        tp_msg_part = f"🥇 🎯 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅\n🥈 🎯 *TP2 Reached:* `${tp2_v:.{dp_2}f}` ✅\n🥉 🎯 *TP3 Reached:* `${tp3_v:.{dp_3}f}` ✅\n\nALL 🎯TARGET 💯% COMPLETE 🏆️🎖️🎉️"
                     else:
                         tp_msg_part = f"🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`"
 
