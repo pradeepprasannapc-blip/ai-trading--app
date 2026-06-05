@@ -736,7 +736,7 @@ with tab1:
                             else:
                                 cat_name = "Custom ✏️"
                                 
-                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Category:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                 success = False
@@ -1057,7 +1057,7 @@ with tab2:
                         else:
                             cat_tag = "Commodities ✨"
                             
-                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Category:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🗂 *Market:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         
                         with st.spinner(f"⏳ {sel_s['Coin']} යවමින් පවතී..."):
                             try:
@@ -1246,11 +1246,11 @@ with tab3:
                     col_pend1, col_pend2 = st.columns(2)
                     with col_pend1:
                         if st.button("⏳ Pending Alert මැසේජ් එක යවන්න 🚀"):
-                            msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🗂 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             if send_telegram_message(msg): st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                     with col_pend2:
                         if st.button("🚫 Signal එක Cancel කරන්න"):
-                            msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🗂 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             if send_telegram_message(msg):
                                 st.success("🚫 Cancel මැසේජ් එක යැව්වා! මේ Signal එක දැන් History එකේ Cancelled කියලා වැටෙයි.")
                                 history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
@@ -1261,7 +1261,7 @@ with tab3:
 
                 elif "Missed (Hit TP)" in sel_row['Status']:
                     if st.button("⚠️ Missed Setup මැසේජ් එක යවන්න 🚀"):
-                        msg = f"⚠️ *MISSED TRADE (HIT TP)* ⚠️\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nඅපේ Analysis එක 100% ක් නිවැරදියි! නමුත් මාකට් එක අපේ Entry එකට එන්නේ නැතුව කෙලින්ම Target (TP) එකට ගියා. Setup එක සම්පූර්ණයි, ඒ නිසා Limit Order එක අයින් කරගන්න. ඊළඟ Trade එකෙන් අල්ලමු! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"⚠️ *MISSED TRADE (HIT TP)* ⚠️\n\n🗂 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nඅපේ Analysis එක 100% ක් නිවැරදියි! නමුත් මාකට් එක අපේ Entry එකට එන්නේ නැතුව කෙලින්ම Target (TP) එකට ගියා. Setup එක සම්පූර්ණයි, ඒ නිසා Limit Order එක අයින් කරගන්න. ඊළඟ Trade එකෙන් අල්ලමු! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg):
                             st.success("⚠️ Missed Setup මැසේජ් එක සාර්ථකව යැව්වා!")
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
@@ -1272,7 +1272,7 @@ with tab3:
 
                 elif "Invalid (Hit SL)" in sel_row['Status']:
                     if st.button("🚫 Invalid Setup මැසේජ් එක යවන්න 🚀"):
-                        msg = f"🚫 *SETUP INVALID (HIT SL)* 🚫\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට කලින්ම Stop Loss (SL) මට්ටම කඩාගෙන ගියා. Market Structure එක වෙනස් වුණු නිසා මේ Setup එක දැන් අවලංගුයි. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"🚫 *SETUP INVALID (HIT SL)* 🚫\n\n🗂 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට කලින්ම Stop Loss (SL) මට්ටම කඩාගෙන ගියා. Market Structure එක වෙනස් වුණු නිසා මේ Setup එක දැන් අවලංගුයි. කරුණාකර ඔයාගේ Limit Orders අයින් කරගන්න! ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg):
                             st.success("🚫 Setup Invalid මැසේජ් එක සාර්ථකව යැව්වා!")
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
@@ -1285,19 +1285,38 @@ with tab3:
                     entry_val = float(str(sel_row['Entry']).replace('$', '').replace(',', ''))
                     dp_val = 8 if entry_val < 0.01 else 4
                     if st.button("🟢 Active Alert මැසේජ් එක යවන්න 🚀"):
-                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🗂 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg): st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "TP" in sel_row['Status']:
                     hit_level = sel_row['Status'].split()[1]
                     tp_val, tp_dp = float(str(sel_row[hit_level]).replace('$', '').replace(',', '')), 8 if float(str(sel_row[hit_level]).replace('$', '').replace(',', '')) < 0.01 else 4
+                    
+                    # Fetch all TP values for the progressive message
+                    tp1_v = float(str(sel_row['TP1']).replace('$', '').replace(',', ''))
+                    tp2_v = float(str(sel_row['TP2']).replace('$', '').replace(',', ''))
+                    tp3_v = float(str(sel_row['TP3']).replace('$', '').replace(',', ''))
+                    
+                    dp_1 = 8 if tp1_v < 0.01 else 4
+                    dp_2 = 8 if tp2_v < 0.01 else 4
+                    dp_3 = 8 if tp3_v < 0.01 else 4
+
+                    if hit_level == "TP1":
+                        tp_msg_part = f"🎯 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅"
+                    elif hit_level == "TP2":
+                        tp_msg_part = f"🎯 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅\n🎯 *TP2 Reached:* `${tp2_v:.{dp_2}f}` ✅✅"
+                    elif hit_level == "TP3":
+                        tp_msg_part = f"🎯 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅\n🎯 *TP2 Reached:* `${tp2_v:.{dp_2}f}` ✅✅\n🎯 *TP3 Reached:* `${tp3_v:.{dp_3}f}` ✅✅✅\n\nALL 🎯TARGET 💯% COMPLETE 🏆️🎖️🎉️"
+                    else:
+                        tp_msg_part = f"🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`"
+
                     if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න 🚀"):
-                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🎯 *{hit_level} Reached:* `${tp_val:.{tp_dp}f}`\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
+                        msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🗂 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\n{tp_msg_part}\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
                         if send_telegram_message(msg): st.success(f"✅ {hit_level} Profit මැසේජ් එක සාර්ථකව යැව්වා!")
                 
                 elif "SL" in sel_row['Status']:
                     if st.button("🛑 Loss මැසේජ් එක යවන්න"):
-                        msg = f"🛑 *STOP LOSS HIT* 📉\n\n🗂 *Category:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය জ্ঞකරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                        msg = f"🛑 *STOP LOSS HIT* 📉\n\n🗂 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය জ্ঞකරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         if send_telegram_message(msg): st.success("🛑 Stop Loss මැසේජ් එක සාර්ථකව යැව්වා!")
         else: st.info("තවම Active, Pending, TP, SL හෝ Invalid වුණු සිග්නල් කිසිවක් නැත.")
 
