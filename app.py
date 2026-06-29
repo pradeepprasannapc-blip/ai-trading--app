@@ -373,6 +373,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
 
 
 HISTORY_FILE = "signal_history.csv"
+HISTORY_BACKUP_FILE = "signal_history_backup.csv"
 
 # Global options for mapping
 market_options = {
@@ -758,10 +759,13 @@ with tab1:
                                         hist_df = pd.read_csv(HISTORY_FILE)
                                         hist_df = pd.concat([hist_df, df_new], ignore_index=True)
                                         hist_df.to_csv(HISTORY_FILE, index=False)
+                                        hist_df.to_csv(HISTORY_BACKUP_FILE, index=False)
                                     except Exception:
                                         df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                                        df_new.to_csv(HISTORY_BACKUP_FILE, mode='a', header=False, index=False)
                                 else:
                                     df_new.to_csv(HISTORY_FILE, index=False)
+                                    df_new.to_csv(HISTORY_BACKUP_FILE, index=False)
                             else:
                                 st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
             except Exception as e:
@@ -1087,10 +1091,13 @@ with tab2:
                                     hist_df = pd.read_csv(HISTORY_FILE)
                                     hist_df = pd.concat([hist_df, df_new], ignore_index=True)
                                     hist_df.to_csv(HISTORY_FILE, index=False)
+                                    hist_df.to_csv(HISTORY_BACKUP_FILE, index=False)
                                 except Exception:
                                     df_new.to_csv(HISTORY_FILE, mode='a', header=False, index=False)
+                                    df_new.to_csv(HISTORY_BACKUP_FILE, mode='a', header=False, index=False)
                             else:
                                 df_new.to_csv(HISTORY_FILE, index=False)
+                                df_new.to_csv(HISTORY_BACKUP_FILE, index=False)
                         else:
                             st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
                             
@@ -1100,14 +1107,31 @@ with tab2:
             st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
 
 # --- Processing Display Data outside tabs so both Tab3 and Tab4 can use it ---
+# 🔥 History Restoration & Backup Mechanism Added
+if not os.path.exists(HISTORY_FILE) and os.path.exists(HISTORY_BACKUP_FILE):
+    try:
+        hist_backup = pd.read_csv(HISTORY_BACKUP_FILE)
+        hist_backup.to_csv(HISTORY_FILE, index=False)
+    except Exception:
+        pass
+
 display_df = pd.DataFrame()
 if os.path.exists(HISTORY_FILE):
     try:
         history_df = pd.read_csv(HISTORY_FILE)
         if "TP1" not in history_df.columns:
-            os.remove(HISTORY_FILE)
-            st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
-            st.stop()
+            # Try to restore from backup before panicking
+            if os.path.exists(HISTORY_BACKUP_FILE):
+                try:
+                    history_df = pd.read_csv(HISTORY_BACKUP_FILE)
+                except Exception:
+                    pass
+            
+            if "TP1" not in history_df.columns:
+                if os.path.exists(HISTORY_FILE): os.remove(HISTORY_FILE)
+                if os.path.exists(HISTORY_BACKUP_FILE): os.remove(HISTORY_BACKUP_FILE)
+                st.warning("🔄 පද්ධතිය යාවත්කාලීන විය. කරුණාකර අලුතින් Signal එකක් ලබා දෙන්න.")
+                st.stop()
             
         if "Category" not in history_df.columns:
             def infer_category(t):
@@ -1116,10 +1140,12 @@ if os.path.exists(HISTORY_FILE):
                 return "Crypto 🪙"
             history_df.insert(3, "Category", history_df["Ticker"].apply(infer_category))
             history_df.to_csv(HISTORY_FILE, index=False)
+            history_df.to_csv(HISTORY_BACKUP_FILE, index=False)
 
         if "Strategy" not in history_df.columns:
             history_df.insert(4, "Strategy", "N/A")
             history_df.to_csv(HISTORY_FILE, index=False)
+            history_df.to_csv(HISTORY_BACKUP_FILE, index=False)
         
         updated = False
         live_prices_dict = {}
@@ -1183,7 +1209,9 @@ if os.path.exists(HISTORY_FILE):
                     else: live_prices_dict[index] = np.nan
                 except Exception: live_prices_dict[index] = np.nan
         
-        if updated: history_df.to_csv(HISTORY_FILE, index=False)
+        if updated: 
+            history_df.to_csv(HISTORY_FILE, index=False)
+            history_df.to_csv(HISTORY_BACKUP_FILE, index=False)
             
         display_df = history_df.copy()
         display_df['Live Price'] = display_df.index.map(live_prices_dict)
@@ -1255,6 +1283,7 @@ with tab3:
                                 st.success("🚫 Cancel මැසේජ් එක යැව්වා! මේ Signal එක දැන් History එකේ Cancelled කියලා වැටෙයි.")
                                 history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
                                 history_df.to_csv(HISTORY_FILE, index=False)
+                                history_df.to_csv(HISTORY_BACKUP_FILE, index=False)
                                 time.sleep(1)
                                 try: st.rerun()
                                 except AttributeError: st.experimental_rerun()
@@ -1266,6 +1295,7 @@ with tab3:
                             st.success("⚠️ Missed Setup මැසේජ් එක සාර්ථකව යැව්වා!")
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
                             history_df.to_csv(HISTORY_FILE, index=False)
+                            history_df.to_csv(HISTORY_BACKUP_FILE, index=False)
                             time.sleep(1)
                             try: st.rerun()
                             except AttributeError: st.experimental_rerun()
@@ -1277,6 +1307,7 @@ with tab3:
                             st.success("🚫 Setup Invalid මැසේජ් එක සාර්ථකව යැව්වා!")
                             history_df.at[actual_index, 'Status'] = "🚫 Cancelled"
                             history_df.to_csv(HISTORY_FILE, index=False)
+                            history_df.to_csv(HISTORY_BACKUP_FILE, index=False)
                             time.sleep(1)
                             try: st.rerun()
                             except AttributeError: st.experimental_rerun()
@@ -1332,6 +1363,7 @@ with tab3:
                     indices_to_drop = [index for index, row in history_df.iterrows() if f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" in selected_to_delete]
                     history_df.drop(indices_to_drop, inplace=True)
                     history_df.to_csv(HISTORY_FILE, index=False)
+                    history_df.to_csv(HISTORY_BACKUP_FILE, index=False)
                     st.success("✅ තෝරාගත් සිග්නල් සාර්ථකව මකා දැමුවා!")
                     time.sleep(1)
                     try: st.rerun()
@@ -1340,7 +1372,8 @@ with tab3:
                     
         with col_del2:
             if st.button("🚨 ඔක්කොම මකන්න (Clear All)"):
-                os.remove(HISTORY_FILE)
+                if os.path.exists(HISTORY_FILE): os.remove(HISTORY_FILE)
+                if os.path.exists(HISTORY_BACKUP_FILE): os.remove(HISTORY_BACKUP_FILE)
                 st.success("✅ History එක සම්පූර්ණයෙන්ම මකා දැමුවා!")
                 time.sleep(1)
                 try: st.rerun()
