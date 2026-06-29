@@ -89,84 +89,129 @@ def clear_all_supabase():
     except Exception as e:
         pass
 
-# --- Telegram Functions ---
 def send_telegram_message(message):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID: return False
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
+        return False
+        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload_group = {"chat_id": TELEGRAM_GROUP_ID, "text": message, "parse_mode": "Markdown"}
     payload_channel = {"chat_id": TELEGRAM_CHANNEL_ID, "text": message, "parse_mode": "Markdown"}
+    
     try:
         res_group = requests.post(url, json=payload_group)
         res_channel = requests.post(url, json=payload_channel)
         return res_group.status_code == 200 and res_channel.status_code == 200
-    except: return False
+    except:
+        return False
 
 def send_telegram_photo_bytes(caption, photo_bytes):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID: return False
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID:
+        return False
+        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
     success = True
+    
     for chat_id in [TELEGRAM_GROUP_ID, TELEGRAM_CHANNEL_ID]:
         payload = {"chat_id": chat_id, "caption": caption, "parse_mode": "Markdown"}
         files = {"photo": ("chart.png", photo_bytes, "image/png")}
         try:
             res = requests.post(url, data=payload, files=files)
-            if res.status_code != 200: success = False
-        except: success = False
+            if res.status_code != 200:
+                success = False
+        except:
+            success = False
+            
     return success
 
+# --- Global Fear & Greed Fetcher (Cached) ---
 @st.cache_data(ttl=3600)
 def get_fear_and_greed():
     try:
         res = requests.get("https://api.alternative.me/fng/?limit=1", timeout=5)
         data = res.json()
         return int(data['data'][0]['value']), data['data'][0]['value_classification']
-    except: return 50, "Neutral"
+    except:
+        return 50, "Neutral"
 
+# 🟢 Candlestick Pattern Detection Function 
 def detect_candlestick_pattern(df):
     try:
-        if len(df) < 3: return "Not Enough Data"
+        if len(df) < 3:
+            return "Not Enough Data"
+        
         last = df.iloc[-1]
         prev = df.iloc[-2]
+        
         last_body = abs(last['Close'] - last['Open'])
         last_is_green = last['Close'] > last['Open']
         prev_is_green = prev['Close'] > prev['Open']
+        
         last_upper_wick = last['High'] - max(last['Open'], last['Close'])
         last_lower_wick = min(last['Open'], last['Close']) - last['Low']
         
-        if not prev_is_green and last_is_green and (last['Close'] > prev['Open']) and (last['Open'] < prev['Close']): return "Bullish Engulfing 📈"
-        if prev_is_green and not last_is_green and (last['Close'] < prev['Open']) and (last['Open'] > prev['Close']): return "Bearish Engulfing 📉"
-        if last_lower_wick > (2 * last_body) and last_upper_wick < (0.2 * last_body): return "Hammer (Bullish) 🔨"
-        if last_upper_wick > (2 * last_body) and last_lower_wick < (0.2 * last_body): return "Shooting Star (Bearish) 🌠"
+        # 1. Bullish Engulfing
+        if not prev_is_green and last_is_green and (last['Close'] > prev['Open']) and (last['Open'] < prev['Close']):
+            return "Bullish Engulfing 📈"
+            
+        # 2. Bearish Engulfing
+        if prev_is_green and not last_is_green and (last['Close'] < prev['Open']) and (last['Open'] > prev['Close']):
+            return "Bearish Engulfing 📉"
+            
+        # 3. Hammer (Bullish Reversal)
+        if last_lower_wick > (2 * last_body) and last_upper_wick < (0.2 * last_body):
+            return "Hammer (Bullish) 🔨"
+            
+        # 4. Shooting Star (Bearish Reversal)
+        if last_upper_wick > (2 * last_body) and last_lower_wick < (0.2 * last_body):
+            return "Shooting Star (Bearish) 🌠"
+            
+        # 5. Doji
         open_price = last['Open'] if last['Open'] > 0 else 0.0001
-        if last_body < (0.01 * open_price): return "Doji (Indecision) ⚖️"
+        if last_body < (0.01 * open_price):
+            return "Doji (Indecision) ⚖️"
+            
+        # 6. Fair Value Gap (FVG)
         prev3 = df.iloc[-3]
-        if last['Low'] > prev3['High']: return "Bullish FVG 🟢"
-        if last['High'] < prev3['Low']: return "Bearish FVG 🔴"
+        if last['Low'] > prev3['High']:
+            return "Bullish FVG 🟢"
+        if last['High'] < prev3['Low']:
+            return "Bearish FVG 🔴"
+            
         return "Standard Price Action"
-    except: return "Standard Price Action"
+    except:
+        return "Standard Price Action"
 
+# 🟢 ROBUST Supertrend Calculation for AI Features
 def add_supertrend(df, period=10, multiplier=3):
     hl2 = (df['High'] + df['Low']) / 2
     atr = df['TR'].rolling(window=period).mean()
     upper_band = hl2 + (multiplier * atr)
     lower_band = hl2 - (multiplier * atr)
+    
+    # Fill NaNs safely to prevent loop crashes
     upper_band = upper_band.bfill().ffill()
     lower_band = lower_band.bfill().ffill()
     
     in_uptrend = True
     supertrend = np.zeros(len(df))
     st_dir = np.ones(len(df))
+    
     close_vals = df['Close'].values
     ub_vals = upper_band.values
     lb_vals = lower_band.values
     
     for i in range(1, len(df)):
-        if close_vals[i] > ub_vals[i-1]: in_uptrend = True
-        elif close_vals[i] < lb_vals[i-1]: in_uptrend = False
+        if close_vals[i] > ub_vals[i-1]:
+            in_uptrend = True
+        elif close_vals[i] < lb_vals[i-1]:
+            in_uptrend = False
         else:
             in_uptrend = in_uptrend 
-            if in_uptrend and lb_vals[i] < lb_vals[i-1]: lb_vals[i] = lb_vals[i-1]
-            if not in_uptrend and ub_vals[i] > ub_vals[i-1]: ub_vals[i] = ub_vals[i-1]
+            if in_uptrend and lb_vals[i] < lb_vals[i-1]:
+                lb_vals[i] = lb_vals[i-1]
+            if not in_uptrend and ub_vals[i] > ub_vals[i-1]:
+                ub_vals[i] = ub_vals[i-1]
+        
         st_dir[i] = 1 if in_uptrend else -1
         supertrend[i] = lb_vals[i] if in_uptrend else ub_vals[i]
         
@@ -174,36 +219,53 @@ def add_supertrend(df, period=10, multiplier=3):
     df['ST_DIR'] = st_dir
     return df
 
+# 🟢 Advanced Pro Chart Generator (Dynamic Dark Theme VIP Edition)
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, tp3, sl, timeframe, detected_pattern):
+    # Calculate EMA 200 before tailing
     df['EMA_200'] = df['Close'].ewm(span=200, adjust=False).mean()
+    
     df_plot = df.tail(120).copy()
     
+    # 1. Moving Averages & VWAP
     df_plot['MA_7'] = df_plot['Close'].rolling(window=7).mean()
     df_plot['MA_25'] = df_plot['Close'].rolling(window=25).mean()
     df_plot['MA_100'] = df_plot['Close'].rolling(window=100).mean()
     
+    # 2. අනාගත කෑන්ඩල් සඳහා ඉඩ හැදීම
     freq = df_plot.index.to_series().diff().median()
     last_date = df_plot.index[-1]
+    
     future_dates = [last_date + (freq * i) for i in range(1, 30)] 
     future_index = pd.DatetimeIndex(future_dates)
     future_df = pd.DataFrame(index=future_index, columns=df_plot.columns)
     df_padded = pd.concat([df_plot, future_df])
+    
     total_len = len(df_padded)
     
-    low_val, high_val = df_plot['Low'].min(), df_plot['High'].max()
-    low_idx, high_idx = df_plot['Low'].values.argmin(), df_plot['High'].values.argmax()
+    # 3. Fibonacci Retracement Levels
+    low_val = df_plot['Low'].min()
+    high_val = df_plot['High'].max()
+    low_idx = df_plot['Low'].values.argmin()
+    high_idx = df_plot['High'].values.argmax()
+    
     diff = high_val - low_val
     fib_382 = high_val - (diff * 0.382) if low_idx < high_idx else low_val + (diff * 0.382)
     fib_618 = high_val - (diff * 0.618) if low_idx < high_idx else low_val + (diff * 0.618)
     
-    start_fib_idx, end_fib_idx = min(low_idx, high_idx), max(low_idx, high_idx)
+    start_fib_idx = min(low_idx, high_idx)
+    end_fib_idx = max(low_idx, high_idx)
+    
     where_mask = np.zeros(total_len, dtype=bool)
     where_mask[-(len(future_dates) + 5):] = True 
+    
     where_fib = np.zeros(total_len, dtype=bool)
     where_fib[start_fib_idx:end_fib_idx+1] = True
     
-    y_entry, y_tp, y_sl = np.full(total_len, entry), np.full(total_len, tp3), np.full(total_len, sl)
-    y_fib_top, y_fib_bot = np.full(total_len, high_val), np.full(total_len, low_val)
+    y_entry = np.full(total_len, entry)
+    y_tp = np.full(total_len, tp3)
+    y_sl = np.full(total_len, sl)
+    y_fib_top = np.full(total_len, high_val)
+    y_fib_bot = np.full(total_len, low_val)
     
     fills = [
         dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.15), 
@@ -211,16 +273,38 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         dict(y1=y_fib_top, y2=y_fib_bot, where=where_fib, color='#787b86', alpha=0.08) 
     ]
     
+    # Dark Mode Theme Configuration
     mc = mpf.make_marketcolors(up='#089981', down='#f23645', edge='inherit', wick='inherit', volume='in', ohlc='i')
-    s = mpf.make_mpf_style(marketcolors=mc, gridcolor='#2b2b43', gridstyle='--', facecolor='#131722', edgecolor='#2b2b43', figcolor='#131722', rc={'font.size': 9, 'axes.grid': True, 'text.color': '#d1d4dc', 'axes.labelcolor': '#d1d4dc', 'xtick.color': '#d1d4dc', 'ytick.color': '#d1d4dc'})
+    s = mpf.make_mpf_style(
+        marketcolors=mc, 
+        gridcolor='#2b2b43', 
+        gridstyle='--', 
+        facecolor='#131722', 
+        edgecolor='#2b2b43',
+        figcolor='#131722',
+        rc={
+            'font.size': 9, 
+            'axes.grid': True,
+            'text.color': '#d1d4dc',
+            'axes.labelcolor': '#d1d4dc',
+            'xtick.color': '#d1d4dc',
+            'ytick.color': '#d1d4dc'
+        }
+    )
     
     ap = []
-    if not df_padded['MA_7'].isna().all(): ap.append(mpf.make_addplot(df_padded['MA_7'], color='#2962ff', width=1.5)) 
-    if not df_padded['MA_25'].isna().all(): ap.append(mpf.make_addplot(df_padded['MA_25'], color='#9c27b0', width=1.5)) 
-    if not df_padded['MA_100'].isna().all(): ap.append(mpf.make_addplot(df_padded['MA_100'], color='#66bb6a', width=1.5)) 
-    if 'EMA_200' in df_padded.columns and not df_padded['EMA_200'].isna().all(): ap.append(mpf.make_addplot(df_padded['EMA_200'], color='#ffeb3b', width=2.0))
-    if 'VWAP' in df_padded.columns and not df_padded['VWAP'].isna().all(): ap.append(mpf.make_addplot(df_padded['VWAP'], color='#ff9800', width=1.8, linestyle='-.')) 
+    if not df_padded['MA_7'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['MA_7'], color='#2962ff', width=1.5)) 
+    if not df_padded['MA_25'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['MA_25'], color='#9c27b0', width=1.5)) 
+    if not df_padded['MA_100'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['MA_100'], color='#66bb6a', width=1.5)) 
+    if 'EMA_200' in df_padded.columns and not df_padded['EMA_200'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['EMA_200'], color='#ffeb3b', width=2.0)) # Added 200 EMA 
+    if 'VWAP' in df_padded.columns and not df_padded['VWAP'].isna().all():
+        ap.append(mpf.make_addplot(df_padded['VWAP'], color='#ff9800', width=1.8, linestyle='-.')) 
         
+    # 🟢 Pattern Marker (Chart එකේ Arrow එකක් ඇඳීම)
     pattern_marker = [np.nan] * total_len
     last_candle_idx = len(df_plot) - 1
     
@@ -232,18 +316,38 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
             pattern_marker[last_candle_idx] = df_plot['High'].iloc[-1] + (df_plot['ATR'].iloc[-1] * 0.8)
             ap.append(mpf.make_addplot(pattern_marker, type='scatter', markersize=200, marker='v', color='#f23645'))
 
-    fig, axlist = mpf.plot(df_padded, type='candle', style=s, volume=True, addplot=ap, fill_between=fills, returnfig=True, figsize=(12, 6.5), panel_ratios=(5,1), tight_layout=True)
+    fig, axlist = mpf.plot(
+        df_padded, 
+        type='candle', 
+        style=s, 
+        volume=True,      
+        addplot=ap,       
+        fill_between=fills,
+        returnfig=True, 
+        figsize=(12, 6.5), 
+        panel_ratios=(5,1), 
+        tight_layout=True
+    )
+    
     ax_main = axlist[0] 
     
+    # Volume Profile (VPVR)
     vp_bins = 50
     price_min, price_max = df_plot['Low'].min(), df_plot['High'].max()
     bin_size = (price_max - price_min) / vp_bins
     bins = np.linspace(price_min, price_max, vp_bins + 1)
+    
     df_plot['Typical_Price'] = (df_plot['High'] + df_plot['Low'] + df_plot['Close']) / 3
     df_plot['Bin'] = pd.cut(df_plot['Typical_Price'], bins=bins, labels=False, include_lowest=True)
-    df_up, df_down = df_plot[df_plot['Close'] >= df_plot['Open']], df_plot[df_plot['Close'] < df_plot['Open']]
-    vp_up, vp_down = df_up.groupby('Bin')['Volume'].sum(), df_down.groupby('Bin')['Volume'].sum()
-    vp_up_arr, vp_down_arr = np.zeros(vp_bins), np.zeros(vp_bins)
+    
+    df_up = df_plot[df_plot['Close'] >= df_plot['Open']]
+    df_down = df_plot[df_plot['Close'] < df_plot['Open']]
+    
+    vp_up = df_up.groupby('Bin')['Volume'].sum()
+    vp_down = df_down.groupby('Bin')['Volume'].sum()
+    
+    vp_up_arr = np.zeros(vp_bins)
+    vp_down_arr = np.zeros(vp_bins)
     
     for b, vol in vp_up.items():
         if not np.isnan(b): vp_up_arr[int(b)] = vol
@@ -252,26 +356,40 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         
     vp_y = bins[:-1] + (bin_size / 2)
     max_vol = np.max(vp_up_arr + vp_down_arr)
+    
     if max_vol > 0:
-        vp_widths_up, vp_widths_down = (vp_up_arr / max_vol) * 22, (vp_down_arr / max_vol) * 22
+        vp_widths_up = (vp_up_arr / max_vol) * 22  
+        vp_widths_down = (vp_down_arr / max_vol) * 22
         ax_main.barh(vp_y, vp_widths_up, left=0, height=bin_size*0.9, color='#2962ff', alpha=0.2, zorder=1)
         ax_main.barh(vp_y, vp_widths_down, left=vp_widths_up, height=bin_size*0.9, color='#ff9800', alpha=0.2, zorder=1)
 
+    # Fibonacci & Lines
     ax_main.plot([low_idx, high_idx], [low_val, high_val], color='#787b86', linestyle='--', linewidth=1.5, alpha=0.5)
+    
     fib_levels_to_draw = [(high_val, '1 (100%)'), (fib_618, '0.618'), (fib_382, '0.382'), (low_val, '0 (0%)')]
     for val, label in fib_levels_to_draw:
         ax_main.plot([start_fib_idx, end_fib_idx], [val, val], color='#787b86', linestyle=':', linewidth=1.2, alpha=0.5)
         ax_main.text(start_fib_idx, val, f" {label}", color='#787b86', fontsize=8, va='bottom', ha='left')
 
+    # Price Tags (Custom Labels generating dynamically for each coin)
     x_max = total_len - 1 
-    target_levels = [(tp3, '#089981', 'Take Profit 3 (TP 3)'), (tp2, '#089981', 'Take Profit 2 (TP 2)'), (tp1, '#089981', 'Take Profit 1 (TP 1)'), (entry, '#b2b5be', 'Entry Price'), (sl, '#f23645', 'Stop Loss (SL)')]
+    target_levels = [
+        (tp3, '#089981', 'Take Profit 3 (TP 3)'), 
+        (tp2, '#089981', 'Take Profit 2 (TP 2)'), 
+        (tp1, '#089981', 'Take Profit 1 (TP 1)'), 
+        (entry, '#b2b5be', 'Entry Price'), 
+        (sl, '#f23645', 'Stop Loss (SL)')
+    ]
+    
     atr_val = df_plot['ATR'].iloc[-1]
     
     for price, color, label in target_levels:
         ax_main.axhline(y=price, color=color, linestyle='-', linewidth=1.2, alpha=0.9)
         bbox_props = dict(boxstyle="square,pad=0.3", fc=color, ec=color, lw=0)
         dp = 6 if price < 0.01 else 2
+        # Price label box on the right
         ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white" if color != '#b2b5be' else "#131722", fontsize=10, fontweight='bold', bbox=bbox_props)
+        # Dynamic Text label positioning
         text_y_offset = atr_val * 0.15 if direction == "BUY" else -(atr_val * 0.15)
         va_align = "bottom" if direction == "BUY" else "top"
         if label == 'Entry Price':
@@ -279,19 +397,23 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
             va_align = "bottom"
         ax_main.text(x_max - 5, price + text_y_offset, label, ha="right", va=va_align, color=color, fontsize=10, fontweight='bold')
 
+    # Dynamic Support & Resistance Zones with Order Block (OB) Labels dynamically adjusting per signal
     if direction == "BUY":
-        res_y, sup_y = tp3 + (atr_val * 0.3), sl - (atr_val * 0.3)
+        res_y = tp3 + (atr_val * 0.3)
+        sup_y = sl - (atr_val * 0.3)
         ax_main.axhline(y=res_y, color='#f23645', linestyle='-', linewidth=1.5, alpha=0.4)
         ax_main.text(x_max - 15, res_y, "Red Resistance OB", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
         ax_main.axhline(y=sup_y, color='#089981', linestyle='-', linewidth=1.5, alpha=0.4)
         ax_main.text(x_max - 15, sup_y, "Support Zone / Bullish OB", ha="right", va="top", color="#089981", fontsize=9, fontweight='bold')
     else:
-        res_y, sup_y = sl + (atr_val * 0.3), tp3 - (atr_val * 0.3)
+        res_y = sl + (atr_val * 0.3)
+        sup_y = tp3 - (atr_val * 0.3)
         ax_main.axhline(y=res_y, color='#f23645', linestyle='-', linewidth=1.5, alpha=0.4)
         ax_main.text(x_max - 15, res_y, "Red Resistance / Bearish OB", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
         ax_main.axhline(y=sup_y, color='#089981', linestyle='-', linewidth=1.5, alpha=0.4)
         ax_main.text(x_max - 15, sup_y, "Support Zone", ha="right", va="top", color="#089981", fontsize=9, fontweight='bold')
 
+    # Watermarks
     coin_clean = coin_name.replace('USDT', ' / TetherUS')
     ax_main.text(0.01, 0.96, f"💎 {coin_clean} • {timeframe} • BINANCE", transform=ax_main.transAxes, fontsize=12, fontweight='bold', color='#d1d4dc')
     ax_main.text(0.01, 0.91, "Multi MA + VPVR + Institutional VWAP", transform=ax_main.transAxes, fontsize=9, color='#787b86')
@@ -304,6 +426,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
     return buf.read()
 
 
+# Global options for mapping
 market_options = {
     "Bitcoin (BTC/USD)": "BTC-USD", "Ethereum (ETH/USD)": "ETH-USD", "Solana (SOL/USD)": "SOL-USD", "Binance Coin (BNB/USD)": "BNB-USD",
     "Ripple (XRP/USD)": "XRP-USD", "Cardano (ADA/USD)": "ADA-USD", "Dogwifhat (WIF/USD)": "WIF-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD",
@@ -367,7 +490,11 @@ tab1, tab2, tab3, tab4 = st.tabs(["⚡ Live AI Signals", "🔍 VIP Market Scanne
 
 with tab1:
     st.subheader("🌐 Market සහ Coins තෝරන්න:")
+    
+    # 🔴 Category Selection
     category = st.radio("ප්‍රවර්ගය තෝරන්න (Select Category):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)", "✏️ වෙනත් (Custom)"], horizontal=True)
+    
+    # 🔴 Strategy Mode
     strategy_mode = st.radio("Trading Strategy Mode:", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True)
 
     if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
@@ -375,16 +502,19 @@ with tab1:
         ticker = market_options[selected_display_name]
         clean_symbol = ticker.replace('-USD', 'USDT')
         full_tv_ticker = f"BINANCE:{clean_symbol}"
+
     elif category == "💱 ෆොරෙක්ස් (Forex)":
         selected_display_name = st.selectbox("Coins තෝරන්න:", list(fx_options_dict.keys()))
         ticker = fx_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=X', '')
         full_tv_ticker = f"FX_IDC:{clean_symbol}"
+
     elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)":
         selected_display_name = st.selectbox("Coins තෝරන්න:", list(com_options_dict.keys()))
         ticker = com_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=F', '')
         full_tv_ticker = f"COMEX:{clean_symbol}" if "GC" in ticker else f"NYMEX:{clean_symbol}"
+
     else:
         st.info("💡 **ඔබට අවශ්‍ය ඕනෑම කාසියක් මෙහි ඇතුළත් කළ හැක.**")
         col_c1, col_c2 = st.columns(2)
@@ -394,6 +524,7 @@ with tab1:
 
     tf_display = st.selectbox("Timeframe එක තෝරන්න:", list(tf_mapping.keys()))
     selected_tf = tf_mapping[tf_display]
+
     df = get_market_data(ticker, selected_tf["yf"], selected_tf["period"])
 
     if not df.empty and len(df) > 125: 
@@ -402,6 +533,7 @@ with tab1:
         df['Returns'] = df['Close'].pct_change()
         df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
         df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
+        
         df['MACD'] = df['Close'].ewm(span=12, adjust=False).mean() - df['Close'].ewm(span=26, adjust=False).mean()
         df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
         
@@ -411,6 +543,7 @@ with tab1:
         rs = gain / loss
         df['RSI'] = 100 - (100 / (1 + rs))
         
+        # Stochastic RSI Calculation
         min_val = df['RSI'].rolling(window=14).min()
         max_val = df['RSI'].rolling(window=14).max()
         df['StochRSI'] = (df['RSI'] - min_val) / (max_val - min_val)
@@ -421,6 +554,8 @@ with tab1:
         df['StdDev'] = df['Close'].rolling(window=20).std()
         df['BB_Upper'] = df['MA20'] + (df['StdDev'] * 2)
         df['BB_Lower'] = df['MA20'] - (df['StdDev'] * 2)
+        
+        # 🟢 Bollinger Band Squeeze (Width) 
         df['BB_Width'] = (df['BB_Upper'] - df['BB_Lower']) / df['MA20']
         
         df['High-Low'] = df['High'] - df['Low']
@@ -431,8 +566,10 @@ with tab1:
         
         df['FVG_Bull'] = np.where(df['Low'] > df['High'].shift(2), 1, 0)
         df['FVG_Bear'] = np.where(df['High'] < df['Low'].shift(2), 1, 0)
+        
         df['Target'] = np.where(df['Close'].shift(-2) > df['Close'], 1, 0)
         
+        # --- VIP Additions (VWAP, OBV, Supertrend, EMA 200) ---
         df['Typical_Price'] = (df['High'] + df['Low'] + df['Close']) / 3
         vol_cumsum = df['Volume'].cumsum()
         df['VWAP'] = np.where(vol_cumsum > 0, (df['Typical_Price'] * df['Volume']).cumsum() / vol_cumsum, df['Close'])
@@ -443,6 +580,8 @@ with tab1:
         df = add_supertrend(df)
         
         detected_pattern = detect_candlestick_pattern(df)
+        
+        # Updated Features including Pro Institutional Indicators + BB Width
         features = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'BB_Width', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR', 'EMA_200', 'StochRSI_K', 'StochRSI_D']
         last_market_state = df[features].iloc[[-1]].copy()
         
@@ -452,7 +591,9 @@ with tab1:
             st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
         else:
             try:
-                X, y = df_train[features], df_train['Target']
+                X = df_train[features]
+                y = df_train['Target']
+                
                 split = int(0.85 * len(df_train))
                 X_train, y_train = X[:split], y[:split]
                 
@@ -462,15 +603,21 @@ with tab1:
                 prediction = model.predict(last_market_state)[0]
                 probability = model.predict_proba(last_market_state)[0]
                 
-                try: current_price = float(yf.Ticker(ticker).fast_info['lastPrice'])
-                except Exception: current_price = float(df['Close'].iloc[-1])
+                try:
+                    tkr_live = yf.Ticker(ticker)
+                    current_price = float(tkr_live.fast_info['lastPrice'])
+                except Exception:
+                    current_price = float(df['Close'].iloc[-1])
                     
                 atr_val = float(df['ATR'].iloc[-1])
                 ai_confidence = max(probability) * 100
                 dp = 8 if current_price < 0.01 else 4
                 
                 pullback_amount = atr_val * 0.3  
-                sl_multiplier, tp1_multiplier, tp2_multiplier, tp3_multiplier = 2.0, 1.5, 3.0, 5.0
+                sl_multiplier = 2.0  
+                tp1_multiplier = 1.5
+                tp2_multiplier = 3.0
+                tp3_multiplier = 5.0
                 
                 if prediction == 1: 
                     entry_price = current_price - pullback_amount 
@@ -488,38 +635,69 @@ with tab1:
                 st.write("---")
                 st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
                 
+                # --- Fear & Greed Index Fetching ---
                 fng_value, fng_class = get_fear_and_greed()
                 if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
                     st.info(f"🧭 **Crypto Market Sentiment (Fear & Greed):** {fng_class} ({fng_value}/100)")
                 
-                has_valid_signal, confluence_pass, confluence_msg, is_reversal = False, True, "", False
-                last_ema9, last_ema21 = float(last_market_state['EMA_9'].iloc[0]), float(last_market_state['EMA_21'].iloc[0])
-                last_macd, last_rsi = float(last_market_state['MACD'].iloc[0]), float(last_market_state['RSI'].iloc[0])
+                has_valid_signal = False
                 
+                last_ema9 = float(last_market_state['EMA_9'].iloc[0])
+                last_ema21 = float(last_market_state['EMA_21'].iloc[0])
+                last_macd = float(last_market_state['MACD'].iloc[0])
+                last_rsi = float(last_market_state['RSI'].iloc[0])
+                
+                confluence_pass = True
+                confluence_msg = ""
+                is_reversal = False
+                
+                # 🔴 Mode Logic Switch
                 if "Aggressive" in strategy_mode:
                     min_conf = 50.1
-                    if prediction == 1 and last_rsi > 75: confluence_pass, confluence_msg = False, "🚨 Aggressive Mode වුවත් RSI > 75 (Overbought) බැවින් BUY කිරීම අවදානම්ය."
-                    elif prediction == 0 and last_rsi < 25: confluence_pass, confluence_msg = False, "🚨 Aggressive Mode වුවත් RSI < 25 (Oversold) බැවින් SELL කිරීම අවදානම්ය."
+                    if prediction == 1: # BUY
+                        if last_rsi > 75:
+                            confluence_pass = False
+                            confluence_msg = "🚨 Aggressive Mode වුවත් RSI > 75 (Overbought) බැවින් BUY කිරීම අවදානම්ය."
+                    else: # SELL
+                        if last_rsi < 25:
+                            confluence_pass = False
+                            confluence_msg = "🚨 Aggressive Mode වුවත් RSI < 25 (Oversold) බැවින් SELL කිරීම අවදානම්ය."
                 else:
                     min_conf = 60.0
-                    if prediction == 1:
-                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value >= 80: confluence_pass, confluence_msg = False, f"🚨 **Fear & Greed Warning:** '{fng_class}' මට්ටම."
+                    if prediction == 1: # BUY
+                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value >= 80:
+                            confluence_pass = False
+                            confluence_msg = f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Overbought) මට්ටමේ. මෙවැනි අවස්ථාවක Market එක කඩා වැටෙන්නට (Crash) ඉඩ ඇති බැවින් AI මෙම BUY සිග්නලය ප්‍රතික්ෂේප කරයි."
                         elif (last_ema9 < last_ema21) and (last_macd < 0):
-                            if last_rsi < 45 and ("Hammer" in detected_pattern or "Bullish" in detected_pattern): is_reversal = True
-                            else: confluence_pass, confluence_msg = False, "🚨 **Trend Filter Warning:** ප්‍රබල Downtrend එකක්."
-                    else:
-                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value <= 20: confluence_pass, confluence_msg = False, f"🚨 **Fear & Greed Warning:** '{fng_class}' මට්ටම."
+                            if last_rsi < 45 and ("Hammer" in detected_pattern or "Bullish" in detected_pattern):
+                                is_reversal = True
+                            else:
+                                confluence_pass = False
+                                confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව 'Falling Knife' එකක් ඇල්ලීම ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+                    else: # SELL
+                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value <= 20:
+                            confluence_pass = False
+                            confluence_msg = f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Oversold) මට්ටමේ. මෙතැනින් Reversal එකක් වීමට ඉඩ ඇති බැවින් AI මෙම SELL සිග්නලය ප්‍රතික්ෂේප කරයි."
                         elif (last_ema9 > last_ema21) and (last_macd > 0):
-                            if last_rsi > 55 and ("Shooting Star" in detected_pattern or "Bearish" in detected_pattern): is_reversal = True
-                            else: confluence_pass, confluence_msg = False, "🚨 **Trend Filter Warning:** ප්‍රබල Uptrend එකක්."
+                            if last_rsi > 55 and ("Shooting Star" in detected_pattern or "Bearish" in detected_pattern):
+                                is_reversal = True
+                            else:
+                                confluence_pass = False
+                                confluence_msg = "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
 
-                if ai_confidence < min_conf: st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%).")
-                elif not confluence_pass: st.error(confluence_msg)
+                if ai_confidence < min_conf:
+                    st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් {min_conf}% ක විශ්වාසයක් අවශ්‍යයි.")
+                elif not confluence_pass:
+                    st.error(confluence_msg)
                 else:
                     has_valid_signal = True
-                    if is_reversal: st.info("🔥 **SMART REVERSAL DETECTED!** AI එක Trend Reversal එකක් හඳුනාගත්තා!")
-                    if prediction == 1: st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
-                    else: st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
+                    if is_reversal:
+                        st.info("🔥 **SMART REVERSAL DETECTED!** AI එක Trend Reversal එකක් (හැරවුම් ලක්ෂ්‍යයක්) හඳුනාගත්තා!")
+                        
+                    if prediction == 1:
+                        st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
+                    else:
+                        st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
         
                 chart_studies = '["MASimple@tv-basicstudies", "BBands@tv-basicstudies", "MACD@tv-basicstudies"]'
                 tradingview_html = f"""
@@ -527,7 +705,23 @@ with tab1:
                   <div id="tradingview_chart" style="height:500px;"></div>
                   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                   <script type="text/javascript">
-                  new TradingView.widget({{ "autosize": true, "height": 500, "symbol": "{full_tv_ticker}", "interval": "{selected_tf['tv']}", "timezone": "Etc/UTC", "theme": "dark", "style": "1", "locale": "en", "toolbar_bg": "#f1f3f6", "enable_publishing": false, "withdateranges": true, "hide_side_toolbar": false, "allow_symbol_change": true, "studies": {chart_studies}, "container_id": "tradingview_chart" }});
+                  new TradingView.widget({{
+                    "autosize": true,
+                    "height": 500,
+                    "symbol": "{full_tv_ticker}",
+                    "interval": "{selected_tf['tv']}",
+                    "timezone": "Etc/UTC",
+                    "theme": "dark",
+                    "style": "1",
+                    "locale": "en",
+                    "toolbar_bg": "#f1f3f6",
+                    "enable_publishing": false,
+                    "withdateranges": true,
+                    "hide_side_toolbar": false,
+                    "allow_symbol_change": true,
+                    "studies": {chart_studies},
+                    "container_id": "tradingview_chart"
+                  }});
                   </script>
                 </div>
                 """
@@ -535,26 +729,45 @@ with tab1:
         
                 st.write("---")
                 if has_valid_signal:
-                    dir_text = "🟢 BUY / LONG 📈 ⬆️" if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️"
-                    if is_reversal: dir_text += " (🔥 Reversal Setup)"
-                    direction_text = "BUY" if prediction == 1 else "SELL"
+                    if prediction == 1:
+                        dir_text = "🟢 BUY / LONG 📈 ⬆️" 
+                        if is_reversal: dir_text += " (🔥 Reversal Setup)"
+                        direction_text = "BUY"
+                    else:
+                        dir_text = "🔴 SELL / SHORT 📉 ⬇️"
+                        if is_reversal: dir_text += " (🔥 Reversal Setup)"
+                        direction_text = "SELL"
                     
-                    target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම්:**\n\n🪙 **Coin:** {selected_display_name}\n🔥 **Direction:** {dir_text}\n🧩 **Pattern:** {detected_pattern}\n🔵 **Entry:** ${entry_price:.{dp}f}\n🎯 **TP 1:** ${tp1_price:.{dp}f}\n🎯 **TP 2:** ${tp2_price:.{dp}f}\n🎯 **TP 3:** ${tp3_price:.{dp}f}\n🛑 **SL:** ${sl_price:.{dp}f}"
+                    target_msg = (
+                        f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (ATR & SMC Visual Targets):**\n\n"
+                        f"🪙 **Coin:** {selected_display_name}\n\n"
+                        f"🔥 **Signal Direction:** {dir_text}\n\n"
+                        f"🧩 **Detected Pattern:** {detected_pattern}\n\n"
+                        f"🔵 **Entry Limit Price:** ${entry_price:.{dp}f}\n\n"
+                        f"🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n"
+                        f"🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n"
+                        f"🎯 **TP 3:** ${tp3_price:.{dp}f}\n\n"
+                        f"🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
+                    )
                     st.info(target_msg)
-                    st.write("### 📸 Signal Visualizer Preview")
+                    
+                    st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
-                        st.image(chart_image_bytes, caption=f"Setup for {selected_display_name}")
+                        st.image(chart_image_bytes, caption=f"Dynamically Generated Setup for {selected_display_name} (VPVR + VWAP + 200 EMA + OB + {detected_pattern})")
                         image_generated_successfully = True
                     except Exception as img_err:
-                        st.error("⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්.")
+                        st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
                         image_generated_successfully = False
 
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
                     if st.button("Send Signal & Auto Trade on Demo 🚀"):
-                        try: check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
-                        except: check_live = current_price
+                        
+                        try:
+                            check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
+                        except:
+                            check_live = current_price
                             
                         is_safe_to_send = True
                         if prediction == 1: 
@@ -563,18 +776,28 @@ with tab1:
                             if check_live <= tp1_price or check_live >= sl_price: is_safe_to_send = False
                                 
                         if not is_safe_to_send:
-                            st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️")
+                            st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                         else:
-                            cat_name = "Crypto 🪙" if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" else "Forex 💱" if category == "💱 ෆොරෙක්ස් (Forex)" else "Commodities ✨" if category == "✨ ලෝහ සහ තෙල් (Metals & Oil)" else "Custom ✏️"
+                            # 🟢 Category එක තීරණය කිරීම (Crypto, Forex, ආදිය)
+                            if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
+                                cat_name = "Crypto 🪙"
+                            elif category == "💱 ෆොරෙක්ස් (Forex)":
+                                cat_name = "Forex 💱"
+                            elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)":
+                                cat_name = "Commodities ✨"
+                            else:
+                                cat_name = "Custom ✏️"
                                 
                             telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                 success = False
-                                if image_generated_successfully: success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                                if image_generated_successfully:
+                                    success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                                
                                 if not success:
                                     success = send_telegram_message(telegram_text)
-                                    st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal පමණි).")
+                                    st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal එක පමණක් යැවිණි).")
                                 
                             if success:
                                 date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
@@ -584,26 +807,49 @@ with tab1:
                                     "Entry": entry_price, "TP1": tp1_price, "TP2": tp2_price, "TP3": tp3_price, 
                                     "SL": sl_price, "Status": "⏳ Pending Entry"
                                 }
-                                if save_to_supabase(data_to_save): st.success("✅ Signal එක යැව්වා! (Database එකටත් Save වුණා)")
-                                else: st.warning("✅ Signal යැව්වා, නමුත් Database Save වීමේ දෝෂයක්.")
-                            else: st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets බලන්න.")
-            except Exception as e: st.error(f"⚠️ විශ්ලේෂණයේදී ගැටලුවක්: {e}")
-    else: st.error("කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත.")
+                                if save_to_supabase(data_to_save):
+                                    st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (Database එකටත් Save වුණා)")
+                                else:
+                                    st.warning("✅ Signal එක යැව්වා, නමුත් Database Save වීමේ දෝෂයක්.")
+                            else:
+                                st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
+            except Exception as e:
+                st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න. Error: {e}")
+    else:
+        st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරන්න.")
 
+# --- Tab 2: Auto Market Scanner ---
 with tab2:
     st.subheader("🔍 VIP Market Scanner (Auto Signal Finder)")
-    st.write("මුළු Category එකක්ම ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති Coins පහසුවෙන් සොයාගන්න.")
+    # 🟢 Description Updated with 'Coins' and 'Category'
+    st.write("එකින් එක Coins පරීක්ෂා කිරීම වෙනුවට, එකවර මුළු Category එකක්ම ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති Coins පමණක් පහසුවෙන් සොයාගන්න.")
     
     scan_category = st.radio("ප්‍රවර්ගය තෝරන්න (Select Category):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)"], horizontal=True, key="scanner_category_radio")
+
     strategy_mode_scan = st.radio("Trading Strategy Mode (Scanner):", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True, key="scan_strat")
     
     col_s1, col_s2, col_s3 = st.columns(3)
-    with col_s1: scan_tf_display = st.selectbox("Timeframe එක තෝරන්න:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"], index=["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"].index(st.session_state.scan_tf))
+    with col_s1:
+        scan_tf_display = st.selectbox(
+            "ස්කෑන් කළ යුතු Timeframe එක තෝරන්න:", 
+            ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"], 
+            index=["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"].index(st.session_state.scan_tf)
+        )
         
-    current_scan_options = market_options if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" else fx_options_dict if scan_category == "💱 ෆොරෙක්ස් (Forex)" else com_options_dict
-    max_limit_val = len(current_scan_options)
+    if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
+        current_scan_options = market_options
+        max_limit_val = len(market_options)
+    elif scan_category == "💱 ෆොරෙක්ස් (Forex)":
+        current_scan_options = fx_options_dict
+        max_limit_val = len(fx_options_dict)
+    else:
+        current_scan_options = com_options_dict
+        max_limit_val = len(com_options_dict)
         
-    with col_s2: scan_limit = st.slider("ස්කෑන් කරන Coins ගණන:", min_value=1, max_value=max_limit_val, value=min(30, max_limit_val), step=1)
+    with col_s2:
+        # 🟢 Slider Updated to 'Coins'
+        scan_limit = st.slider("ස්කෑන් කරන Coins ගණන (වේගවත් කිරීම සඳහා):", min_value=1, max_value=max_limit_val, value=min(30, max_limit_val), step=1)
+        
     with col_s3:
         st.write("")
         st.write("")
@@ -616,17 +862,21 @@ with tab2:
         st.session_state.last_scan_empty = False
 
     if st.session_state.get('scanning', False):
-        st.warning("⚠️ ස්කෑන් වෙමින් පවතී... 'Stop Scan' ඔබන්න අවශ්‍ය නම්.")
+        st.warning("⚠️ ස්කෑන් වෙමින් පවතී... හොඳ සිග්නල් එකක් දැක්කොත් පහළින් ඇති 'Stop Scan' බොත්තම ඔබන්න.")
         if st.button("🛑 Stop Scan (නවත්වන්න)", type="primary"):
             st.session_state.scanning = False
-            if len(st.session_state.scan_results) == 0: st.session_state.last_scan_empty = True
+            if len(st.session_state.scan_results) == 0:
+                st.session_state.last_scan_empty = True
             st.rerun()
 
         progress_bar = st.progress(0)
         status_text = st.empty()
         results_placeholder = st.empty()
         
-        if not st.session_state.scan_results: results_placeholder.table(pd.DataFrame(columns=['Coin / Pair', 'Direction', 'Confidence', 'Pattern']))
+        if not st.session_state.scan_results:
+            empty_df = pd.DataFrame(columns=['Coin / Pair', 'Direction', 'Confidence', 'Pattern'])
+            results_placeholder.table(empty_df)
+        
         fng_value, fng_class = get_fear_and_greed()
         
         coins_to_scan = list(current_scan_options.keys())[:scan_limit]
@@ -634,7 +884,9 @@ with tab2:
         scan_tf = tf_mapping[st.session_state.scan_tf]
         
         for i, coin_name in enumerate(coins_to_scan):
-            if not st.session_state.scanning: break
+            if not st.session_state.scanning:
+                break
+                
             ticker_to_scan = current_scan_options[coin_name]
             status_text.info(f"🔍 ස්කෑන් කරමින් පවතී: {coin_name}... ({i+1}/{total_coins})")
             
@@ -644,31 +896,45 @@ with tab2:
                 
                 if not df_scan.empty and len(df_scan) > 125:
                     if isinstance(df_scan.columns, pd.MultiIndex): df_scan.columns = df_scan.columns.get_level_values(0)
-                    df_scan['Volume'] = df_scan['Volume'].fillna(1.0) if 'Volume' in df_scan.columns and not df_scan['Volume'].isna().all() else 1.0
+                    
+                    if 'Volume' not in df_scan.columns or df_scan['Volume'].isna().all() or (df_scan['Volume'] == 0).all():
+                        df_scan['Volume'] = 1.0  
+                    else:
+                        df_scan['Volume'] = df_scan['Volume'].fillna(1.0)
+                        
                     df_scan = df_scan.tail(600).copy() 
                     
                     df_scan['Returns'] = df_scan['Close'].pct_change()
-                    df_scan['EMA_9'], df_scan['EMA_21'] = df_scan['Close'].ewm(span=9, adjust=False).mean(), df_scan['Close'].ewm(span=21, adjust=False).mean()
+                    df_scan['EMA_9'] = df_scan['Close'].ewm(span=9, adjust=False).mean()
+                    df_scan['EMA_21'] = df_scan['Close'].ewm(span=21, adjust=False).mean()
                     df_scan['MACD'] = df_scan['Close'].ewm(span=12, adjust=False).mean() - df_scan['Close'].ewm(span=26, adjust=False).mean()
                     df_scan['Signal_Line'] = df_scan['MACD'].ewm(span=9, adjust=False).mean()
                     
                     delta = df_scan['Close'].diff()
-                    rs = (delta.where(delta > 0, 0)).rolling(window=14).mean() / (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                    rs = gain / loss
                     df_scan['RSI'] = 100 - (100 / (1 + rs))
                     
-                    min_val_s, max_val_s = df_scan['RSI'].rolling(window=14).min(), df_scan['RSI'].rolling(window=14).max()
+                    min_val_s = df_scan['RSI'].rolling(window=14).min()
+                    max_val_s = df_scan['RSI'].rolling(window=14).max()
                     df_scan['StochRSI'] = (df_scan['RSI'] - min_val_s) / (max_val_s - min_val_s)
                     df_scan['StochRSI_K'] = df_scan['StochRSI'].rolling(window=3).mean().fillna(0)
                     df_scan['StochRSI_D'] = df_scan['StochRSI_K'].rolling(window=3).mean().fillna(0)
                     
                     df_scan['MA20'] = df_scan['Close'].rolling(window=20).mean()
                     df_scan['StdDev'] = df_scan['Close'].rolling(window=20).std()
-                    df_scan['BB_Upper'], df_scan['BB_Lower'] = df_scan['MA20'] + (df_scan['StdDev'] * 2), df_scan['MA20'] - (df_scan['StdDev'] * 2)
+                    df_scan['BB_Upper'] = df_scan['MA20'] + (df_scan['StdDev'] * 2)
+                    df_scan['BB_Lower'] = df_scan['MA20'] - (df_scan['StdDev'] * 2)
+                    
                     df_scan['BB_Width'] = (df_scan['BB_Upper'] - df_scan['BB_Lower']) / df_scan['MA20']
                     
-                    df_scan['TR'] = df_scan[['High', 'Low', 'Close']].apply(lambda x: max(x['High']-x['Low'], abs(x['High']-x['Close']), abs(x['Low']-x['Close'])), axis=1) if 'Close' in df_scan else 0
-                    df_scan['TR'] = df_scan[['High', 'Low', 'Close']].max(axis=1) - df_scan[['High', 'Low', 'Close']].min(axis=1) # Simplified TR
+                    df_scan['High-Low'] = df_scan['High'] - df_scan['Low']
+                    df_scan['High-PrevClose'] = np.abs(df_scan['High'] - df_scan['Close'].shift(1))
+                    df_scan['Low-PrevClose'] = np.abs(df_scan['Low'] - df_scan['Close'].shift(1))
+                    df_scan['TR'] = df_scan[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
                     df_scan['ATR'] = df_scan['TR'].rolling(window=14).mean()
+                    
                     df_scan['FVG_Bull'] = np.where(df_scan['Low'] > df_scan['High'].shift(2), 1, 0)
                     df_scan['FVG_Bear'] = np.where(df_scan['High'] < df_scan['Low'].shift(2), 1, 0)
                     df_scan['Target'] = np.where(df_scan['Close'].shift(-2) > df_scan['Close'], 1, 0)
@@ -678,65 +944,112 @@ with tab2:
                     df_scan['VWAP'] = np.where(vol_cumsum > 0, (df_scan['Typical_Price'] * df_scan['Volume']).cumsum() / vol_cumsum, df_scan['Close'])
                     df_scan['VWAP_Dist'] = np.where(df_scan['VWAP'] > 0, df_scan['Close'] / df_scan['VWAP'], 1.0)
                     
+                    df_scan['OBV'] = (np.sign(df_scan['Close'].diff()) * df_scan['Volume']).fillna(0).cumsum()
+                    df_scan['OBV_ROC'] = df_scan['OBV'].pct_change().fillna(0)
+                    
                     df_scan['EMA_200'] = df_scan['Close'].ewm(span=200, adjust=False).mean().fillna(0)
+                    
                     df_scan = add_supertrend(df_scan)
+                    
                     scan_pattern = detect_candlestick_pattern(df_scan)
                     
                     features_scan = ['EMA_9', 'EMA_21', 'RSI', 'BB_Upper', 'BB_Lower', 'BB_Width', 'Returns', 'ATR', 'FVG_Bull', 'FVG_Bear', 'MACD', 'Signal_Line', 'VWAP_Dist', 'ST_DIR', 'EMA_200', 'StochRSI_K', 'StochRSI_D']
+                    
                     df_train_scan = df_scan.dropna()
                     
                     if len(df_train_scan) >= 20:
                         last_market_state_scan = df_scan[features_scan].iloc[[-1]].copy()
-                        X_s, y_s = df_train_scan[features_scan], df_train_scan['Target']
+                        X_s = df_train_scan[features_scan]
+                        y_s = df_train_scan['Target']
+                        
                         split_s = int(0.85 * len(df_train_scan))
                         X_train_s, y_train_s = X_s[:split_s], y_s[:split_s]
                         
                         model_s = RandomForestClassifier(n_estimators=100, max_depth=10, min_samples_leaf=3, random_state=42)
                         model_s.fit(X_train_s, y_train_s)
-                        prediction_s, probability_s = model_s.predict(last_market_state_scan)[0], model_s.predict_proba(last_market_state_scan)[0]
+                        
+                        prediction_s = model_s.predict(last_market_state_scan)[0]
+                        probability_s = model_s.predict_proba(last_market_state_scan)[0]
                         ai_confidence_s = max(probability_s) * 100
                         
-                        last_ema9_s, last_ema21_s = float(last_market_state_scan['EMA_9'].iloc[0]), float(last_market_state_scan['EMA_21'].iloc[0])
-                        last_macd_s, last_rsi_s = float(last_market_state_scan['MACD'].iloc[0]), float(last_market_state_scan['RSI'].iloc[0])
+                        last_ema9_s = float(last_market_state_scan['EMA_9'].iloc[0])
+                        last_ema21_s = float(last_market_state_scan['EMA_21'].iloc[0])
+                        last_macd_s = float(last_market_state_scan['MACD'].iloc[0])
+                        last_rsi_s = float(last_market_state_scan['RSI'].iloc[0])
+                        
                         confluence_pass_s = True
                         
                         if "Aggressive" in strategy_mode_scan:
                             min_conf_s = 50.1 
-                            if prediction_s == 1 and last_rsi_s > 80: confluence_pass_s = False
-                            elif prediction_s == 0 and last_rsi_s < 20: confluence_pass_s = False
+                            if prediction_s == 1: 
+                                if last_rsi_s > 80: confluence_pass_s = False
+                            else:
+                                if last_rsi_s < 20: confluence_pass_s = False
                         else:
                             min_conf_s = 60.0
                             if prediction_s == 1:
-                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value >= 80: confluence_pass_s = False
-                                elif (last_ema9_s < last_ema21_s) and (last_macd_s < 0) and not (last_rsi_s < 45 and ("Hammer" in scan_pattern or "Bullish" in scan_pattern)): confluence_pass_s = False
+                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value >= 80: 
+                                    confluence_pass_s = False
+                                elif (last_ema9_s < last_ema21_s) and (last_macd_s < 0):
+                                    if not (last_rsi_s < 45 and ("Hammer" in scan_pattern or "Bullish" in scan_pattern)):
+                                        confluence_pass_s = False
                             else:
-                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value <= 20: confluence_pass_s = False
-                                elif (last_ema9_s > last_ema21_s) and (last_macd_s > 0) and not (last_rsi_s > 55 and ("Shooting Star" in scan_pattern or "Bearish" in scan_pattern)): confluence_pass_s = False
+                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value <= 20: 
+                                    confluence_pass_s = False
+                                elif (last_ema9_s > last_ema21_s) and (last_macd_s > 0):
+                                    if not (last_rsi_s > 55 and ("Shooting Star" in scan_pattern or "Bearish" in scan_pattern)):
+                                        confluence_pass_s = False
                                     
                         if ai_confidence_s >= min_conf_s and confluence_pass_s:
                             dir_str = "🟢 BUY" if prediction_s == 1 else "🔴 SELL"
                             dir_text = "BUY" if prediction_s == 1 else "SELL"
                             
-                            try: current_price_s = float(yf.Ticker(ticker_to_scan).fast_info['lastPrice'])
-                            except Exception: current_price_s = float(df_scan['Close'].iloc[-1])
+                            try:
+                                tkr_live_s = yf.Ticker(ticker_to_scan)
+                                current_price_s = float(tkr_live_s.fast_info['lastPrice'])
+                            except Exception:
+                                current_price_s = float(df_scan['Close'].iloc[-1])
                                 
                             atr_val_s = float(df_scan['ATR'].iloc[-1])
                             pullback_amount_s = atr_val_s * 0.3  
                             
                             if prediction_s == 1: 
                                 entry_price_s = current_price_s - pullback_amount_s 
-                                tp1_price_s, tp2_price_s, tp3_price_s, sl_price_s = entry_price_s + (atr_val_s * 1.5), entry_price_s + (atr_val_s * 3.0), entry_price_s + (atr_val_s * 5.0), entry_price_s - (atr_val_s * 2.0)
+                                tp1_price_s = entry_price_s + (atr_val_s * 1.5)
+                                tp2_price_s = entry_price_s + (atr_val_s * 3.0)
+                                tp3_price_s = entry_price_s + (atr_val_s * 5.0)
+                                sl_price_s = entry_price_s - (atr_val_s * 2.0) 
                             else: 
                                 entry_price_s = current_price_s + pullback_amount_s 
-                                tp1_price_s, tp2_price_s, tp3_price_s, sl_price_s = entry_price_s - (atr_val_s * 1.5), entry_price_s - (atr_val_s * 3.0), entry_price_s - (atr_val_s * 5.0), entry_price_s + (atr_val_s * 2.0)
+                                tp1_price_s = entry_price_s - (atr_val_s * 1.5)
+                                tp2_price_s = entry_price_s - (atr_val_s * 3.0)
+                                tp3_price_s = entry_price_s - (atr_val_s * 5.0)
+                                sl_price_s = entry_price_s + (atr_val_s * 2.0)
                                 
-                            clean_symbol = ticker_to_scan.replace('-USD', 'USDT') if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" else ticker_to_scan.replace('=X', '') if scan_category == "💱 ෆොරෙක්ස් (Forex)" else ticker_to_scan.replace('=F', '')
+                            if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
+                                clean_symbol = ticker_to_scan.replace('-USD', 'USDT')
+                            elif scan_category == "💱 ෆොරෙක්ස් (Forex)":
+                                clean_symbol = ticker_to_scan.replace('=X', '')
+                            else:
+                                clean_symbol = ticker_to_scan.replace('=F', '')
 
                             st.session_state.scan_results.append({
-                                "Coin": coin_name, "Ticker": ticker_to_scan, "Clean_Symbol": clean_symbol, "Direction_Label": dir_str,
-                                "Direction": dir_text, "Confidence": ai_confidence_s, "Pattern": scan_pattern, "Entry": entry_price_s,
-                                "TP1": tp1_price_s, "TP2": tp2_price_s, "TP3": tp3_price_s, "SL": sl_price_s, "TF": st.session_state.scan_tf,
-                                "Category": scan_category, "Strategy_Mode": strategy_mode_scan, "Chart_DF": df_scan.tail(120).copy()
+                                "Coin": coin_name,
+                                "Ticker": ticker_to_scan,
+                                "Clean_Symbol": clean_symbol,
+                                "Direction_Label": dir_str,
+                                "Direction": dir_text,
+                                "Confidence": ai_confidence_s,
+                                "Pattern": scan_pattern,
+                                "Entry": entry_price_s,
+                                "TP1": tp1_price_s,
+                                "TP2": tp2_price_s,
+                                "TP3": tp3_price_s,
+                                "SL": sl_price_s,
+                                "TF": st.session_state.scan_tf,
+                                "Category": scan_category,
+                                "Strategy_Mode": strategy_mode_scan,
+                                "Chart_DF": df_scan.tail(120).copy()
                             })
                             
                             if st.session_state.scan_results:
@@ -744,16 +1057,22 @@ with tab2:
                                 df_show.columns = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern']
                                 df_show['Confidence'] = df_show['Confidence'].apply(lambda x: f"{x:.1f}%")
                                 results_placeholder.table(df_show) 
-            except Exception: pass
+            except Exception:
+                pass
+                
             progress_bar.progress((i + 1) / total_coins)
             
         st.session_state.scanning = False
-        st.session_state.last_scan_empty = len(st.session_state.scan_results) == 0
+        if len(st.session_state.scan_results) == 0:
+            st.session_state.last_scan_empty = True
+        else:
+            st.session_state.last_scan_empty = False
         st.rerun()
 
     if not st.session_state.get('scanning', False):
         if st.session_state.get('scan_results'):
             st.success(f"🎉 Valid Signals {len(st.session_state.scan_results)} ක් සොයාගන්නා ලදී!")
+            
             df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
             df_show.columns = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern']
             df_show['Confidence'] = df_show['Confidence'].apply(lambda x: f"{x:.1f}%" if isinstance(x, float) else x)
@@ -761,27 +1080,46 @@ with tab2:
             
             st.write("---")
             st.write("### 🚀 සොයාගත් Signals Telegram වෙත යවන්න")
+            
             options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
-            selected_opts = st.multiselect("යැවිය යුතු Signals තෝරන්න:", options, default=options) if st.checkbox("සියල්ල තෝරන්න (Select All)") else st.multiselect("යැවිය යුතු Signals තෝරන්න:", options)
+            
+            select_all = st.checkbox("සියල්ල තෝරන්න (Select All)")
+            if select_all:
+                selected_opts = st.multiselect("යැවිය යුතු Signals තෝරන්න:", options, default=options)
+            else:
+                selected_opts = st.multiselect("යැවිය යුතු Signals තෝරන්න:", options)
                 
             if st.button("Send Selected Signals & Auto Trade 🚀", type="primary", use_container_width=True):
-                if not selected_opts: st.warning("⚠️ කරුණාකර යැවීමට අවම වශයෙන් එක් සිග්නල් එකක් හෝ තෝරන්න.")
+                if not selected_opts:
+                    st.warning("⚠️ කරුණාකර යැවීමට අවම වශයෙන් එක් සිග්නල් එකක් හෝ තෝරන්න.")
                 else:
                     for opt in selected_opts:
                         idx = options.index(opt)
                         sel_s = st.session_state.scan_results[idx]
                         dp = 8 if sel_s['Entry'] < 0.01 else 4
                         dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
-                        cat_tag = "Crypto 🪙" if sel_s['Category'] == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" else "Forex 💱" if sel_s['Category'] == "💱 ෆොරෙක්ස් (Forex)" else "Commodities ✨"
+                        
+                        if sel_s['Category'] == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
+                            cat_tag = "Crypto 🪙"
+                        elif sel_s['Category'] == "💱 ෆොරෙක්ස් (Forex)":
+                            cat_tag = "Forex 💱"
+                        else:
+                            cat_tag = "Commodities ✨"
                             
                         telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                         
                         with st.spinner(f"⏳ {sel_s['Coin']} යවමින් පවතී..."):
                             try:
-                                chart_image_bytes = generate_candlestick_image_bytes(sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], sel_s['Entry'], sel_s['TP1'], sel_s['TP2'], sel_s['TP3'], sel_s['SL'], sel_s['TF'], sel_s['Pattern'])
+                                chart_image_bytes = generate_candlestick_image_bytes(
+                                    sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], 
+                                    sel_s['Entry'], sel_s['TP1'], sel_s['TP2'], sel_s['TP3'], sel_s['SL'], 
+                                    sel_s['TF'], sel_s['Pattern']
+                                )
                                 success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
-                                if not success: success = send_telegram_message(telegram_text)
-                            except Exception: success = send_telegram_message(telegram_text)
+                                if not success:
+                                    success = send_telegram_message(telegram_text)
+                            except Exception as img_err:
+                                success = send_telegram_message(telegram_text)
                                 
                         if success:
                             date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
@@ -791,12 +1129,17 @@ with tab2:
                                 "Entry": sel_s['Entry'], "TP1": sel_s['TP1'], "TP2": sel_s['TP2'], "TP3": sel_s['TP3'], 
                                 "SL": sel_s['SL'], "Status": "⏳ Pending Entry"
                             }
-                            if save_to_supabase(data_to_save): st.success(f"✅ {sel_s['Coin']} යැව්වා! (Database Saved)")
-                            else: st.warning(f"✅ {sel_s['Coin']} යැව්වා, නමුත් Database දෝෂයක්.")
-                        else: st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
+                            if save_to_supabase(data_to_save):
+                                st.success(f"✅ {sel_s['Coin']} සාර්ථකව යැව්වා! (Database Saved)")
+                            else:
+                                st.warning(f"✅ {sel_s['Coin']} යැව්වා, නමුත් Database දෝෂයක්.")
+                        else:
+                            st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
                             
-        elif st.session_state.get('last_scan_empty', False): st.warning(f"⚠️ මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා තෝරාගත් ප්‍රවර්ගයේ Valid Signal එකක් නොමැත.")
-        else: st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
+        elif st.session_state.get('last_scan_empty', False):
+            st.warning(f"⚠️ ස්කෑන් කිරීම අවසන්! නමුත් මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා තෝරාගත් ප්‍රවර්ගයේ කිසිදු Coin එකක පැහැදිලි (Valid) Signal එකක් නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරා නැවත උත්සාහ කරන්න.")
+        else:
+            st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
 
 # --- Tab 3 & 4: Data Processing & Supabase Sync ---
 display_df = pd.DataFrame()
