@@ -5,3 +5,4 @@ pandas
 numpy
 mplfinance
 requests
+supabase==2.3.4
