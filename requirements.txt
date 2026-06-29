@@ -5,5 +5,5 @@ numpy
 scikit-learn
 requests
 mplfinance
-supabase==2.3.4
+supabase
 websockets
