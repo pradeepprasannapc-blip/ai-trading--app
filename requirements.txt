@@ -1,8 +1,9 @@
 streamlit
 yfinance
-scikit-learn
 pandas
 numpy
-mplfinance
+scikit-learn
 requests
+mplfinance
 supabase==2.3.4
+websockets>=12.0
