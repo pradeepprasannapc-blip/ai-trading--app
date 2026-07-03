@@ -18,6 +18,10 @@ st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layo
 # 🚀 NEW VIP ADMIN & LOGIN SYSTEM (UPDATED PRICING & VALIDATION)
 # ==========================================
 
+import base64
+from datetime import datetime, timedelta
+from supabase import create_client, Client
+
 # 🔴🔴🔴 ඔයාගේ විස්තර මෙතනින් වෙනස් කරන්න 🔴🔴🔴
 
 WHATSAPP_NUMBER = "94757970703" 
