@@ -223,7 +223,7 @@ elif selection == "💬 Messages":
 elif selection == "📈 Trading Signals":
     if not is_active and user_info['role'] not in ["Admin", "Owner"]:
         st.warning("⚠️ ඔබගේ Subscription කාලය හෝ Free Trial එක අවසන් වී ඇත.")
-        st.write("කරුණාකර 1xbet, iPay, CDM මගින් මුදල් ගෙවා විස්තර ඇතුළත් කරන්න.")
+        st.write("කරුණාකර iPay / Flex / CDM / Online Bank මගින් මුදල් ගෙවා විස්තර ඇතුළත් කරන්න.")
         
         pay_method = st.selectbox("ගෙවූ ක්‍රමය:", ["iPay", "CDM", "Bank Transfer", "Flex", "Other"])
         pay_ref = st.text_input("Reference Number / Receipt ID / Notes:")
