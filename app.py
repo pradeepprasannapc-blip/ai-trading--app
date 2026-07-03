@@ -15,11 +15,15 @@ from supabase import create_client, Client
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 # ==========================================
-# 🚀 NEW VIP ADMIN & LOGIN SYSTEM (UPDATED)
+# 🚀 NEW VIP ADMIN & LOGIN SYSTEM (UPDATED - OWNER & WHATSAPP)
 # ==========================================
 import base64
 from datetime import datetime, timedelta
 from supabase import create_client, Client
+import streamlit as st
+
+# 🟢 මෙතනට ඔයාගේ WhatsApp නම්බර් එක දාන්න (උදා: 94771234567)
+WHATSAPP_NUMBER = "94700000000" 
 
 # --- Session States ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -39,26 +43,39 @@ def admin_panel():
     st.title("⚙️ Admin / Moderator Dashboard")
     tab_users, tab_payments, tab_settings = st.tabs(["👥 User Management", "💳 Payment Approvals", "🛠️ Settings"])
     
+    current_user_role = st.session_state.user_data['role']
+    
     with tab_users:
         st.subheader("Users ලව පාලනය කරන්න (Roles & Delete)")
         users = supabase.table("custom_users").select("*").execute().data
         user_emails = [u['email'] for u in users]
+        user_roles = {u['email']: u['role'] for u in users}
         
         col_u1, col_u2 = st.columns(2)
         with col_u1:
             selected_user = st.selectbox("User කෙනෙක් තෝරන්න:", user_emails)
         with col_u2:
-            new_role = st.selectbox("අලුත් Role එක:", ["User", "Moderator", "Admin"])
+            # Owner ට විතරයි තව Owner කෙනෙක් හදන්න පුළුවන්
+            available_roles = ["User", "Moderator", "Admin"]
+            if current_user_role == "Owner": available_roles.append("Owner")
+            new_role = st.selectbox("අලුත් Role එක:", available_roles)
             
         col_b1, col_b2 = st.columns(2)
         with col_b1:
             if st.button("🔄 Role එක වෙනස් කරන්න"):
-                supabase.table("custom_users").update({"role": new_role}).eq("email", selected_user).execute()
-                st.success(f"✅ {selected_user} ගේ Role එක '{new_role}' ලෙස වෙනස් විය!")
+                if user_roles.get(selected_user) == "Owner" and current_user_role != "Owner":
+                    st.error("⚠️ Owner ගේ ගිණුම වෙනස් කිරීමට ඔබට බලයක් නැත!")
+                else:
+                    supabase.table("custom_users").update({"role": new_role}).eq("email", selected_user).execute()
+                    st.success(f"✅ {selected_user} ගේ Role එක '{new_role}' ලෙස වෙනස් විය!")
+                    
         with col_b2:
             if st.button("🗑️ User ව මකා දමන්න (Block)"):
-                supabase.table("custom_users").delete().eq("email", selected_user).execute()
-                st.warning(f"🚫 {selected_user} ව සිස්ටම් එකෙන් ඉවත් කළා!")
+                if user_roles.get(selected_user) == "Owner":
+                    st.error("⚠️ Owner ව මකා දැමිය නොහැක!")
+                else:
+                    supabase.table("custom_users").delete().eq("email", selected_user).execute()
+                    st.warning(f"🚫 {selected_user} ව සිස්ටම් එකෙන් ඉවත් කළා!")
 
         st.write("---")
         st.write("දැනට ඉන්න Users ලගේ සම්පූර්ණ ලැයිස්තුව:")
@@ -71,7 +88,6 @@ def admin_panel():
             for p in payments:
                 with st.expander(f"{p['email']} | {p['method']}"):
                     st.write(f"Ref/Note: {p['reference']}")
-                    
                     if p.get('receipt_base64'):
                         try:
                             image_bytes = base64.b64decode(p['receipt_base64'])
@@ -103,7 +119,7 @@ def messaging_system():
     user_email = st.session_state.user_data['email']
     role = st.session_state.user_data['role']
     
-    if role in ["Admin", "Moderator"]:
+    if role in ["Admin", "Moderator", "Owner"]:
         send_to = st.selectbox("කාටද යවන්නේ?", ["ALL (හැමෝටම)"] + [u['email'] for u in supabase.table("custom_users").select("email").execute().data])
         msg_text = st.text_area("Message එක Type කරන්න:")
         if st.button("Send Message"):
@@ -111,14 +127,21 @@ def messaging_system():
             st.success("✅ Message එක යැව්වා!")
             
     st.subheader("Inbox")
-    if role in ["Admin", "Moderator"]:
-        msgs = supabase.table("in_app_messages").select("*").in_("receiver", ["ALL", "Admin", "Moderator", user_email]).order("timestamp", desc=True).execute().data
+    if role in ["Admin", "Moderator", "Owner"]:
+        msgs = supabase.table("in_app_messages").select("*").in_("receiver", ["ALL", "Admin", "Moderator", "Owner", user_email]).order("timestamp", desc=True).execute().data
     else:
         msgs = supabase.table("in_app_messages").select("*").in_("receiver", ["ALL", user_email]).order("timestamp", desc=True).execute().data
         
     for m in msgs:
         bg_color = "#1e293b" if m['receiver'] == "ALL" else "#0f172a"
-        st.markdown(f"<div style='background-color:{bg_color}; padding:10px; border-radius:5px; margin-bottom:10px;'><b>From: {m['sender']}</b><br>{m['message']}</div>", unsafe_allow_html=True)
+        with st.container():
+            st.markdown(f"<div style='background-color:{bg_color}; padding:10px; border-radius:5px; margin-bottom:5px;'><b>From: {m['sender']}</b><br>{m['message']}</div>", unsafe_allow_html=True)
+            # Admin/Owner ට අදාළ මැසේජ් මකා දැමීමට බොත්තමක්
+            if role in ["Admin", "Moderator", "Owner"]:
+                if st.button("🗑️ Delete", key=f"del_msg_{m['id']}"):
+                    supabase.table("in_app_messages").delete().eq("id", m['id']).execute()
+                    st.rerun()
+            st.write("")
         
     if role == "User":
         support_msg = st.text_area("Admin ට Message එකක් දාන්න:")
@@ -162,17 +185,30 @@ latest_user = supabase.table("custom_users").select("*").eq("email", user_info['
 if latest_user: st.session_state.user_data = latest_user[0]
 user_info = st.session_state.user_data
 sub_end_date = datetime.fromisoformat(user_info['sub_end']) if user_info['sub_end'] else datetime.min
-is_active = sub_end_date > datetime.now()
+
+# 👑 Owner කෙනෙක් නම් Expiry අදාළ නෑ (හැමදාම Active)
+is_active = sub_end_date > datetime.now() or user_info['role'] == "Owner"
 
 st.sidebar.markdown(f"### 👋 Welcome,\n**{user_info['email'].split('@')[0]}**")
 st.sidebar.info(f"🎭 **Role:** {user_info['role']}")
 
-if is_active: st.sidebar.success(f"✅ Active until:\n{sub_end_date.strftime('%Y-%m-%d')}")
+if is_active: 
+    if user_info['role'] == "Owner":
+        st.sidebar.success("👑 VIP Access: Lifetime")
+    else:
+        st.sidebar.success(f"✅ Active until:\n{sub_end_date.strftime('%Y-%m-%d')}")
 else: st.sidebar.error("❌ Subscription Expired!")
 
 menu_options = ["📈 Trading Signals", "💬 Messages"]
-if user_info['role'] in ["Admin", "Moderator"]: menu_options.append("⚙️ Admin Dashboard")
+if user_info['role'] in ["Admin", "Moderator", "Owner"]: menu_options.append("⚙️ Admin Dashboard")
 selection = st.sidebar.radio("Navigation", menu_options)
+
+# 🟢 WhatsApp Support Button in Sidebar
+st.sidebar.markdown("---")
+st.sidebar.markdown("💬 **Help & Support**")
+whatsapp_link = f"https://wa.me/{WHATSAPP_NUMBER}"
+st.sidebar.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; font-weight:bold; cursor:pointer;">📞 WhatsApp Admin</button></a>', unsafe_allow_html=True)
+st.sidebar.markdown("---")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
@@ -185,7 +221,7 @@ elif selection == "💬 Messages":
     messaging_system()
     st.stop() 
 elif selection == "📈 Trading Signals":
-    if not is_active and user_info['role'] != "Admin":
+    if not is_active and user_info['role'] not in ["Admin", "Owner"]:
         st.warning("⚠️ ඔබගේ Subscription කාලය හෝ Free Trial එක අවසන් වී ඇත.")
         st.write("කරුණාකර 1xbet, iPay, CDM මගින් මුදල් ගෙවා විස්තර ඇතුළත් කරන්න.")
         
@@ -205,13 +241,11 @@ elif selection == "📈 Trading Signals":
                 "receipt_base64": receipt_b64
             }).execute()
             st.success("✅ ඔබගේ Payment විස්තර සහ රිසිට් පත Admin වෙත යවන ලදී!")
-        st.stop()
-
+        st.stop() 
 
 # ==========================================
 # ⬇️ ඔයාගේ පරණ කෝඩ් එක සාමාන්‍ය විදිහට මෙතන ඉඳන් පල්ලෙහාට තියෙන්න අරින්න ⬇️
 # ==========================================
-
 
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
 st.write("SMC (FVG & Order Blocks), ATR, VWAP, Supertrend, 200 EMA, StochRSI, BB Squeeze සහ Market Sentiment (Fear & Greed) එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
