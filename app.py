@@ -14,6 +14,154 @@ from supabase import create_client, Client
 # --- 1. App පෙනුම සහ Title සැකසීම ---
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
+# ==========================================
+# 🚀 NEW VIP ADMIN & LOGIN SYSTEM (NO TABS NEEDED)
+# ==========================================
+from datetime import datetime, timedelta
+from supabase import create_client, Client
+
+# --- Session States ---
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'user_data' not in st.session_state: st.session_state.user_data = None
+
+# --- Supabase Init ---
+try:
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except KeyError:
+    st.error("⚠️ Supabase Secrets සකසා නැත!")
+    st.stop()
+
+# --- Functions ---
+def admin_panel():
+    st.title("⚙️ Admin / Moderator Dashboard")
+    tab_users, tab_payments, tab_settings = st.tabs(["👥 User Management", "💳 Payment Approvals", "🛠️ Settings"])
+    with tab_users:
+        st.subheader("Users ලගේ විස්තර Edit කරන්න")
+        users = supabase.table("custom_users").select("*").execute().data
+        edited_df = st.data_editor(pd.DataFrame(users), num_rows="dynamic", key="user_editor")
+        if st.button("💾 Save Changes"):
+            for index, row in edited_df.iterrows():
+                supabase.table("custom_users").update(row.to_dict()).eq("email", row["email"]).execute()
+            st.success("✅ දත්ත යාවත්කාලීන කරන ලදී!")
+    with tab_payments:
+        st.subheader("Pending Payments (දවස් 30 Activate කිරීම)")
+        payments = supabase.table("manual_payments").select("*").eq("status", "Pending").execute().data
+        if payments:
+            for p in payments:
+                with st.expander(f"{p['email']} | {p['method']}"):
+                    st.write(f"Ref: {p['reference']}")
+                    if st.button("✅ Approve & Add 30 Days", key=f"app_{p['id']}"):
+                        user = supabase.table("custom_users").select("sub_end").eq("email", p['email']).execute().data[0]
+                        current_end = datetime.fromisoformat(user['sub_end']) if user['sub_end'] else datetime.now()
+                        if current_end < datetime.now(): current_end = datetime.now()
+                        new_end = (current_end + timedelta(days=30)).isoformat()
+                        supabase.table("custom_users").update({"sub_end": new_end}).eq("email", p['email']).execute()
+                        supabase.table("manual_payments").update({"status": "Approved"}).eq("id", p['id']).execute()
+                        st.success("✅ දවස් 30ක් එකතු කළා.")
+                        st.rerun()
+        else: st.info("අලුත් Payments කිසිවක් නැත.")
+    with tab_settings:
+        trial_data = supabase.table("app_settings").select("setting_value").eq("setting_name", "free_trial").execute().data
+        trial_setting = trial_data[0]['setting_value'] if trial_data else 'true'
+        is_trial_on = st.toggle("3-Day Free Trial", value=(trial_setting == 'true'))
+        if st.button("Save Settings"):
+            supabase.table("app_settings").update({"setting_value": 'true' if is_trial_on else 'false'}).eq("setting_name", "free_trial").execute()
+            st.success("✅ Settings යාවත්කාලීන විය!")
+
+def messaging_system():
+    st.title("💬 Messages & Support")
+    user_email = st.session_state.user_data['email']
+    role = st.session_state.user_data['role']
+    if role in ["Admin", "Moderator"]:
+        send_to = st.selectbox("කාටද යවන්නේ?", ["ALL (හැමෝටම)"] + [u['email'] for u in supabase.table("custom_users").select("email").execute().data])
+        msg_text = st.text_area("Message එක Type කරන්න:")
+        if st.button("Send Message"):
+            supabase.table("in_app_messages").insert({"sender": role, "receiver": send_to if send_to != "ALL (හැමෝටම)" else "ALL", "message": msg_text}).execute()
+            st.success("✅ Message එක යැව්වා!")
+    st.subheader("Inbox")
+    msgs = supabase.table("in_app_messages").select("*").in_("receiver", ["ALL", user_email]).order("timestamp", desc=True).execute().data
+    for m in msgs:
+        st.markdown(f"<div style='background-color:#1e293b; padding:10px; border-radius:5px; margin-bottom:10px;'><b>From: {m['sender']}</b><br>{m['message']}</div>", unsafe_allow_html=True)
+    if role == "User":
+        support_msg = st.text_area("Admin ට Message එකක් දාන්න:")
+        if st.button("Send to Admin"):
+            supabase.table("in_app_messages").insert({"sender": user_email, "receiver": "Admin", "message": support_msg}).execute()
+            st.success("✅ යවන ලදී!")
+
+# --- App Routing & Stoppage Logic ---
+if not st.session_state.logged_in:
+    st.title("🔐 VIP Signal App - Login")
+    tab_login, tab_reg = st.tabs(["Login", "Register"])
+    with tab_login:
+        email = st.text_input("Email:")
+        password = st.text_input("Password:", type="password")
+        if st.button("Login"):
+            res = supabase.table("custom_users").select("*").eq("email", email).eq("password", password).execute()
+            if res.data:
+                st.session_state.logged_in = True
+                st.session_state.user_data = res.data[0]
+                st.rerun()
+            else: st.error("❌ Email හෝ Password වැරදියි!")
+    with tab_reg:
+        new_email = st.text_input("New Email:")
+        new_phone = st.text_input("Phone Number:")
+        new_play_id = st.text_input("Play ID (1xbet ආදිය):")
+        new_password = st.text_input("New Password:", type="password")
+        if st.button("Register & Get Access"):
+            check = supabase.table("custom_users").select("*").eq("email", new_email).execute()
+            if check.data: st.error("⚠️ මේ Email එක දැනටමත් ඇත!")
+            else:
+                trial_setting = supabase.table("app_settings").select("setting_value").eq("setting_name", "free_trial").execute()
+                has_trial = trial_setting.data and trial_setting.data[0]['setting_value'] == 'true'
+                sub_end = (datetime.now() + timedelta(days=3)).isoformat() if has_trial else datetime.now().isoformat()
+                supabase.table("custom_users").insert({"email": new_email, "password": new_password, "phone": new_phone, "play_id": new_play_id, "role": "User", "sub_end": sub_end, "trial_used": has_trial}).execute()
+                st.success("✅ Register විය! Login වෙන්න.")
+    st.stop() # 🔴 ලොග් වෙලා නැත්තම් මෙතනින් පල්ලෙහාට කෝඩ් එක රන් වෙන්නේ නෑ!
+
+# --- If Logged In ---
+user_info = st.session_state.user_data
+latest_user = supabase.table("custom_users").select("*").eq("email", user_info['email']).execute().data
+if latest_user: st.session_state.user_data = latest_user[0]
+user_info = st.session_state.user_data
+sub_end_date = datetime.fromisoformat(user_info['sub_end']) if user_info['sub_end'] else datetime.min
+is_active = sub_end_date > datetime.now()
+
+st.sidebar.title(f"👋 Welcome, {user_info['email'].split('@')[0]}!")
+if is_active: st.sidebar.success(f"✅ Active until: {sub_end_date.strftime('%Y-%m-%d')}")
+else: st.sidebar.error("❌ Expired!")
+
+menu_options = ["📈 Trading Signals", "💬 Messages"]
+if user_info['role'] in ["Admin", "Moderator"]: menu_options.append("⚙️ Admin Dashboard")
+selection = st.sidebar.radio("Navigation", menu_options)
+
+if st.sidebar.button("Logout"):
+    st.session_state.logged_in = False
+    st.rerun()
+
+if selection == "⚙️ Admin Dashboard":
+    admin_panel()
+    st.stop() # 🔴 Admin පැනල් එකේ ඉද්දි පල්ලෙහාට රන් වෙන්න දෙන්නෙ නෑ
+elif selection == "💬 Messages":
+    messaging_system()
+    st.stop() # 🔴 Message එකේ ඉද්දි පල්ලෙහාට රන් වෙන්න දෙන්නෙ නෑ
+elif selection == "📈 Trading Signals":
+    if not is_active and user_info['role'] != "Admin":
+        st.warning("⚠️ ඔබගේ Subscription කාලය හෝ Free Trial එක අවසන් වී ඇත.")
+        st.write("කරුණාකර 1xbet, iPay, CDM මගින් මුදල් ගෙවා විස්තර ඇතුළත් කරන්න.")
+        pay_method = st.selectbox("ගෙවූ ක්‍රමය:", ["1xbet", "iPay", "CDM", "Bank Transfer", "Flex", "Other"])
+        pay_ref = st.text_input("Reference Number / Receipt ID / Notes:")
+        if st.button("Submit Payment for Approval"):
+            supabase.table("manual_payments").insert({"email": user_info['email'], "method": pay_method, "reference": pay_ref}).execute()
+            st.success("✅ Payment විස්තර යවන ලදී.")
+        st.stop() # 🔴 සල්ලි ගෙවලා නැත්තම් ඇප් එක පේන්නෙ නෑ
+
+# ==========================================
+# ⬇️ ඔයාගේ පරණ කෝඩ් එක සාමාන්‍ය විදිහට මෙතන ඉඳන් පල්ලෙහාට තියෙන්න අරින්න ⬇️
+# ==========================================
+
+
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
 st.write("SMC (FVG & Order Blocks), ATR, VWAP, Supertrend, 200 EMA, StochRSI, BB Squeeze සහ Market Sentiment (Fear & Greed) එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
 
