@@ -23,7 +23,7 @@ from supabase import create_client, Client
 import streamlit as st
 
 # 🟢 මෙතනට ඔයාගේ WhatsApp නම්බර් එක දාන්න (උදා: 94771234567)
-WHATSAPP_NUMBER = "94700000000" 
+WHATSAPP_NUMBER = "94757970703" 
 
 # --- Session States ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
