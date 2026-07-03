@@ -166,7 +166,7 @@ if not st.session_state.logged_in:
     with tab_reg:
         new_email = st.text_input("New Email:")
         new_phone = st.text_input("Phone Number:")
-        new_play_id = st.text_input("Play ID (1xbet ආදිය):")
+        new_play_id = st.text_input("Play ID (Binance,XM Trade,Other):")
         new_password = st.text_input("New Password:", type="password")
         if st.button("Register & Get Access"):
             check = supabase.table("custom_users").select("*").eq("email", new_email).execute()
