@@ -225,7 +225,7 @@ elif selection == "📈 Trading Signals":
         st.warning("⚠️ ඔබගේ Subscription කාලය හෝ Free Trial එක අවසන් වී ඇත.")
         st.write("කරුණාකර 1xbet, iPay, CDM මගින් මුදල් ගෙවා විස්තර ඇතුළත් කරන්න.")
         
-        pay_method = st.selectbox("ගෙවූ ක්‍රමය:", ["1xbet", "iPay", "CDM", "Bank Transfer", "Flex", "Other"])
+        pay_method = st.selectbox("ගෙවූ ක්‍රමය:", ["iPay", "CDM", "Bank Transfer", "Flex", "Other"])
         pay_ref = st.text_input("Reference Number / Receipt ID / Notes:")
         receipt_file = st.file_uploader("රිසිට් එකේ ෆොටෝ එකක් දාන්න (විකල්ප)", type=["png", "jpg", "jpeg"])
         
