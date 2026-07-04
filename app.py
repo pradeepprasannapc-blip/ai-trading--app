@@ -1064,57 +1064,59 @@ with tab1:
                         image_generated_successfully = False
 
                     st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
-                    if st.button("Send Signal & Auto Trade on Demo 🚀"):
-                        
-                        try:
-                            check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
-                        except:
-                            check_live = current_price
-                            
-                        is_safe_to_send = True
-                        if prediction == 1: 
-                            if check_live >= tp1_price or check_live <= sl_price: is_safe_to_send = False
-                        else:
-                            if check_live <= tp1_price or check_live >= sl_price: is_safe_to_send = False
+
+                    st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
+                    # 🟢 Admin/Owner ට පමණක් Signal යැවීමට අවසර දීම
+                    if user_info['role'] in ["Admin", "Owner"]:
+                        if st.button("Send Signal & Auto Trade on Demo 🚀"):
+                            try:
+                                check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
+                            except: check_live = current_price
                                 
-                        if not is_safe_to_send:
-                            st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
-                        else:
-                            # 🟢 Category එක තීරණය කිරීම (Crypto, Forex, ආදිය)
-                            if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
-                                cat_name = "Crypto 🪙"
-                            elif category == "💱 ෆොරෙක්ස් (Forex)":
-                                cat_name = "Forex 💱"
-                            elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)":
-                                cat_name = "Commodities ✨"
+                            is_safe_to_send = True
+                            if prediction == 1: 
+                                if check_live >= tp1_price or check_live <= sl_price: is_safe_to_send = False
                             else:
-                                cat_name = "Custom ✏️"
+                                if check_live <= tp1_price or check_live >= sl_price: is_safe_to_send = False
+                                    
+                            if not is_safe_to_send:
+                                st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
+                            else:
+                                if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)": cat_name = "Crypto 🪙"
+                                elif category == "💱 ෆොරෙක්ස් (Forex)": cat_name = "Forex 💱"
+                                elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)": cat_name = "Commodities ✨"
+                                else: cat_name = "Custom ✏️"
+                                    
+                                telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                                 
-                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                            
-                            with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
-                                success = False
-                                if image_generated_successfully:
-                                    success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
-                                
-                                if not success:
-                                    success = send_telegram_message(telegram_text)
-                                    st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal එක පමණක් යැවිණි).")
-                                
-                            if success:
-                                date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                                data_to_save = {
-                                    "Date": date_str, "Ticker": ticker, "Coin": selected_display_name.split()[0], 
-                                    "Category": cat_name, "Strategy": strategy_mode, "Direction": direction_text, 
-                                    "Entry": entry_price, "TP1": tp1_price, "TP2": tp2_price, "TP3": tp3_price, 
-                                    "SL": sl_price, "Status": "⏳ Pending Entry"
-                                }
-                                if save_to_supabase(data_to_save):
-                                    st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (Database එකටත් Save වුණා)")
+                                with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
+                                    success = False
+                                    if image_generated_successfully:
+                                        success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                                    if not success:
+                                        success = send_telegram_message(telegram_text)
+                                        st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal එක පමණක් යැවිණි).")
+                                    
+                                if success:
+                                    date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
+                                    data_to_save = {
+                                        "Date": date_str, "Ticker": ticker, "Coin": selected_display_name.split()[0], 
+                                        "Category": cat_name, "Strategy": strategy_mode, "Direction": direction_text, 
+                                        "Entry": entry_price, "TP1": tp1_price, "TP2": tp2_price, "TP3": tp3_price, 
+                                        "SL": sl_price, "Status": "⏳ Pending Entry",
+                                        "created_by": user_info['email'] # 🟢 User ගේ Email එක Save වෙනවා
+                                    }
+                                    if save_to_supabase(data_to_save):
+                                        st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (Database එකටත් Save වුණා)")
+                                    else:
+                                        st.warning("✅ Signal එක යැව්වා, නමුත් Database Save වීමේ දෝෂයක්.")
                                 else:
-                                    st.warning("✅ Signal එක යැව්වා, නමුත් Database Save වීමේ දෝෂයක්.")
-                            else:
-                                st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
+                                    st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
+                    else:
+                        st.info("🔒 ටෙලිග්‍රෑම් වෙත සිග්නල් යැවීමේ පහසුකම ඇඩ්මින්වරුන්ට පමණක් සීමා කර ඇත.")
+
+
+                    
             except Exception as e:
                 st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න. Error: {e}")
     else:
