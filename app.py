@@ -1383,7 +1383,7 @@ with tab2:
             st.session_state.last_scan_empty = False
         st.rerun()
 
-         if not st.session_state.get('scanning', False):
+    if not st.session_state.get('scanning', False):
         if st.session_state.get('scan_results'):
             st.success(f"🎉 Valid Signals {len(st.session_state.scan_results)} ක් සොයාගන්නා ලදී!")
             
@@ -1456,7 +1456,6 @@ with tab2:
             st.warning(f"⚠️ ස්කෑන් කිරීම අවසන්! නමුත් මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා තෝරාගත් ප්‍රවර්ගයේ කිසිදු Coin එකක පැහැදිලි (Valid) Signal එකක් නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරා නැවත උත්සාහ කරන්න.")
         else:
             st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
-
 
 # --- Tab 3 & 4: Data Processing & Supabase Sync ---
 
