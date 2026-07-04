@@ -1446,8 +1446,15 @@ with tab2:
             st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
 
 # --- Tab 3 & 4: Data Processing & Supabase Sync ---
+
 display_df = pd.DataFrame()
 history_df = get_from_supabase()
+
+# 🟢 FEATURE: User ට එයාගේ History එක විතරක් පෙන්නීම
+if not history_df.empty:
+    if user_info['role'] not in ["Admin", "Owner", "Moderator"]:
+        if 'created_by' in history_df.columns:
+            history_df = history_df[history_df['created_by'] == user_info['email']]
 
 if not history_df.empty:
     updated = False
