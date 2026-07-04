@@ -1393,7 +1393,6 @@ with tab2:
             st.table(df_show)
             
             st.write("---")
-            
             st.write("### ⚙️ Scanner Actions")
             options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
             
