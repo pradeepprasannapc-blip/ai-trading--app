@@ -1053,7 +1053,7 @@ with tab1:
                     )
                     st.info(target_msg)
                     
-                    st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
+                    st.write("### 📸 Signal Visualizer Preview")
                     
                     try:
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
@@ -1063,15 +1063,15 @@ with tab1:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
                         image_generated_successfully = False
 
-                    st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
-
-                    st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
-                    # 🟢 Admin/Owner ට පමණක් Signal යැවීමට අවසර දීම
+                    # 🟢 මේ මුළු Telegram යවන කොටසම පෙනෙන්නේ Owner සහ Admin ට පමණි
                     if user_info['role'] in ["Admin", "Owner"]:
+                        st.write("### 📲 Telegram Group සහ Channel එකට Signal එක යවන්න")
                         if st.button("Send Signal & Auto Trade on Demo 🚀"):
+                            
                             try:
                                 check_live = float(yf.Ticker(ticker).fast_info['lastPrice'])
-                            except: check_live = current_price
+                            except:
+                                check_live = current_price
                                 
                             is_safe_to_send = True
                             if prediction == 1: 
@@ -1082,10 +1082,14 @@ with tab1:
                             if not is_safe_to_send:
                                 st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                             else:
-                                if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)": cat_name = "Crypto 🪙"
-                                elif category == "💱 ෆොරෙක්ස් (Forex)": cat_name = "Forex 💱"
-                                elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)": cat_name = "Commodities ✨"
-                                else: cat_name = "Custom ✏️"
+                                if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
+                                    cat_name = "Crypto 🪙"
+                                elif category == "💱 ෆොරෙක්ස් (Forex)":
+                                    cat_name = "Forex 💱"
+                                elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)":
+                                    cat_name = "Commodities ✨"
+                                else:
+                                    cat_name = "Custom ✏️"
                                     
                                 telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                                 
@@ -1093,6 +1097,7 @@ with tab1:
                                     success = False
                                     if image_generated_successfully:
                                         success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
+                                    
                                     if not success:
                                         success = send_telegram_message(telegram_text)
                                         st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal එක පමණක් යැවිණි).")
@@ -1104,7 +1109,7 @@ with tab1:
                                         "Category": cat_name, "Strategy": strategy_mode, "Direction": direction_text, 
                                         "Entry": entry_price, "TP1": tp1_price, "TP2": tp2_price, "TP3": tp3_price, 
                                         "SL": sl_price, "Status": "⏳ Pending Entry",
-                                        "created_by": user_info['email'] # 🟢 User ගේ Email එක Save වෙනවා
+                                        "created_by": user_info['email']
                                     }
                                     if save_to_supabase(data_to_save):
                                         st.success("✅ Signal එක සහ Chart එක සාර්ථකව Group සහ Channel දෙකටම යැව්වා! (Database එකටත් Save වුණා)")
@@ -1112,6 +1117,8 @@ with tab1:
                                         st.warning("✅ Signal එක යැව්වා, නමුත් Database Save වීමේ දෝෂයක්.")
                                 else:
                                     st.error("❌ Signal එක යැවීම අසාර්ථකයි. Settings > Secrets නිවැරදිදැයි බලන්න.")
+
+                    
                     else:
                         st.info("🔒 ටෙලිග්‍රෑම් වෙත සිග්නල් යැවීමේ පහසුකම ඇඩ්මින්වරුන්ට පමණක් සීමා කර ඇත.")
 
