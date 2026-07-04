@@ -264,14 +264,14 @@ try:
         hit_signals = [s for s in all_signals if "HIT" in str(s.get("Status", "")) and "SL" not in str(s.get("Status", ""))]
         if hit_signals:
             latest_hit = sorted(hit_signals, key=lambda x: x['Date'], reverse=True)[0]
+            # 🟢 සිග්නල් එක දාපු කෙනාගේ නම (Email එකේ මුල් කොටස) ගන්නා හැටි
+            trader_name = latest_hit.get('created_by', 'Admin').split('@')[0]
             st.markdown(f"""
-            <div style="background-color:#089981; padding:12px; border-radius:8px; text-align:center; margin-bottom:20px; animation: blinker 1.5s linear infinite; border: 2px solid #0bfd9e;">
-                <b style="color:white; font-size:16px;">🏆 VIP PRO ALERT: {latest_hit['Coin']} Signal Successfully Achieved {latest_hit['Status'].replace('✅', '')}! 🔥 🎉</b>
+            <div style="background-color:#089981; padding:15px; border-radius:10px; text-align:center; margin-bottom:20px; animation: blinker 1.5s linear infinite; border: 2px solid #0bfd9e;">
+                <b style="color:white; font-size:16px;">🏆 PRO TRADER: {trader_name} | {latest_hit['Coin']} Signal Successfully Achieved {latest_hit['Status'].replace('✅', '')}! 🔥 🎉</b>
             </div>
-            <style>
-            @keyframes blinker {{ 50% {{ opacity: 0.6; }} }}
-            </style>
             """, unsafe_allow_html=True)
+
 except: pass
 
 if selection == "⚙️ Admin Dashboard":
