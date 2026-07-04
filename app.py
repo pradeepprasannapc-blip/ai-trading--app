@@ -22,28 +22,44 @@ import base64
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 
-# 🔴🔴🔴 ඔයාගේ විස්තර මෙතනින් වෙනස් කරන්න 🔴🔴🔴
-
 WHATSAPP_NUMBER = "94757970703" 
 
-# --- මිල ගණන් (Prices) ---
 PRICE_1_MONTH = 2500
 PRICE_2_MONTHS = 5000
 PRICE_3_MONTHS = 6500
 
-# --- Payment Details (යූසර්ට පෙනෙන බැංකු/ඇප් විස්තර) ---
-DETAILS_IPAY = "📲 iPay Number: 0757970703 (නම: Pradeep prasanna)"
-DETAILS_FLEX = "📲 Flex Boc Number: 88314511 (නම: W.K.P.P.SENAVIRATHNA)"
-DETAILS_CDM_BANK = "🏦 Bank: BOC (ලංකා බැංකුව)\nAcc No: 88314511\nName: W.K.P.P.SENAVIRATHNA"
+DETAILS_IPAY = """
+<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #2962ff; margin-bottom:10px;'>
+    <b style='color:#00ffcc; font-size:16px;'>📲 iPay Payment Details</b><br><br>
+    • <b>App Name:</b> iPay<br>
+    • <b>Mobile Number:</b> 0757970703<br>
+    • <b>Account Name:</b> Pradeep prasanna
+</div>
+"""
+
+DETAILS_FLEX = """
+<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #ff9800; margin-bottom:10px;'>
+    <b style='color:#ffeb3b; font-size:16px;'>📲 Flex Payment Details</b><br><br>
+    • <b>Method:</b> Flex BOC<br>
+    • <b>Account Number:</b> 88314511<br>
+    • <b>Account Name:</b> W.K.P.P.SENAVIRATHNA
+</div>
+"""
+
+DETAILS_CDM_BANK = """
+<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #089981; margin-bottom:10px;'>
+    <b style='color:#0bfd9e; font-size:16px;'>🏦 CDM / Bank Transfer Details</b><br><br>
+    • <b>Bank Name:</b> BOC (ලංකා බැංකුව)<br>
+    • <b>Account Number:</b> 88314511<br>
+    • <b>Account Name:</b> W.K.P.P.SENAVIRATHNA
+</div>
+"""
+
 DETAILS_OTHER = "වෙනත් ක්‍රමයක් නම් කරුණාකර WhatsApp හරහා අපව සම්බන්ධ කරගන්න."
 
-# 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
-
-# --- Session States ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'user_data' not in st.session_state: st.session_state.user_data = None
 
-# --- Supabase Init ---
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -52,11 +68,9 @@ except KeyError:
     st.error("⚠️ Supabase Secrets සකසා නැත!")
     st.stop()
 
-# --- Functions ---
 def admin_panel():
     st.title("⚙️ Admin / Moderator Dashboard")
     tab_users, tab_payments, tab_settings = st.tabs(["👥 User Management", "💳 Payment Approvals", "🛠️ Settings"])
-    
     current_user_role = st.session_state.user_data['role']
     
     with tab_users:
@@ -66,8 +80,7 @@ def admin_panel():
         user_roles = {u['email']: u['role'] for u in users}
         
         col_u1, col_u2 = st.columns(2)
-        with col_u1:
-            selected_user = st.selectbox("User කෙනෙක් තෝරන්න:", user_emails)
+        with col_u1: selected_user = st.selectbox("User කෙනෙක් තෝරන්න:", user_emails)
         with col_u2:
             available_roles = ["User", "Moderator", "Admin"]
             if current_user_role == "Owner": available_roles.append("Owner")
@@ -81,7 +94,6 @@ def admin_panel():
                 else:
                     supabase.table("custom_users").update({"role": new_role}).eq("email", selected_user).execute()
                     st.success(f"✅ {selected_user} ගේ Role එක '{new_role}' ලෙස වෙනස් විය!")
-                    
         with col_b2:
             if st.button("🗑️ User ව මකා දමන්න (Block)"):
                 if user_roles.get(selected_user) == "Owner":
@@ -105,10 +117,8 @@ def admin_panel():
                         try:
                             image_bytes = base64.b64decode(p['receipt_base64'])
                             st.image(image_bytes, caption="Payment Receipt", use_container_width=True)
-                        except:
-                            st.write("⚠️ රිසිට් පින්තූරය පෙන්වීමේ දෝෂයක්.")
+                        except: st.write("⚠️ රිසිට් පින්තූරය පෙන්වීමේ දෝෂයක්.")
                             
-                    # Package එක අනුව දවස් ගාන තීරණය කිරීම
                     days_to_add = 30
                     if "2 Months" in p['method']: days_to_add = 60
                     elif "3 Months" in p['method']: days_to_add = 90
@@ -166,7 +176,6 @@ def messaging_system():
             supabase.table("in_app_messages").insert({"sender": user_email, "receiver": "Admin", "message": support_msg}).execute()
             st.success("✅ Admin වෙත යවන ලදී! ඔබට ඉක්මනින් පිළිතුරක් ලැබේවි.")
 
-# --- App Routing & Stoppage Logic ---
 if not st.session_state.logged_in:
     st.title("🔐 VIP Signal App - Login")
     tab_login, tab_reg = st.tabs(["Login", "Register"])
@@ -189,7 +198,6 @@ if not st.session_state.logged_in:
         new_password = st.text_input("New Password (අනිවාර්යයි):", type="password")
         
         if st.button("Register & Get Access"):
-            # 🟢 Form Validation (හිස්තැන් සහ Email Format එක බැලීම)
             if not new_email or not new_phone or not new_play_id or not new_password:
                 st.error("⚠️ කරුණාකර සියලුම තොරතුරු සම්පූර්ණ කරන්න!")
             elif "@" not in new_email or "." not in new_email:
@@ -206,7 +214,6 @@ if not st.session_state.logged_in:
                     st.success("✅ සාර්ථකව Register විය! කරුණාකර Login වෙන්න.")
     st.stop() 
 
-# --- If Logged In ---
 user_info = st.session_state.user_data
 latest_user = supabase.table("custom_users").select("*").eq("email", user_info['email']).execute().data
 if latest_user: st.session_state.user_data = latest_user[0]
@@ -250,7 +257,6 @@ elif selection == "📈 Trading Signals":
         st.warning("⚠️ ඔබගේ Subscription කාලය හෝ Free Trial එක අවසන් වී ඇත.")
         st.subheader("💳 App එක Activate කරගන්න")
         
-        # 🟢 Packages තේරීම
         savings_3m = (PRICE_1_MONTH * 3) - PRICE_3_MONTHS
         pkg_options = [
             f"1 Month (30 Days) - Rs. {PRICE_1_MONTH}",
@@ -260,12 +266,11 @@ elif selection == "📈 Trading Signals":
         selected_pkg = st.radio("ඔබට අවශ්‍ය පැකේජය තෝරන්න:", pkg_options)
         
         st.write("---")
-        # 🟢 Payment Method තේරීම සහ විස්තර පෙන්වීම
         pay_method = st.selectbox("මුදල් ගෙවන ක්‍රමය තෝරන්න:", ["iPay", "Flex", "Bank Transfer", "CDM", "Other"])
         
-        if pay_method == "iPay": st.info(DETAILS_IPAY)
-        elif pay_method == "Flex": st.info(DETAILS_FLEX)
-        elif pay_method in ["Bank Transfer", "CDM"]: st.info(DETAILS_CDM_BANK)
+        if pay_method == "iPay": st.markdown(DETAILS_IPAY, unsafe_allow_html=True)
+        elif pay_method == "Flex": st.markdown(DETAILS_FLEX, unsafe_allow_html=True)
+        elif pay_method in ["Bank Transfer", "CDM"]: st.markdown(DETAILS_CDM_BANK, unsafe_allow_html=True)
         else: st.info(DETAILS_OTHER)
         
         st.write("---")
@@ -279,10 +284,7 @@ elif selection == "📈 Trading Signals":
                 receipt_b64 = ""
                 if receipt_file is not None:
                     receipt_b64 = base64.b64encode(receipt_file.read()).decode("utf-8")
-                
-                # Admin ට ලේසි වෙන්න Method එකත් එක්ක Package එකත් යවනවා
                 method_to_save = f"{pay_method} [{selected_pkg.split(' -')[0]}]"
-                    
                 supabase.table("manual_payments").insert({
                     "email": user_info['email'], 
                     "method": method_to_save, 
@@ -292,9 +294,27 @@ elif selection == "📈 Trading Signals":
                 st.success("✅ ඔබගේ Payment විස්තර සහ රිසිට් පත Admin වෙත යවන ලදී! පැය කිහිපයක් ඇතුළත ගිණුම සක්‍රීය වනු ඇත.")
         st.stop() 
 
+# 🟢 FEATURE: TP HIT HIGH-LIGHTER TICKER (උඩින්ම පෙන්වීම)
+try:
+    if supabase:
+        all_signals = supabase.table("signal_history").select("*").execute().data
+        hit_signals = [s for s in all_signals if "HIT" in str(s.get("Status", "")) and "SL" not in str(s.get("Status", ""))]
+        if hit_signals:
+            latest_hit = sorted(hit_signals, key=lambda x: x['Date'], reverse=True)[0]
+            st.markdown(f"""
+            <div style="background-color:#089981; padding:12px; border-radius:8px; text-align:center; margin-bottom:20px; animation: blinker 1.5s linear infinite; border: 2px solid #0bfd9e;">
+                <b style="color:white; font-size:16px;">🏆 VIP PRO ALERT: {latest_hit['Coin']} Signal Successfully Achieved {latest_hit['Status'].replace('✅', '')}! 🔥 🎉</b>
+            </div>
+            <style>
+            @keyframes blinker {{ 50% {{ opacity: 0.6; }} }}
+            </style>
+            """, unsafe_allow_html=True)
+except: pass
+
 # ==========================================
 # ⬇️ ඔයාගේ පරණ කෝඩ් එක සාමාන්‍ය විදිහට මෙතන ඉඳන් පල්ලෙහාට තියෙන්න අරින්න ⬇️
 # ==========================================
+
 
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
 st.write("SMC (FVG & Order Blocks), ATR, VWAP, Supertrend, 200 EMA, StochRSI, BB Squeeze සහ Market Sentiment (Fear & Greed) එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
