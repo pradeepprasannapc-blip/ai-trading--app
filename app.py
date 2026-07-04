@@ -1383,7 +1383,7 @@ with tab2:
             st.session_state.last_scan_empty = False
         st.rerun()
 
-    if not st.session_state.get('scanning', False):
+         if not st.session_state.get('scanning', False):
         if st.session_state.get('scan_results'):
             st.success(f"🎉 Valid Signals {len(st.session_state.scan_results)} ක් සොයාගන්නා ලදී!")
             
@@ -1431,7 +1431,7 @@ with tab2:
                             dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                             cat_tag = "Crypto 🪙" if "Crypto" in sel_s['Category'] else "Forex 💱" if "Forex" in sel_s['Category'] else "Commodities ✨"
                             
-                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Asset:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner(f"⏳ {sel_s['Coin']} යවමින් පවතී..."):
                                 try:
@@ -1451,14 +1451,12 @@ with tab2:
                                 save_to_supabase(data_to_save)
                                 st.success(f"✅ {sel_s['Coin']} සාර්ථකව Telegram යැව්වා!")
                             else: st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
-
-
-            
                             
         elif st.session_state.get('last_scan_empty', False):
             st.warning(f"⚠️ ස්කෑන් කිරීම අවසන්! නමුත් මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා තෝරාගත් ප්‍රවර්ගයේ කිසිදු Coin එකක පැහැදිලි (Valid) Signal එකක් නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරා නැවත උත්සාහ කරන්න.")
         else:
             st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
+
 
 # --- Tab 3 & 4: Data Processing & Supabase Sync ---
 
