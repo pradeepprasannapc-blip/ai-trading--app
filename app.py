@@ -1394,66 +1394,66 @@ with tab2:
             
             st.write("---")
 
-            # 🟢 Scanner එකේ Telegram යවන කොටසත් Owner/Admin ට පමණක් පෙන්වීමට
-            if user_info['role'] in ["Admin", "Owner"]:
-                st.write("---")
-                st.write("### 🚀 සොයාගත් Signals Telegram වෙත යවන්න")
-                
-                options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
-                
-                select_all = st.checkbox("සියල්ල තෝරන්න (Select All)")
-                if select_all:
-                    selected_opts = st.multiselect("යැවිය යුතු Signals තෝරන්න:", options, default=options)
+                        st.write("---")
+            st.write("### ⚙️ Scanner Actions")
+            options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
+            
+            select_all = st.checkbox("සියල්ල තෝරන්න (Select All)")
+            selected_opts = st.multiselect("Signals තෝරන්න:", options, default=options if select_all else None)
+            
+            # 1. 🟢 හැමෝටම Save කරගන්න Button එක
+            if st.button("💾 Save Selected to My History", use_container_width=True):
+                if not selected_opts:
+                    st.warning("⚠️ කරුණාකර Save කිරීමට සිග්නල් තෝරන්න.")
                 else:
-                    selected_opts = st.multiselect("යැවිය යුතු Signals තෝරන්න:", options)
-                    
-                if st.button("Send Selected Signals & Auto Trade 🚀", type="primary", use_container_width=True):
+                    for opt in selected_opts:
+                        idx = options.index(opt)
+                        sel_s = st.session_state.scan_results[idx]
+                        date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
+                        
+                        data_to_save = {
+                            "Date": date_str, "Ticker": sel_s['Ticker'], "Coin": sel_s['Coin'].split()[0], 
+                            "Category": sel_s['Category'], "Strategy": sel_s['Strategy_Mode'], "Direction": sel_s['Direction'], 
+                            "Entry": sel_s['Entry'], "TP1": sel_s['TP1'], "TP2": sel_s['TP2'], "TP3": sel_s['TP3'], 
+                            "SL": sel_s['SL'], "Status": "⏳ Pending Entry", "created_by": user_info['email']
+                        }
+                        save_to_supabase(data_to_save)
+                    st.success("✅ තෝරාගත් Signals සාර්ථකව ඔබගේ History එකට සේව් වුණා!")
+
+            # 2. 🟢 Owner/Admin ට පමණක් Telegram යැවීමට
+            if user_info['role'] in ["Owner", "Admin"]:
+                if st.button("🚀 Broadcast Selected to Telegram", type="primary", use_container_width=True):
                     if not selected_opts:
-                        st.warning("⚠️ කරුණාකර යැවීමට අවම වශයෙන් එක් සිග්නල් එකක් හෝ තෝරන්න.")
+                        st.warning("⚠️ කරුණාකර යැවීමට සිග්නල් තෝරන්න.")
                     else:
                         for opt in selected_opts:
                             idx = options.index(opt)
                             sel_s = st.session_state.scan_results[idx]
                             dp = 8 if sel_s['Entry'] < 0.01 else 4
                             dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
+                            cat_tag = "Crypto 🪙" if "Crypto" in sel_s['Category'] else "Forex 💱" if "Forex" in sel_s['Category'] else "Commodities ✨"
                             
-                            if sel_s['Category'] == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
-                                cat_tag = "Crypto 🪙"
-                            elif sel_s['Category'] == "💱 ෆොරෙක්ස් (Forex)":
-                                cat_tag = "Forex 💱"
-                            else:
-                                cat_tag = "Commodities ✨"
-                                
-                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                            telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Asset:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                             
                             with st.spinner(f"⏳ {sel_s['Coin']} යවමින් පවතී..."):
                                 try:
-                                    chart_image_bytes = generate_candlestick_image_bytes(
-                                        sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], 
-                                        sel_s['Entry'], sel_s['TP1'], sel_s['TP2'], sel_s['TP3'], sel_s['SL'], 
-                                        sel_s['TF'], sel_s['Pattern']
-                                    )
+                                    chart_image_bytes = generate_candlestick_image_bytes(sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], sel_s['Entry'], sel_s['TP1'], sel_s['TP2'], sel_s['TP3'], sel_s['SL'], sel_s['TF'], sel_s['Pattern'])
                                     success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
-                                    if not success:
-                                        success = send_telegram_message(telegram_text)
-                                except Exception as img_err:
-                                    success = send_telegram_message(telegram_text)
-                                    
+                                    if not success: success = send_telegram_message(telegram_text)
+                                except: success = send_telegram_message(telegram_text)
+                                
                             if success:
                                 date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                                 data_to_save = {
                                     "Date": date_str, "Ticker": sel_s['Ticker'], "Coin": sel_s['Coin'].split()[0], 
                                     "Category": cat_tag, "Strategy": sel_s['Strategy_Mode'], "Direction": sel_s['Direction'], 
                                     "Entry": sel_s['Entry'], "TP1": sel_s['TP1'], "TP2": sel_s['TP2'], "TP3": sel_s['TP3'], 
-                                    "SL": sel_s['SL'], "Status": "⏳ Pending Entry",
-                                    "created_by": user_info['email']
+                                    "SL": sel_s['SL'], "Status": "⏳ Pending Entry", "created_by": user_info['email']
                                 }
-                                if save_to_supabase(data_to_save):
-                                    st.success(f"✅ {sel_s['Coin']} සාර්ථකව යැව්වා! (Database Saved)")
-                                else:
-                                    st.warning(f"✅ {sel_s['Coin']} යැව්වා, නමුත් Database දෝෂයක්.")
-                            else:
-                                st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
+                                save_to_supabase(data_to_save)
+                                st.success(f"✅ {sel_s['Coin']} සාර්ථකව Telegram යැව්වා!")
+                            else: st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
+
 
             
                             
