@@ -17,7 +17,7 @@ from supabase import create_client, Client
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 # ==========================================
-# 🚀 NEW VIP ADMIN & LOGIN SYSTEM 
+# 🚀 NEW VIP ADMIN & LOGIN SYSTEM
 # ==========================================
 
 # 🔴🔴🔴 ඔයාගේ විස්තර මෙතනින් වෙනස් කරන්න 🔴🔴🔴
@@ -29,9 +29,9 @@ PRICE_1_MONTH = 2500
 PRICE_2_MONTHS = 5000
 PRICE_3_MONTHS = 6500
 
-# --- Payment Details (යූසර්ට පෙනෙන බැංකු/ඇප් විස්තර - ලස්සනට සකසා ඇත) ---
+# --- Payment Details (යූසර්ට පෙනෙන බැංකු/ඇප් විස්තර) ---
 DETAILS_IPAY = """
-<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #2962ff; margin-bottom:15px;'>
+<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #2962ff; margin-bottom:10px;'>
     <b style='color:#00ffcc; font-size:16px;'>📲 iPay Payment Details</b><br><br>
     • <b>App Name:</b> iPay<br>
     • <b>Mobile Number:</b> 0757970703<br>
@@ -40,7 +40,7 @@ DETAILS_IPAY = """
 """
 
 DETAILS_FLEX = """
-<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #ff9800; margin-bottom:15px;'>
+<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #ff9800; margin-bottom:10px;'>
     <b style='color:#ffeb3b; font-size:16px;'>📲 Flex Payment Details</b><br><br>
     • <b>Method:</b> Flex BOC<br>
     • <b>Account Number:</b> 88314511<br>
@@ -49,7 +49,7 @@ DETAILS_FLEX = """
 """
 
 DETAILS_CDM_BANK = """
-<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #089981; margin-bottom:15px;'>
+<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #089981; margin-bottom:10px;'>
     <b style='color:#0bfd9e; font-size:16px;'>🏦 CDM / Bank Transfer Details</b><br><br>
     • <b>Bank Name:</b> BOC (ලංකා බැංකුව)<br>
     • <b>Account Number:</b> 88314511<br>
@@ -187,6 +187,7 @@ def messaging_system():
             supabase.table("in_app_messages").insert({"sender": user_email, "receiver": "Admin", "message": support_msg}).execute()
             st.success("✅ Admin වෙත යවන ලදී! ඔබට ඉක්මනින් පිළිතුරක් ලැබේවි.")
 
+# --- App Routing & Stoppage Logic ---
 if not st.session_state.logged_in:
     st.title("🔐 VIP Signal App - Login")
     tab_login, tab_reg = st.tabs(["Login", "Register"])
@@ -225,6 +226,7 @@ if not st.session_state.logged_in:
                     st.success("✅ සාර්ථකව Register විය! කරුණාකර Login වෙන්න.")
     st.stop() 
 
+# --- If Logged In ---
 user_info = st.session_state.user_data
 latest_user = supabase.table("custom_users").select("*").eq("email", user_info['email']).execute().data
 if latest_user: st.session_state.user_data = latest_user[0]
@@ -257,21 +259,22 @@ if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# 🟢 FEATURE: TP HIT HIGH-LIGHTER TICKER 
+# 🟢 FEATURE: TP HIT HIGH-LIGHTER TICKER (With Trader Name)
 try:
     if supabase:
         all_signals = supabase.table("signal_history").select("*").execute().data
         hit_signals = [s for s in all_signals if "HIT" in str(s.get("Status", "")) and "SL" not in str(s.get("Status", ""))]
         if hit_signals:
             latest_hit = sorted(hit_signals, key=lambda x: x['Date'], reverse=True)[0]
-            # 🟢 සිග්නල් එක දාපු කෙනාගේ නම (Email එකේ මුල් කොටස) ගන්නා හැටි
             trader_name = latest_hit.get('created_by', 'Admin').split('@')[0]
             st.markdown(f"""
             <div style="background-color:#089981; padding:15px; border-radius:10px; text-align:center; margin-bottom:20px; animation: blinker 1.5s linear infinite; border: 2px solid #0bfd9e;">
                 <b style="color:white; font-size:16px;">🏆 PRO TRADER: {trader_name} | {latest_hit['Coin']} Signal Successfully Achieved {latest_hit['Status'].replace('✅', '')}! 🔥 🎉</b>
             </div>
+            <style>
+            @keyframes blinker {{ 50% {{ opacity: 0.6; }} }}
+            </style>
             """, unsafe_allow_html=True)
-
 except: pass
 
 if selection == "⚙️ Admin Dashboard":
@@ -312,7 +315,9 @@ elif selection == "📈 Trading Signals":
                 receipt_b64 = ""
                 if receipt_file is not None:
                     receipt_b64 = base64.b64encode(receipt_file.read()).decode("utf-8")
+                
                 method_to_save = f"{pay_method} [{selected_pkg.split(' -')[0]}]"
+                    
                 supabase.table("manual_payments").insert({
                     "email": user_info['email'], 
                     "method": method_to_save, 
@@ -323,7 +328,7 @@ elif selection == "📈 Trading Signals":
         st.stop() 
 
 # ==========================================
-# 📈 MAIN TRADING LOGIC
+# 📈 TRADING APP MAIN LOGIC
 # ==========================================
 
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
@@ -339,7 +344,7 @@ try:
     TELEGRAM_GROUP_ID = st.secrets["TELEGRAM_GROUP_ID"]
     TELEGRAM_CHANNEL_ID = st.secrets["TELEGRAM_CHANNEL_ID"]
 except KeyError:
-    st.error("⚠️ රහස්‍ය දත්ත (Secrets) සොයාගත නොහැක.")
+    st.error("⚠️ රහස්‍ය දත්ත (Secrets) සොයාගත නොහැක. කරුණාකර Streamlit Cloud හි Telegram සහ Supabase Secrets සකසන්න.")
     TELEGRAM_BOT_TOKEN = ""
     TELEGRAM_GROUP_ID = ""
     TELEGRAM_CHANNEL_ID = ""
@@ -358,7 +363,8 @@ def get_from_supabase():
     try:
         response = supabase.table("signal_history").select("*").execute()
         df = pd.DataFrame(response.data)
-        if not df.empty: df = df.sort_values(by='Date', ascending=False).reset_index(drop=True)
+        if not df.empty:
+            df = df.sort_values(by='Date', ascending=False).reset_index(drop=True)
         return df
     except: return pd.DataFrame()
 
@@ -378,7 +384,7 @@ def clear_all_supabase():
     except: pass
 
 def send_telegram_message(message):
-    if not TELEGRAM_BOT_TOKEN: return False
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID: return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload_group = {"chat_id": TELEGRAM_GROUP_ID, "text": message, "parse_mode": "Markdown"}
     payload_channel = {"chat_id": TELEGRAM_CHANNEL_ID, "text": message, "parse_mode": "Markdown"}
@@ -389,7 +395,7 @@ def send_telegram_message(message):
     except: return False
 
 def send_telegram_photo_bytes(caption, photo_bytes):
-    if not TELEGRAM_BOT_TOKEN: return False
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_GROUP_ID or not TELEGRAM_CHANNEL_ID: return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
     success = True
     for chat_id in [TELEGRAM_GROUP_ID, TELEGRAM_CHANNEL_ID]:
@@ -412,7 +418,8 @@ def get_fear_and_greed():
 def detect_candlestick_pattern(df):
     try:
         if len(df) < 3: return "Not Enough Data"
-        last, prev = df.iloc[-1], df.iloc[-2]
+        last = df.iloc[-1]
+        prev = df.iloc[-2]
         last_body = abs(last['Close'] - last['Open'])
         last_is_green = last['Close'] > last['Open']
         prev_is_green = prev['Close'] > prev['Open']
@@ -434,11 +441,16 @@ def detect_candlestick_pattern(df):
 def add_supertrend(df, period=10, multiplier=3):
     hl2 = (df['High'] + df['Low']) / 2
     atr = df['TR'].rolling(window=period).mean()
-    upper_band, lower_band = hl2 + (multiplier * atr), hl2 - (multiplier * atr)
-    upper_band, lower_band = upper_band.bfill().ffill(), lower_band.bfill().ffill()
+    upper_band = hl2 + (multiplier * atr)
+    lower_band = hl2 - (multiplier * atr)
+    upper_band = upper_band.bfill().ffill()
+    lower_band = lower_band.bfill().ffill()
     in_uptrend = True
-    supertrend, st_dir = np.zeros(len(df)), np.ones(len(df))
-    close_vals, ub_vals, lb_vals = df['Close'].values, upper_band.values, lower_band.values
+    supertrend = np.zeros(len(df))
+    st_dir = np.ones(len(df))
+    close_vals = df['Close'].values
+    ub_vals = upper_band.values
+    lb_vals = lower_band.values
     for i in range(1, len(df)):
         if close_vals[i] > ub_vals[i-1]: in_uptrend = True
         elif close_vals[i] < lb_vals[i-1]: in_uptrend = False
@@ -447,7 +459,8 @@ def add_supertrend(df, period=10, multiplier=3):
             if not in_uptrend and ub_vals[i] > ub_vals[i-1]: ub_vals[i] = ub_vals[i-1]
         st_dir[i] = 1 if in_uptrend else -1
         supertrend[i] = lb_vals[i] if in_uptrend else ub_vals[i]
-    df['Supertrend'], df['ST_DIR'] = supertrend, st_dir
+    df['Supertrend'] = supertrend
+    df['ST_DIR'] = st_dir
     return df
 
 def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, tp3, sl, timeframe, detected_pattern):
@@ -456,7 +469,6 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
     df_plot['MA_7'] = df_plot['Close'].rolling(window=7).mean()
     df_plot['MA_25'] = df_plot['Close'].rolling(window=25).mean()
     df_plot['MA_100'] = df_plot['Close'].rolling(window=100).mean()
-    
     freq = df_plot.index.to_series().diff().median()
     last_date = df_plot.index[-1]
     future_dates = [last_date + (freq * i) for i in range(1, 30)] 
@@ -465,20 +477,26 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
     df_padded = pd.concat([df_plot, future_df])
     total_len = len(df_padded)
     
-    low_val, high_val = df_plot['Low'].min(), df_plot['High'].max()
-    low_idx, high_idx = df_plot['Low'].values.argmin(), df_plot['High'].values.argmax()
+    low_val = df_plot['Low'].min()
+    high_val = df_plot['High'].max()
+    low_idx = df_plot['Low'].values.argmin()
+    high_idx = df_plot['High'].values.argmax()
     diff = high_val - low_val
     fib_382 = high_val - (diff * 0.382) if low_idx < high_idx else low_val + (diff * 0.382)
     fib_618 = high_val - (diff * 0.618) if low_idx < high_idx else low_val + (diff * 0.618)
-    start_fib_idx, end_fib_idx = min(low_idx, high_idx), max(low_idx, high_idx)
+    start_fib_idx = min(low_idx, high_idx)
+    end_fib_idx = max(low_idx, high_idx)
     
     where_mask = np.zeros(total_len, dtype=bool)
     where_mask[-(len(future_dates) + 5):] = True 
     where_fib = np.zeros(total_len, dtype=bool)
     where_fib[start_fib_idx:end_fib_idx+1] = True
     
-    y_entry, y_tp, y_sl = np.full(total_len, entry), np.full(total_len, tp3), np.full(total_len, sl)
-    y_fib_top, y_fib_bot = np.full(total_len, high_val), np.full(total_len, low_val)
+    y_entry = np.full(total_len, entry)
+    y_tp = np.full(total_len, tp3)
+    y_sl = np.full(total_len, sl)
+    y_fib_top = np.full(total_len, high_val)
+    y_fib_bot = np.full(total_len, low_val)
     
     fills = [
         dict(y1=y_entry, y2=y_tp, where=where_mask, color='#089981', alpha=0.15), 
@@ -515,10 +533,12 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
     bins = np.linspace(price_min, price_max, vp_bins + 1)
     df_plot['Typical_Price'] = (df_plot['High'] + df_plot['Low'] + df_plot['Close']) / 3
     df_plot['Bin'] = pd.cut(df_plot['Typical_Price'], bins=bins, labels=False, include_lowest=True)
-    df_up, df_down = df_plot[df_plot['Close'] >= df_plot['Open']], df_plot[df_plot['Close'] < df_plot['Open']]
-    vp_up, vp_down = df_up.groupby('Bin')['Volume'].sum(), df_down.groupby('Bin')['Volume'].sum()
-    vp_up_arr, vp_down_arr = np.zeros(vp_bins), np.zeros(vp_bins)
-    
+    df_up = df_plot[df_plot['Close'] >= df_plot['Open']]
+    df_down = df_plot[df_plot['Close'] < df_plot['Open']]
+    vp_up = df_up.groupby('Bin')['Volume'].sum()
+    vp_down = df_down.groupby('Bin')['Volume'].sum()
+    vp_up_arr = np.zeros(vp_bins)
+    vp_down_arr = np.zeros(vp_bins)
     for b, vol in vp_up.items():
         if not np.isnan(b): vp_up_arr[int(b)] = vol
     for b, vol in vp_down.items():
@@ -549,17 +569,21 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
         ax_main.text(x_max, price, f" {price:.{dp}f} ", ha="right", va="center", color="white" if color != '#b2b5be' else "#131722", fontsize=10, fontweight='bold', bbox=bbox_props)
         text_y_offset = atr_val * 0.15 if direction == "BUY" else -(atr_val * 0.15)
         va_align = "bottom" if direction == "BUY" else "top"
-        if label == 'Entry Price': text_y_offset = atr_val * 0.15; va_align = "bottom"
+        if label == 'Entry Price':
+            text_y_offset = atr_val * 0.15
+            va_align = "bottom"
         ax_main.text(x_max - 5, price + text_y_offset, label, ha="right", va=va_align, color=color, fontsize=10, fontweight='bold')
 
     if direction == "BUY":
-        res_y, sup_y = tp3 + (atr_val * 0.3), sl - (atr_val * 0.3)
+        res_y = tp3 + (atr_val * 0.3)
+        sup_y = sl - (atr_val * 0.3)
         ax_main.axhline(y=res_y, color='#f23645', linestyle='-', linewidth=1.5, alpha=0.4)
         ax_main.text(x_max - 15, res_y, "Red Resistance OB", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
         ax_main.axhline(y=sup_y, color='#089981', linestyle='-', linewidth=1.5, alpha=0.4)
         ax_main.text(x_max - 15, sup_y, "Support Zone / Bullish OB", ha="right", va="top", color="#089981", fontsize=9, fontweight='bold')
     else:
-        res_y, sup_y = sl + (atr_val * 0.3), tp3 - (atr_val * 0.3)
+        res_y = sl + (atr_val * 0.3)
+        sup_y = tp3 - (atr_val * 0.3)
         ax_main.axhline(y=res_y, color='#f23645', linestyle='-', linewidth=1.5, alpha=0.4)
         ax_main.text(x_max - 15, res_y, "Red Resistance / Bearish OB", ha="right", va="bottom", color="#f23645", fontsize=9, fontweight='bold')
         ax_main.axhline(y=sup_y, color='#089981', linestyle='-', linewidth=1.5, alpha=0.4)
@@ -870,7 +894,7 @@ with tab1:
                     )
                     st.info(target_msg)
                     
-                    st.write("### 📸 Signal Visualizer Preview")
+                    st.write("### 📸 Signal Visualizer Preview (Telegram වෙත යැවෙන ප්‍රස්ථාරය)")
                     
                     try:
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
@@ -880,7 +904,6 @@ with tab1:
                         st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})")
                         image_generated_successfully = False
 
-                    # 🟢 Signal Saving & Broadcasting Logic (Tab 1)
                     st.write("---")
                     st.write("### ⚙️ Signal Actions")
                     
@@ -908,10 +931,10 @@ with tab1:
                                 if check_live <= tp1_price or check_live >= sl_price: is_safe_to_send = False
                                     
                             if not is_safe_to_send:
-                                st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️")
+                                st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
                             else:
                                 cat_name = "Crypto 🪙" if "Crypto" in category else "Forex 💱" if "Forex" in category else "Commodities ✨" if "Metals" in category else "Custom ✏️"
-                                telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Asset:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                                telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
                                 
                                 with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
                                     success = False
@@ -1140,7 +1163,6 @@ with tab2:
             df_show['Confidence'] = df_show['Confidence'].apply(lambda x: f"{x:.1f}%" if isinstance(x, float) else x)
             st.table(df_show)
             
-            # 🟢 Scanner Actions Logic
             st.write("---")
             st.write("### ⚙️ Scanner Actions")
             options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
@@ -1208,7 +1230,6 @@ display_df = pd.DataFrame()
 history_df = get_from_supabase()
 
 if not history_df.empty:
-    # 🟢 FEATURE: User History Filtering
     if user_info['role'] not in ["Admin", "Owner", "Moderator"]:
         if 'created_by' in history_df.columns:
             history_df = history_df[history_df['created_by'] == user_info['email']]
@@ -1298,11 +1319,12 @@ with tab3:
 
     if not display_df.empty:
         html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}} .corrupt-row td {color: #ff4b4b;}</style>"
-        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Category</th><th>Strategy</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
+        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Trader</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
         for idx, row in display_df.iterrows():
+            trader = str(row.get('created_by', 'Admin')).split('@')[0]
             status_text = str(row['Status'])
             status_td = f"<td><div class='marquee-container'><div class='marquee-scroll'>{status_text}</div></div></td>" if "Pending Entry" in status_text else f"<td>{status_text}</td>"
-            html_table += f"<tr><td style='font-weight:bold; color:#888;'>{idx}</td><td>{row['Date']}</td><td>{row.get('Category', 'N/A')}</td><td>{row.get('Strategy', 'N/A')}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
+            html_table += f"<tr><td>{idx}</td><td>{row['Date']}</td><td>{trader}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
         html_table += "</table></div>"
         st.markdown(html_table, unsafe_allow_html=True)
 
@@ -1384,30 +1406,31 @@ with tab3:
                             if send_telegram_message(msg): st.success("🛑 Stop Loss මැසේජ් එක යැව්වා!")
             else: st.info("තවම Active, Pending, TP, SL හෝ Invalid වුණු සිග්නල් නැත.")
 
-        st.write("---")
-        st.subheader("🗑️ History කළමනාකරණය (Database එකෙන් මැකීම)")
-        all_delete_options = [f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" for index, row in history_df.iterrows()]
-        selected_to_delete = st.multiselect("මකා දැමීමට අවශ්‍ය සිග්නල් තෝරන්න:", all_delete_options)
-        
-        col_del1, col_del2 = st.columns(2)
-        with col_del1:
-            if st.button("🗑️ තෝරාගත් ඒවා පමණක් මකන්න"):
-                if selected_to_delete:
-                    for item in selected_to_delete:
-                        date_str_del = item.split(" | ")[0]
-                        coin_str_del = item.split(" | ")[1]
-                        delete_from_supabase(date_str_del, coin_str_del)
-                    st.success("✅ තෝරාගත් සිග්නල් Database එකෙන් මකා දැමුවා!")
+        if user_info['role'] in ["Owner", "Admin"]:
+            st.write("---")
+            st.subheader("🗑️ History කළමනාකරණය (Database එකෙන් මැකීම)")
+            all_delete_options = [f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" for index, row in history_df.iterrows()]
+            selected_to_delete = st.multiselect("මකා දැමීමට අවශ්‍ය සිග්නල් තෝරන්න:", all_delete_options)
+            
+            col_del1, col_del2 = st.columns(2)
+            with col_del1:
+                if st.button("🗑️ තෝරාගත් ඒවා පමණක් මකන්න"):
+                    if selected_to_delete:
+                        for item in selected_to_delete:
+                            date_str_del = item.split(" | ")[0]
+                            coin_str_del = item.split(" | ")[1]
+                            delete_from_supabase(date_str_del, coin_str_del)
+                        st.success("✅ තෝරාගත් සිග්නල් Database එකෙන් මකා දැමුවා!")
+                        time.sleep(1)
+                        st.rerun()
+                    else: st.warning("⚠️ මකා දැමීමට කිසිවක් තෝරා නැත.")
+                        
+            with col_del2:
+                if st.button("🚨 ඔක්කොම මකන්න (Clear All)"):
+                    clear_all_supabase()
+                    st.success("✅ Database History එක සම්පූර්ණයෙන්ම මකා දැමුවා!")
                     time.sleep(1)
                     st.rerun()
-                else: st.warning("⚠️ මකා දැමීමට කිසිවක් තෝරා නැත.")
-                    
-        with col_del2:
-            if st.button("🚨 ඔක්කොම මකන්න (Clear All)"):
-                clear_all_supabase()
-                st.success("✅ Database History එක සම්පූර්ණයෙන්ම මකා දැමුවා!")
-                time.sleep(1)
-                st.rerun()
             
         if auto_refresh:
             time.sleep(15)
