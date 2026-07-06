@@ -13,7 +13,7 @@ import base64
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 
-# --- 1. App පෙනුම සහ Title සැකසීම ---
+# --- 1. App Configuration ---
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 # ==========================================
@@ -28,10 +28,10 @@ try:
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 except KeyError:
-    st.error("⚠️ Supabase Secrets සකසා නැත!")
+    st.error("⚠️ Supabase Secrets are not configured properly!")
     st.stop()
 
-# Default Settings (Database එකේ නැත්නම් මේවා පාවිච්චි වේ)
+# Default Settings (Used if not found in Database)
 DEFAULT_SETTINGS = {
     "whatsapp": "94757970703",
     "price_7d": "1000",
@@ -42,7 +42,7 @@ DEFAULT_SETTINGS = {
     "trial_days": "3",
     "details_ipay": "<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #2962ff; margin-bottom:10px;'><b style='color:#00ffcc; font-size:16px;'>📲 iPay Payment Details</b><br><br>• <b>App Name:</b> iPay<br>• <b>Mobile Number:</b> 0757970703<br>• <b>Account Name:</b> Pradeep prasanna</div>",
     "details_flex": "<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #ff9800; margin-bottom:10px;'><b style='color:#ffeb3b; font-size:16px;'>📲 Flex Payment Details</b><br><br>• <b>Method:</b> Flex BOC<br>• <b>Account Number:</b> 88314511<br>• <b>Account Name:</b> W.K.P.P.SENAVIRATHNA</div>",
-    "details_bank": "<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #089981; margin-bottom:10px;'><b style='color:#0bfd9e; font-size:16px;'>🏦 CDM / Bank Transfer Details</b><br><br>• <b>Bank Name:</b> BOC (ලංකා බැංකුව)<br>• <b>Account Number:</b> 88314511<br>• <b>Account Name:</b> W.K.P.P.SENAVIRATHNA</div>"
+    "details_bank": "<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #089981; margin-bottom:10px;'><b style='color:#0bfd9e; font-size:16px;'>🏦 CDM / Bank Transfer Details</b><br><br>• <b>Bank Name:</b> BOC<br>• <b>Account Number:</b> 88314511<br>• <b>Account Name:</b> W.K.P.P.SENAVIRATHNA</div>"
 }
 
 try:
@@ -54,43 +54,43 @@ settings = {k: db_settings.get(k, v) for k, v in DEFAULT_SETTINGS.items()}
 
 # --- Functions ---
 def admin_panel():
-    st.title("⚙️ Admin / Moderator Dashboard")
+    st.title("⚙️ Admin Dashboard")
     tab_users, tab_payments, tab_settings = st.tabs(["👥 User Management", "💳 Payment Approvals", "🛠️ Dynamic Settings"])
     current_user_role = st.session_state.user_data['role']
     
     with tab_users:
-        st.subheader("Users ලව පාලනය කරන්න (Roles, Passwords & Delete)")
+        st.subheader("Manage Users (Roles, Passwords & Deletion)")
         users = supabase.table("custom_users").select("*").execute().data
         user_emails = [u['email'] for u in users]
         user_roles, user_passwords = {u['email']: u['role'] for u in users}, {u['email']: u['password'] for u in users}
         
         col_u1, col_u2, col_u3 = st.columns(3)
-        with col_u1: selected_user = st.selectbox("User කෙනෙක් තෝරන්න:", user_emails)
+        with col_u1: selected_user = st.selectbox("Select User:", user_emails)
         with col_u2:
             available_roles = ["User", "Moderator", "Admin"] + (["Owner"] if current_user_role == "Owner" else [])
             current_role = user_roles.get(selected_user, "User")
-            new_role = st.selectbox("අලුත් Role එක:", available_roles, index=available_roles.index(current_role) if current_role in available_roles else 0)
-        with col_u3: new_password = st.text_input("Password වෙනස් කරන්න:", value=user_passwords.get(selected_user, ""))
+            new_role = st.selectbox("New Role:", available_roles, index=available_roles.index(current_role) if current_role in available_roles else 0)
+        with col_u3: new_password = st.text_input("Change Password:", value=user_passwords.get(selected_user, ""))
             
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            if st.button("🔄 Role එක වෙනස් කරන්න"):
-                if user_roles.get(selected_user) == "Owner" and current_user_role != "Owner": st.error("⚠️ Owner ගේ ගිණුම වෙනස් කිරීමට බලයක් නැත!")
-                else: supabase.table("custom_users").update({"role": new_role}).eq("email", selected_user).execute(); st.success(f"✅ {selected_user} ගේ Role එක '{new_role}' ලෙස වෙනස් විය!")
+            if st.button("🔄 Update Role"):
+                if user_roles.get(selected_user) == "Owner" and current_user_role != "Owner": st.error("⚠️ You do not have permission to modify the Owner account!")
+                else: supabase.table("custom_users").update({"role": new_role}).eq("email", selected_user).execute(); st.success(f"✅ Role for {selected_user} updated to '{new_role}'!")
         with col_b2:
-            if st.button("🔑 Password එක වෙනස් කරන්න"):
-                if user_roles.get(selected_user) == "Owner" and current_user_role != "Owner": st.error("⚠️ Owner ගේ ගිණුම වෙනස් කිරීමට බලයක් නැත!")
-                else: supabase.table("custom_users").update({"password": new_password}).eq("email", selected_user).execute(); st.success(f"✅ {selected_user} ගේ Password වෙනස් විය!")
+            if st.button("🔑 Update Password"):
+                if user_roles.get(selected_user) == "Owner" and current_user_role != "Owner": st.error("⚠️ You do not have permission to modify the Owner account!")
+                else: supabase.table("custom_users").update({"password": new_password}).eq("email", selected_user).execute(); st.success(f"✅ Password for {selected_user} updated successfully!")
         with col_b3:
-            if st.button("🗑️ User ව මකා දමන්න (Block)"):
-                if user_roles.get(selected_user) == "Owner": st.error("⚠️ Owner ව මකා දැමිය නොහැක!")
-                else: supabase.table("custom_users").delete().eq("email", selected_user).execute(); st.warning(f"🚫 {selected_user} ව ඉවත් කළා!")
+            if st.button("🗑️ Delete User"):
+                if user_roles.get(selected_user) == "Owner": st.error("⚠️ Owner account cannot be deleted!")
+                else: supabase.table("custom_users").delete().eq("email", selected_user).execute(); st.warning(f"🚫 {selected_user} has been deleted!")
 
-        st.write("---"); st.write("දැනට ඉන්න Users ලගේ සම්පූර්ණ ලැයිස්තුව:")
+        st.write("---"); st.write("Complete List of Registered Users:")
         st.dataframe(pd.DataFrame(users)[['email', 'password', 'role', 'phone', 'sub_end']], use_container_width=True)
 
     with tab_payments:
-        st.subheader("Pending Payments (ගෙවීම් අනුමත කිරීම)")
+        st.subheader("Pending Payments (Approvals)")
         payments = supabase.table("manual_payments").select("*").eq("status", "Pending").execute().data
         if payments:
             for p in payments:
@@ -98,7 +98,7 @@ def admin_panel():
                     st.write(f"Ref/Note: {p['reference']}")
                     if p.get('receipt_base64'):
                         try: st.image(base64.b64decode(p['receipt_base64']), caption="Payment Receipt", use_container_width=True)
-                        except: st.write("⚠️ රිසිට් පින්තූරය පෙන්වීමේ දෝෂයක්.")
+                        except: st.write("⚠️ Error displaying receipt image.")
                     
                     days_to_add = 30
                     if "7 Days" in p['method']: days_to_add = 7
@@ -111,24 +111,24 @@ def admin_panel():
                         new_end = (max(current_end, datetime.now()) + timedelta(days=days_to_add)).isoformat()
                         supabase.table("custom_users").update({"sub_end": new_end}).eq("email", p['email']).execute()
                         supabase.table("manual_payments").update({"status": "Approved"}).eq("id", p['id']).execute()
-                        st.success(f"✅ දවස් {days_to_add}ක් එකතු කළා."); st.rerun()
-        else: st.info("අලුත් Payments කිසිවක් නැත.")
+                        st.success(f"✅ Added {days_to_add} days successfully."); st.rerun()
+        else: st.info("No new pending payments.")
         
     with tab_settings:
-        st.write("### ⚙️ System Configurations (ඇප් එකේ සැකසුම්)")
-        st.info("කෝඩ් එක වෙනස් නොකර, මෙතැනින් ඇප් එකේ Packages, Prices සහ Payment විස්තර වෙනස් කරන්න.")
+        st.write("### ⚙️ System Configurations")
+        st.info("Update App Packages, Prices, and Payment details here without changing the code.")
         
         st.write("#### 📞 WhatsApp Number")
-        new_wa = st.text_input("WhatsApp අංකය (උදා: 94757970703)", value=settings['whatsapp'])
+        new_wa = st.text_input("WhatsApp Number (e.g., 94757970703)", value=settings['whatsapp'])
         
         st.write("---")
-        st.write("#### 🎁 Free Trial Settings (නොමිලේ දෙන දින ගණන)")
+        st.write("#### 🎁 Free Trial Settings")
         col_t1, col_t2 = st.columns(2)
         with col_t1: is_trial_on = st.toggle("Enable Free Trial", value=(settings['free_trial'] == 'true'))
-        with col_t2: trial_d_input = st.number_input("දෙන්න ඕනේ දවස් ගාණ:", min_value=1, value=int(settings['trial_days']))
+        with col_t2: trial_d_input = st.number_input("Trial Duration (Days):", min_value=1, value=int(settings['trial_days']))
             
         st.write("---")
-        st.write("#### 💰 Package Prices (මිල ගණන්)")
+        st.write("#### 💰 Package Prices")
         col_p0, col_p1, col_p2, col_p3 = st.columns(4)
         with col_p0: p_7d = st.number_input("7 Days Price", value=int(settings['price_7d']))
         with col_p1: p_1m = st.number_input("1 Month Price", value=int(settings['price_1m']))
@@ -136,10 +136,10 @@ def admin_panel():
         with col_p3: p_3m = st.number_input("3 Months Price", value=int(settings['price_3m']))
             
         st.write("---")
-        st.write("#### 💳 Payment Text/Details (බැංකු විස්තර)")
-        det_ipay = st.text_area("iPay Details (HTML අනුමතයි):", value=settings['details_ipay'], height=100)
-        det_flex = st.text_area("Flex Details (HTML අනුමතයි):", value=settings['details_flex'], height=100)
-        det_bank = st.text_area("Bank Details (HTML අනුමතයි):", value=settings['details_bank'], height=100)
+        st.write("#### 💳 Payment Text/Details")
+        det_ipay = st.text_area("iPay Details (HTML Supported):", value=settings['details_ipay'], height=100)
+        det_flex = st.text_area("Flex Details (HTML Supported):", value=settings['details_flex'], height=100)
+        det_bank = st.text_area("Bank Details (HTML Supported):", value=settings['details_bank'], height=100)
 
         if st.button("💾 Save All Settings", type="primary"):
             updates = {
@@ -147,21 +147,21 @@ def admin_panel():
                 "price_7d": str(p_7d), "price_1m": str(p_1m), "price_2m": str(p_2m), "price_3m": str(p_3m),
                 "details_ipay": det_ipay, "details_flex": det_flex, "details_bank": det_bank
             }
-            with st.spinner("සැකසුම් Save වෙමින් පවතී..."):
+            with st.spinner("Saving settings..."):
                 for k, v in updates.items():
                     supabase.table("app_settings").delete().eq("setting_name", k).execute()
                     supabase.table("app_settings").insert({"setting_name": k, "setting_value": v}).execute()
-            st.success("✅ සියලුම සැකසුම් සාර්ථකව යාවත්කාලීන විය!"); time.sleep(1); st.rerun()
+            st.success("✅ All settings updated successfully!"); time.sleep(1); st.rerun()
 
 def messaging_system():
     st.title("💬 Messages & Support")
     user_email, role = st.session_state.user_data['email'], st.session_state.user_data['role']
     if role in ["Admin", "Moderator", "Owner"]:
-        send_to = st.selectbox("කාටද යවන්නේ?", ["ALL (හැමෝටම)"] + [u['email'] for u in supabase.table("custom_users").select("email").execute().data])
-        msg_text = st.text_area("Message එක Type කරන්න:")
+        send_to = st.selectbox("Send To:", ["ALL (Everyone)"] + [u['email'] for u in supabase.table("custom_users").select("email").execute().data])
+        msg_text = st.text_area("Type your message:")
         if st.button("Send Message"):
-            supabase.table("in_app_messages").insert({"sender": role, "receiver": send_to if send_to != "ALL (හැමෝටම)" else "ALL", "message": msg_text}).execute()
-            st.success("✅ Message එක යැව්වා!")
+            supabase.table("in_app_messages").insert({"sender": role, "receiver": send_to if send_to != "ALL (Everyone)" else "ALL", "message": msg_text}).execute()
+            st.success("✅ Message sent successfully!")
     st.subheader("Inbox")
     msgs = supabase.table("in_app_messages").select("*").in_("receiver", ["ALL", "Admin", "Moderator", "Owner", user_email] if role in ["Admin", "Moderator", "Owner"] else ["ALL", user_email]).order("timestamp", desc=True).execute().data
     for m in msgs:
@@ -170,8 +170,8 @@ def messaging_system():
             if role in ["Admin", "Moderator", "Owner"] and st.button("🗑️ Delete", key=f"del_msg_{m['id']}"): supabase.table("in_app_messages").delete().eq("id", m['id']).execute(); st.rerun()
             st.write("")
     if role == "User":
-        support_msg = st.text_area("Admin ට Message එකක් දාන්න:")
-        if st.button("Send to Admin"): supabase.table("in_app_messages").insert({"sender": user_email, "receiver": "Admin", "message": support_msg}).execute(); st.success("✅ Admin වෙත යවන ලදී!")
+        support_msg = st.text_area("Message Admin:")
+        if st.button("Send to Admin"): supabase.table("in_app_messages").insert({"sender": user_email, "receiver": "Admin", "message": support_msg}).execute(); st.success("✅ Sent to Admin successfully! You will receive a reply soon.")
 
 if not st.session_state.logged_in:
     st.title("🔐 VIP Signal App - Login")
@@ -181,18 +181,18 @@ if not st.session_state.logged_in:
         if st.button("Login"):
             res = supabase.table("custom_users").select("*").eq("email", email).eq("password", password).execute()
             if res.data: st.session_state.logged_in, st.session_state.user_data = True, res.data[0]; st.rerun()
-            else: st.error("❌ Email හෝ Password වැරදියි!")
+            else: st.error("❌ Invalid Email or Password!")
     with tab_reg:
-        new_email, new_phone, new_play_id, new_password = st.text_input("New Email:"), st.text_input("Phone Number:"), st.text_input("Play ID / Other ID:"), st.text_input("New Password:", type="password")
+        new_email, new_phone, new_play_id, new_password = st.text_input("New Email (Required):"), st.text_input("Phone Number (Required):"), st.text_input("Play ID / Other ID (Required):"), st.text_input("New Password (Required):", type="password")
         if st.button("Register & Get Access"):
-            if not all([new_email, new_phone, new_play_id, new_password]): st.error("⚠️ කරුණාකර සියලුම තොරතුරු සම්පූර්ණ කරන්න!")
-            elif "@" not in new_email or "." not in new_email: st.error("⚠️ නිවැරදි Email එකක් දෙන්න.")
-            elif supabase.table("custom_users").select("*").eq("email", new_email).execute().data: st.error("⚠️ මේ Email එක දැනටමත් ලියාපදිංචි කර ඇත!")
+            if not all([new_email, new_phone, new_play_id, new_password]): st.error("⚠️ Please fill in all required fields!")
+            elif "@" not in new_email or "." not in new_email: st.error("⚠️ Please provide a valid email address.")
+            elif supabase.table("custom_users").select("*").eq("email", new_email).execute().data: st.error("⚠️ This email is already registered!")
             else:
                 has_trial = settings['free_trial'] == 'true'
                 sub_end = (datetime.now() + timedelta(days=int(settings['trial_days']))).isoformat() if has_trial else datetime.now().isoformat()
                 supabase.table("custom_users").insert({"email": new_email, "password": new_password, "phone": new_phone, "play_id": new_play_id, "role": "User", "sub_end": sub_end, "trial_used": has_trial}).execute()
-                st.success("✅ සාර්ථකව Register විය! කරුණාකර Login වෙන්න.")
+                st.success("✅ Registration successful! Please login.")
     st.stop() 
 
 user_info = st.session_state.user_data
@@ -226,8 +226,8 @@ except: pass
 if selection == "⚙️ Admin Dashboard": admin_panel(); st.stop() 
 elif selection == "💬 Messages": messaging_system(); st.stop() 
 elif selection == "📈 Trading Signals" and not is_active and user_info['role'] not in ["Admin", "Owner"]:
-    st.warning("⚠️ ඔබගේ Subscription කාලය හෝ Free Trial එක අවසන් වී ඇත.")
-    st.subheader("💳 App එක Activate කරගන්න")
+    st.warning("⚠️ Your Subscription or Free Trial has expired.")
+    st.subheader("💳 Activate Your Account")
     
     pkg_options = [
         f"7 Days (1 Week) - Rs. {settings['price_7d']}",
@@ -235,20 +235,20 @@ elif selection == "📈 Trading Signals" and not is_active and user_info['role']
         f"2 Months (60 Days) - Rs. {settings['price_2m']}", 
         f"3 Months (90 Days) - Rs. {settings['price_3m']}"
     ]
-    selected_pkg = st.radio("ඔබට අවශ්‍ය පැකේජය තෝරන්න:", pkg_options)
+    selected_pkg = st.radio("Select your preferred package:", pkg_options)
     
     st.write("---")
-    pay_method = st.selectbox("මුදල් ගෙවන ක්‍රමය තෝරන්න:", ["iPay", "Flex", "Bank Transfer", "CDM", "Other"])
-    st.markdown(settings['details_ipay'] if pay_method == "iPay" else settings['details_flex'] if pay_method == "Flex" else settings['details_bank'] if pay_method in ["Bank Transfer", "CDM"] else "වෙනත් ක්‍රමයක් නම් WhatsApp හරහා කතා කරන්න.", unsafe_allow_html=True)
+    pay_method = st.selectbox("Select Payment Method:", ["iPay", "Flex", "Bank Transfer", "CDM", "Other"])
+    st.markdown(settings['details_ipay'] if pay_method == "iPay" else settings['details_flex'] if pay_method == "Flex" else settings['details_bank'] if pay_method in ["Bank Transfer", "CDM"] else "For other methods, please contact via WhatsApp.", unsafe_allow_html=True)
     st.write("---")
-    pay_ref, receipt_file = st.text_input("Reference Number / Receipt ID / Notes:"), st.file_uploader("රිසිට් එකේ ෆොටෝ එකක් දාන්න (අනිවාර්යයි)", type=["png", "jpg", "jpeg"])
+    pay_ref, receipt_file = st.text_input("Reference Number / Receipt ID / Notes:"), st.file_uploader("Upload Payment Receipt (Required)", type=["png", "jpg", "jpeg"])
     
     if st.button("Submit Payment for Approval"):
-        if not pay_ref and receipt_file is None: st.error("⚠️ කරුණාකර Reference Number එක හෝ රිසිට් එකේ ෆොටෝ එකක් අනිවාර්යයෙන් ඇතුළත් කරන්න.")
+        if not pay_ref and receipt_file is None: st.error("⚠️ Please provide a Reference Number or upload the payment receipt.")
         else:
             receipt_b64 = base64.b64encode(receipt_file.read()).decode("utf-8") if receipt_file else ""
             supabase.table("manual_payments").insert({"email": user_info['email'], "method": f"{pay_method} [{selected_pkg.split(' -')[0]}]", "reference": pay_ref, "receipt_base64": receipt_b64}).execute()
-            st.success("✅ ඔබගේ Payment විස්තර Admin වෙත යවන ලදී! පැය කිහිපයක් ඇතුළත ගිණුම සක්‍රීය වනු ඇත.")
+            st.success("✅ Payment details submitted to Admin! Your account will be activated within a few hours.")
     st.stop() 
 
 # ==========================================
@@ -256,14 +256,14 @@ elif selection == "📈 Trading Signals" and not is_active and user_info['role']
 # ==========================================
 
 st.title("⚡ PRO AI Trading Signal App (Institutional VIP Edition)")
-st.write("SMC (FVG & Order Blocks), ATR, VWAP, Supertrend, 200 EMA, StochRSI, BB Squeeze සහ Market Sentiment (Fear & Greed) එකතු කර සකස් කළ ස්මාර්ට් ඇනලයිසර් එක.")
+st.write("Smart Analyzer combining SMC (FVG & Order Blocks), ATR, VWAP, Supertrend, 200 EMA, StochRSI, BB Squeeze, and Market Sentiment (Fear & Greed).")
 
 if 'scan_results' not in st.session_state: st.session_state.scan_results = []
 if 'scan_tf' not in st.session_state: st.session_state.scan_tf = "15 min"
 if 'scanning' not in st.session_state: st.session_state.scanning = False
 
 try: TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_ID, TELEGRAM_CHANNEL_ID = st.secrets["TELEGRAM_BOT_TOKEN"], st.secrets["TELEGRAM_GROUP_ID"], st.secrets["TELEGRAM_CHANNEL_ID"]
-except KeyError: st.error("⚠️ රහස්‍ය දත්ත (Secrets) සොයාගත නොහැක."); TELEGRAM_BOT_TOKEN = TELEGRAM_GROUP_ID = TELEGRAM_CHANNEL_ID = ""
+except KeyError: st.error("⚠️ Secrets not found."); TELEGRAM_BOT_TOKEN = TELEGRAM_GROUP_ID = TELEGRAM_CHANNEL_ID = ""
 
 def save_to_supabase(data):
     if not supabase: return False
@@ -431,7 +431,7 @@ def generate_candlestick_image_bytes(df, coin_name, direction, entry, tp1, tp2, 
 
 market_options = {"Bitcoin (BTC/USD)": "BTC-USD", "Ethereum (ETH/USD)": "ETH-USD", "Solana (SOL/USD)": "SOL-USD", "Binance Coin (BNB/USD)": "BNB-USD", "Ripple (XRP/USD)": "XRP-USD", "Cardano (ADA/USD)": "ADA-USD", "Dogwifhat (WIF/USD)": "WIF-USD", "Shiba Inu (SHIB/USD)": "SHIB-USD", "Pepe (PEPE/USD)": "PEPE-USD", "Avalanche (AVAX/USD)": "AVAX-USD", "Chainlink (LINK/USD)": "LINK-USD", "Polkadot (DOT/USD)": "DOT-USD", "Fantom (FTM/USD)": "FTM-USD", "Polygon (MATIC/USD)": "MATIC-USD", "Injective (INJ/USD)": "INJ-USD", "Dogecoin (DOGE/USD)": "DOGE-USD", "Litecoin (LTC/USD)": "LTC-USD", "Bitcoin Cash (BCH/USD)": "BCH-USD", "Stellar (XLM/USD)": "XLM-USD", "Uniswap (UNI/USD)": "UNI-USD", "Cosmos (ATOM/USD)": "ATOM-USD", "Monero (XMR/USD)": "XMR-USD", "Ethereum Classic (ETC/USD)": "ETC-USD", "Filecoin (FIL/USD)": "FIL-USD", "Internet Computer (ICP/USD)": "ICP-USD", "VeChain (VET/USD)": "VET-USD", "Hedera (HBAR/USD)": "HBAR-USD", "Aptos (APT/USD)": "APT-USD", "Arbitrum (ARB/USD)": "ARB-USD", "Near Protocol (NEAR/USD)": "NEAR-USD", "Optimism (OP/USD)": "OP-USD", "Stacks (STX/USD)": "STX-USD", "Render (RNDR/USD)": "RNDR-USD", "Immutable (IMX/USD)": "IMX-USD", "The Graph (GRT/USD)": "GRT-USD", "Theta Network (THETA/USD)": "THETA-USD", "Aave (AAVE/USD)": "AAVE-USD", "Synthetix (SNX/USD)": "SNX-USD", "Maker (MKR/USD)": "MKR-USD", "Algorand (ALGO/USD)": "ALGO-USD", "Flow (FLOW/USD)": "FLOW-USD", "MultiversX (EGLD/USD)": "EGLD-USD", "Mina (MINA/USD)": "MINA-USD", "THORChain (RUNE/USD)": "RUNE-USD", "Lido DAO (LDO/USD)": "LDO-USD", "Quant (QNT/USD)": "QNT-USD", "Gala (GALA/USD)": "GALA-USD", "The Sandbox (SAND/USD)": "SAND-USD", "Decentraland (MANA/USD)": "MANA-USD", "Axie Infinity (AXS/USD)": "AXS-USD", "Chiliz (CHZ/USD)": "CHZ-USD", "Enjin Coin (ENJ/USD)": "ENJ-USD", "Curve DAO (CRV/USD)": "CRV-USD", "Zilliqa (ZIL/USD)": "ZIL-USD", "NEO (NEO/USD)": "NEO-USD", "Dash (DASH/USD)": "DASH-USD", "Kava (KAVA/USD)": "KAVA-USD", "Compound (COMP/USD)": "COMP-USD", "IOTA (MIOTA/USD)": "MIOTA-USD", "Tezos (XTZ/USD)": "XTZ-USD", "Zcash (ZEC/USD)": "ZEC-USD", "Kusama (KSM/USD)": "KSM-USD", "Basic Attention Token (BAT/USD)": "BAT-USD", "Harmony (ONE/USD)": "ONE-USD", "Celo (CELO/USD)": "CELO-USD", "Qtum (QTUM/USD)": "QTUM-USD", "Ravencoin (RVN/USD)": "RVN-USD", "Ontology (ONT/USD)": "ONT-USD", "ICON (ICX/USD)": "ICX-USD", "DigiByte (DGB/USD)": "DGB-USD", "Horizen (ZEN/USD)": "ZEN-USD", "Nano (XNO/USD)": "XNO-USD", "Syscoin (SYS/USD)": "SYS-USD", "Sui (SUI/USD)": "SUI-USD", "Sei (SEI/USD)": "SEI-USD", "Worldcoin (WLD/USD)": "WLD-USD", "CyberConnect (CYBER/USD)": "CYBER-USD", "Pendle (PENDLE/USD)": "PENDLE-USD", "Radix (XRD/USD)": "XRD-USD", "Kaspa (KAS/USD)": "KAS-USD", "GMX (GMX/USD)": "GMX-USD", "Magic (MAGIC/USD)": "MAGIC-USD", "Illuvium (ILV/USD)": "ILV-USD", "Biconomy (BICO/USD)": "BICO-USD", "Gnosis (GNO/USD)": "GNO-USD", "Status (SNT/USD)": "SNT-USD", "Aragon (ANT/USD)": "ANT-USD", "Kyber Network (KNC/USD)": "KNC-USD", "Bancor (BNT/USD)": "BNT-USD", "Loopring (LRC/USD)": "LRC-USD", "Storj (STORJ/USD)": "STORJ-USD", "Civic (CVC/USD)": "CVC-USD", "Fetch.ai (FET/USD)": "FET-USD", "Band Protocol (BAND/USD)": "BAND-USD", "Numeraire (NMR/USD)": "NMR-USD", "iExec RLC (RLC/USD)": "RLC-USD", "Theta Fuel (TFUEL/USD)": "TFUEL-USD", "WazirX (WRX/USD)": "WRX-USD", "Swipe (SXP/USD)": "SXP-USD", "Klever (KLV/USD)": "KLV-USD", "Utrust (UTK/USD)": "UTK-USD", "Firo (FIRO/USD)": "FIRO-USD", "Dusk Network (DUSK/USD)": "DUSK-USD", "DIA (DIA/USD)": "DIA-USD", "Litentry (LIT/USD)": "LIT-USD", "Phala Network (PHA/USD)": "PHA-USD", "Marlin (POND/USD)": "POND-USD", "Radiant Capital (RDNT/USD)": "RDNT-USD", "Gains Network (GNS/USD)": "GNS-USD", "PancakeSwap (CAKE/USD)": "CAKE-USD", "Trust Wallet (TWT/USD)": "TWT-USD", "1inch (1INCH/USD)": "1INCH-USD", "Ocean Protocol (OCEAN/USD)": "OCEAN-USD", "SKALE (SKL/USD)": "SKL-USD", "Cartesi (CTSI/USD)": "CTSI-USD", "Coti (COTI/USD)": "COTI-USD", "NKN (NKN/USD)": "NKN-USD"}
 fx_options_dict = {"Euro / US Dollar (EUR/USD)": "EURUSD=X", "Great Britain Pound / US Dollar (GBP/USD)": "GBPUSD=X", "US Dollar / Japanese Yen (USD/JPY)": "USDJPY=X", "Australian Dollar / US Dollar (AUD/USD)": "AUDUSD=X"}
-com_options_dict = {"රන් / Gold (XAU/USD)": "GC=F", "කෲඩ් ඔයිල් / Crude Oil (WTI)": "CL=F"}
+com_options_dict = {"Gold (XAU/USD)": "GC=F", "Crude Oil (WTI)": "CL=F"}
 tf_mapping = {"5 min": {"yf": "5m", "tv": "5", "period": "60d"}, "15 min": {"yf": "15m", "tv": "15", "period": "60d"}, "30 min": {"yf": "30m", "tv": "30", "period": "60d"}, "1 hour": {"yf": "1h", "tv": "60", "period": "730d"}, "4 hour": {"yf": "4h", "tv": "240", "period": "730d"}, "1 day": {"yf": "1d", "tv": "D", "period": "max"}}
 
 @st.cache_data
@@ -440,33 +440,33 @@ def get_market_data(symbol, tf, prd): return yf.download(symbol, period=prd, int
 tab1, tab2, tab3, tab4 = st.tabs(["⚡ Live AI Signals", "🔍 VIP Market Scanner", "📂 Auto Signal History", "💼 VIP Demo Trading"])
 
 with tab1:
-    st.subheader("🌐 Market සහ Coins තෝරන්න:")
-    category = st.radio("ප්‍රවර්ගය තෝරන්න (Select Category):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)", "✏️ වෙනත් (Custom)"], horizontal=True)
+    st.subheader("🌐 Select Market and Asset:")
+    category = st.radio("Select Category:", ["🔥 Popular Crypto", "💱 Forex", "✨ Metals & Commodities", "✏️ Custom Asset"], horizontal=True)
     strategy_mode = st.radio("Trading Strategy Mode:", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True)
 
-    if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)":
-        selected_display_name = st.selectbox("Coins තෝරන්න:", list(market_options.keys()))
+    if category == "🔥 Popular Crypto":
+        selected_display_name = st.selectbox("Select Asset:", list(market_options.keys()))
         ticker = market_options[selected_display_name]
         clean_symbol = ticker.replace('-USD', 'USDT')
         full_tv_ticker = f"BINANCE:{clean_symbol}"
-    elif category == "💱 ෆොරෙක්ස් (Forex)":
-        selected_display_name = st.selectbox("Coins තෝරන්න:", list(fx_options_dict.keys()))
+    elif category == "💱 Forex":
+        selected_display_name = st.selectbox("Select Asset:", list(fx_options_dict.keys()))
         ticker = fx_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=X', '')
         full_tv_ticker = f"FX_IDC:{clean_symbol}"
-    elif category == "✨ ලෝහ සහ තෙල් (Metals & Oil)":
-        selected_display_name = st.selectbox("Coins තෝරන්න:", list(com_options_dict.keys()))
+    elif category == "✨ Metals & Commodities":
+        selected_display_name = st.selectbox("Select Asset:", list(com_options_dict.keys()))
         ticker = com_options_dict[selected_display_name]
         clean_symbol = ticker.replace('=F', '')
         full_tv_ticker = f"COMEX:{clean_symbol}" if "GC" in ticker else f"NYMEX:{clean_symbol}"
     else:
-        st.info("💡 **ඔබට අවශ්‍ය ඕනෑම කාසියක් මෙහි ඇතුළත් කළ හැක.**")
+        st.info("💡 **You can enter any custom asset ticker here.**")
         col_c1, col_c2 = st.columns(2)
         with col_c1: ticker = st.text_input("Yahoo Finance Ticker:", "DOGE-USD")
         with col_c2: full_tv_ticker = st.text_input("TradingView Symbol:", "BINANCE:DOGEUSDT")
         selected_display_name = f"Custom Symbol ({ticker})"
 
-    tf_display = st.selectbox("Timeframe එක තෝරන්න:", list(tf_mapping.keys()))
+    tf_display = st.selectbox("Select Timeframe:", list(tf_mapping.keys()))
     selected_tf = tf_mapping[tf_display]
     df = get_market_data(ticker, selected_tf["yf"], selected_tf["period"])
 
@@ -512,7 +512,7 @@ with tab1:
         last_market_state = df[features].iloc[[-1]].copy()
         df_train = df.dropna() 
         
-        if len(df_train) < 20: st.warning("⚠️ AI Model එකට ඉගෙනගැනීමට තරම් ප්‍රමාණවත් දත්ත (Data) Yahoo Finance හරහා ලැබී නොමැත. කරුණාකර වෙනත් Timeframe එකක් හෝ Coin එකක් තෝරන්න.")
+        if len(df_train) < 20: st.warning("⚠️ Not enough historical data from Yahoo Finance for the AI Model to learn. Please select a different Timeframe or Asset.")
         else:
             try:
                 X, y = df_train[features], df_train['Target']
@@ -540,35 +540,35 @@ with tab1:
                     sl_price = entry_price + (atr_val * 2.0) 
         
                 st.write("---")
-                st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI විශ්ලේෂණය:")
+                st.subheader(f"📊 {selected_display_name} ({tf_display}) PRO AI Analysis:")
                 fng_value, fng_class = get_fear_and_greed()
-                if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)": st.info(f"🧭 **Crypto Market Sentiment (Fear & Greed):** {fng_class} ({fng_value}/100)")
+                if category == "🔥 Popular Crypto": st.info(f"🧭 **Crypto Market Sentiment (Fear & Greed):** {fng_class} ({fng_value}/100)")
                 
                 has_valid_signal, is_reversal, confluence_pass, confluence_msg = False, False, True, ""
                 last_ema9, last_ema21, last_macd, last_rsi = float(last_market_state['EMA_9'].iloc[0]), float(last_market_state['EMA_21'].iloc[0]), float(last_market_state['MACD'].iloc[0]), float(last_market_state['RSI'].iloc[0])
                 
                 if "Aggressive" in strategy_mode:
                     min_conf = 50.1
-                    if prediction == 1 and last_rsi > 75: confluence_pass, confluence_msg = False, "🚨 Aggressive Mode වුවත් RSI > 75 (Overbought) බැවින් BUY කිරීම අවදානම්ය."
-                    elif prediction == 0 and last_rsi < 25: confluence_pass, confluence_msg = False, "🚨 Aggressive Mode වුවත් RSI < 25 (Oversold) බැවින් SELL කිරීම අවදානම්ය."
+                    if prediction == 1 and last_rsi > 75: confluence_pass, confluence_msg = False, "🚨 Although in Aggressive Mode, RSI > 75 (Overbought). BUY signal rejected due to high risk."
+                    elif prediction == 0 and last_rsi < 25: confluence_pass, confluence_msg = False, "🚨 Although in Aggressive Mode, RSI < 25 (Oversold). SELL signal rejected due to high risk."
                 else:
                     min_conf = 60.0
                     if prediction == 1: 
-                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value >= 80: confluence_pass, confluence_msg = False, f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Overbought) මට්ටමේ. මෙවැනි අවස්ථාවක Market එක කඩා වැටෙන්නට (Crash) ඉඩ ඇති බැවින් AI මෙම BUY සිග්නලය ප්‍රතික්ෂේප කරයි."
+                        if category == "🔥 Popular Crypto" and fng_value >= 80: confluence_pass, confluence_msg = False, f"🚨 **Fear & Greed Warning:** Market is currently at '{fng_class}' (Overbought) level. High risk of a market crash. AI rejects this BUY signal."
                         elif (last_ema9 < last_ema21) and (last_macd < 0):
                             if last_rsi < 45 and ("Hammer" in detected_pattern or "Bullish" in detected_pattern): is_reversal = True
-                            else: confluence_pass, confluence_msg = False, "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Downtrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව 'Falling Knife' එකක් ඇල්ලීම ඉතා අවදානම් වැඩක් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+                            else: confluence_pass, confluence_msg = False, "🚨 **Trend Filter Warning:** Strong Downtrend detected. Catching a 'Falling Knife' without a clear reversal pattern is highly risky. AI rejects this signal."
                     else: 
-                        if category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value <= 20: confluence_pass, confluence_msg = False, f"🚨 **Fear & Greed Warning:** මාකට් එක දැනට තියෙන්නේ '{fng_class}' (Oversold) මට්ටමේ. මෙතැනින් Reversal එකක් වීමට ඉඩ ඇති බැවින් AI මෙම SELL සිග්නලය ප්‍රතික්ෂේප කරයි."
+                        if category == "🔥 Popular Crypto" and fng_value <= 20: confluence_pass, confluence_msg = False, f"🚨 **Fear & Greed Warning:** Market is currently at '{fng_class}' (Oversold) level. High risk of a reversal upward. AI rejects this SELL signal."
                         elif (last_ema9 > last_ema21) and (last_macd > 0):
                             if last_rsi > 55 and ("Shooting Star" in detected_pattern or "Bearish" in detected_pattern): is_reversal = True
-                            else: confluence_pass, confluence_msg = False, "🚨 **Trend Filter Warning:** මාකට් එකේ දැනට තියෙන්නේ ප්‍රබල Uptrend එකක්. පැහැදිලි Reversal Pattern එකක් නොමැතිව SELL සිග්නල් එකක් ගැනීම ඉතා අවදානම් බැවින් AI මෙම සිග්නලය ප්‍රතික්ෂේප කරයි."
+                            else: confluence_pass, confluence_msg = False, "🚨 **Trend Filter Warning:** Strong Uptrend detected. Taking a SELL signal without a clear reversal pattern is highly risky. AI rejects this signal."
 
-                if ai_confidence < min_conf: st.warning(f"⚠️ **NO SIGNAL (මාකට් එක පැහැදිලි නැත)** \n\nAI විශ්වාසය මදියි ({ai_confidence:.1f}%). අවම වශයෙන් {min_conf}% ක විශ්වාසයක් අවශ්‍යයි.")
+                if ai_confidence < min_conf: st.warning(f"⚠️ **NO SIGNAL (Indecisive Market)** \n\nAI confidence is too low ({ai_confidence:.1f}%). Minimum {min_conf}% confidence required.")
                 elif not confluence_pass: st.error(confluence_msg)
                 else:
                     has_valid_signal = True
-                    if is_reversal: st.info("🔥 **SMART REVERSAL DETECTED!** AI එක Trend Reversal එකක් (හැරවුම් ලක්ෂ්‍යයක්) හඳුනාගත්තා!")
+                    if is_reversal: st.info("🔥 **SMART REVERSAL DETECTED!** AI has identified a high-probability Trend Reversal point!")
                     if prediction == 1: st.success(f"🟢 **DIRECTION: BUY / LONG** 📈 ⬆️ (Confidence: {ai_confidence:.1f}%)")
                     else: st.error(f"🔴 **DIRECTION: SELL / SHORT** 📉 ⬇️ (Confidence: {ai_confidence:.1f}%)")
         
@@ -581,15 +581,15 @@ with tab1:
                     dir_text = "🟢 BUY / LONG 📈 ⬆️" + (" (🔥 Reversal Setup)" if is_reversal else "") if prediction == 1 else "🔴 SELL / SHORT 📉 ⬇️" + (" (🔥 Reversal Setup)" if is_reversal else "")
                     direction_text = "BUY" if prediction == 1 else "SELL"
                     
-                    target_msg = f"📊 **ඇඳිය යුතු නිවැරදි මිල මට්ටම් (ATR & SMC Visual Targets):**\n\n🪙 **Coin:** {selected_display_name}\n\n🔥 **Signal Direction:** {dir_text}\n\n🧩 **Detected Pattern:** {detected_pattern}\n\n🔵 **Entry Limit Price:** ${entry_price:.{dp}f}\n\n🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n🎯 **TP 3:** ${tp3_price:.{dp}f}\n\n🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
+                    target_msg = f"📊 **Calculated Price Levels (ATR & SMC Visual Targets):**\n\n🪙 **Asset:** {selected_display_name}\n\n🔥 **Signal Direction:** {dir_text}\n\n🧩 **Detected Pattern:** {detected_pattern}\n\n🔵 **Entry Limit Price:** ${entry_price:.{dp}f}\n\n🎯 **TP 1:** ${tp1_price:.{dp}f}\n\n🎯 **TP 2:** ${tp2_price:.{dp}f}\n\n🎯 **TP 3:** ${tp3_price:.{dp}f}\n\n🛑 **Stop Loss (SL):** ${sl_price:.{dp}f}"
                     st.info(target_msg)
                     
-                    st.write("### 📸 AI Signal Visualizer Preview (Trading Setup එක)")
+                    st.write("### 📸 AI Signal Visualizer Preview")
                     try:
                         chart_image_bytes = generate_candlestick_image_bytes(df, clean_symbol, direction_text, entry_price, tp1_price, tp2_price, tp3_price, sl_price, tf_display, detected_pattern)
                         st.image(chart_image_bytes, caption=f"Dynamically Generated Setup for {selected_display_name} (VPVR + VWAP + 200 EMA + OB + {detected_pattern})")
                         image_generated_successfully = True
-                    except Exception as img_err: st.error(f"⚠️ ප්‍රස්ථාරය සැකසීමේදී දෝෂයක්. ({img_err})"); image_generated_successfully = False
+                    except Exception as img_err: st.error(f"⚠️ Error generating chart. ({img_err})"); image_generated_successfully = False
 
                     st.write("---")
                     st.write("### ⚙️ Signal Actions")
@@ -598,8 +598,8 @@ with tab1:
                         chart_b64 = base64.b64encode(chart_image_bytes).decode("utf-8") if image_generated_successfully else ""
                         date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                         data_to_save = {"Date": date_str, "Ticker": ticker, "Coin": selected_display_name.split()[0], "Category": category, "Strategy": strategy_mode, "Direction": direction_text, "Entry": entry_price, "TP1": tp1_price, "TP2": tp2_price, "TP3": tp3_price, "SL": sl_price, "Status": "⏳ Pending Entry", "created_by": user_info['email'], "TF": tf_display, "Pattern": detected_pattern, "chart_base64": chart_b64}
-                        if save_to_supabase(data_to_save): st.success("✅ සිග්නල් එක සහ ප්‍රස්ථාරය සාර්ථකව ඔබගේ History එකට සේව් වුණා!")
-                        else: st.error("❌ සේව් කිරීම අසාර්ථකයි.")
+                        if save_to_supabase(data_to_save): st.success("✅ Signal and chart saved successfully to your History!")
+                        else: st.error("❌ Failed to save.")
                             
                     if user_info['role'] in ["Owner", "Admin"]:
                         if st.button("🚀 Send Signal to Telegram & Save", type="primary", use_container_width=True):
@@ -609,36 +609,36 @@ with tab1:
                             if prediction == 1 and (check_live >= tp1_price or check_live <= sl_price): is_safe_to_send = False
                             elif prediction == 0 and (check_live <= tp1_price or check_live >= sl_price): is_safe_to_send = False
                                     
-                            if not is_safe_to_send: st.error("⚠️ **මෙම Signal එක දැන් පරණ වැඩියි! (Expired)** ⚠️\n\nඔබ මෙය යැවීමට ප්‍රමාද වූ බැවින් මාකට් එක දැනටමත් වෙනස් වී ඇත. කරුණාකර අලුත් Signal එකක් ලබාගන්න.")
+                            if not is_safe_to_send: st.error("⚠️ **This Signal has Expired!** \n\nThe market has already moved significantly from the entry point. Please scan for a new signal.")
                             else:
                                 cat_name = "Crypto 🪙" if "Crypto" in category else "Forex 💱" if "Forex" in category else "Commodities ✨" if "Metals" in category else "Custom ✏️"
-                                telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Coin/Pair:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                                with st.spinner("Chart එක සකසමින් සහ Telegram වෙත යවමින් පවතී... ⏳"):
+                                telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_name}\n⚙️ *Strategy Mode:* {strategy_mode}\n🪙 *Asset:* {selected_display_name}\n⏱ *Timeframe:* {tf_display}\n🔥 *Direction:* {dir_text}\n🧩 *Detected Pattern:* {detected_pattern}\n\n🔵 *Entry Price:* `${entry_price:.{dp}f}`\n🎯 *TP 1:* `${tp1_price:.{dp}f}`\n🎯 *TP 2:* `${tp2_price:.{dp}f}`\n🎯 *TP 3:* `${tp3_price:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sl_price:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
+                                with st.spinner("Processing chart and broadcasting to Telegram... ⏳"):
                                     success = False
                                     if image_generated_successfully: success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
-                                    if not success: success = send_telegram_message(telegram_text); st.warning("⚠️ Chart Photo එක යැවීමේදී දෝෂයක්. (Text Signal පමණි).")
+                                    if not success: success = send_telegram_message(telegram_text); st.warning("⚠️ Error sending chart photo. (Text Signal only sent).")
                                 if success:
                                     chart_b64 = base64.b64encode(chart_image_bytes).decode("utf-8") if image_generated_successfully else ""
                                     date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                                     data_to_save = {"Date": date_str, "Ticker": ticker, "Coin": selected_display_name.split()[0], "Category": cat_name, "Strategy": strategy_mode, "Direction": direction_text, "Entry": entry_price, "TP1": tp1_price, "TP2": tp2_price, "TP3": tp3_price, "SL": sl_price, "Status": "⏳ Pending Entry", "created_by": user_info['email'], "TF": tf_display, "Pattern": detected_pattern, "chart_base64": chart_b64}
-                                    if save_to_supabase(data_to_save): st.success("✅ Telegram එකට යැව්වා සහ History එකටත් සේව් වුණා!")
-                                else: st.error("❌ Telegram යැවීම අසාර්ථකයි.")
-            except Exception as e: st.error(f"⚠️ දත්ත විශ්ලේෂණයේදී ගැටලුවක් මතු විය. වෙනත් Timeframe එකක් තෝරන්න. Error: {e}")
-    else: st.error("තෝරාගත් කාල රාමුව සඳහා ප්‍රමාණවත් දත්ත නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරන්න.")
+                                    if save_to_supabase(data_to_save): st.success("✅ Successfully broadcasted to Telegram and saved to History!")
+                                else: st.error("❌ Failed to broadcast to Telegram.")
+            except Exception as e: st.error(f"⚠️ Data analysis error occurred. Try a different Timeframe. Error: {e}")
+    else: st.error("Not enough data for the selected timeframe. Please choose a different Timeframe.")
 
 with tab2:
     st.subheader("🔍 VIP Market Scanner (Auto Signal Finder)")
-    st.write("එකින් එක Coins පරීක්ෂා කිරීම වෙනුවට, එකවර මුළු Category එකක්ම ස්කෑන් කර මේ මොහොතේ Valid Signals ඇති Coins පමණක් පහසුවෙන් සොයාගන්න.")
-    scan_category = st.radio("ප්‍රවර්ගය තෝරන්න (Select Category):", ["🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)", "💱 ෆොරෙක්ස් (Forex)", "✨ ලෝහ සහ තෙල් (Metals & Oil)"], horizontal=True, key="scanner_category_radio")
+    st.write("Automatically scan an entire category to instantly find active, valid signals with high win probability.")
+    scan_category = st.radio("Select Category:", ["🔥 Popular Crypto", "💱 Forex", "✨ Metals & Commodities"], horizontal=True, key="scanner_category_radio")
     strategy_mode_scan = st.radio("Trading Strategy Mode (Scanner):", ["🔥 Aggressive Mode (More Signals)", "🛡️ Safe Mode (Strict)"], horizontal=True, key="scan_strat")
     col_s1, col_s2, col_s3 = st.columns(3)
-    with col_s1: scan_tf_display = st.selectbox("ස්කෑන් කළ යුතු Timeframe එක තෝරන්න:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"], index=["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"].index(st.session_state.scan_tf))
+    with col_s1: scan_tf_display = st.selectbox("Select Timeframe to Scan:", ["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"], index=["5 min", "15 min", "30 min", "1 hour", "4 hour", "1 day"].index(st.session_state.scan_tf))
         
-    if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)": current_scan_options, max_limit_val = market_options, len(market_options)
-    elif scan_category == "💱 ෆොරෙක්ස් (Forex)": current_scan_options, max_limit_val = fx_options_dict, len(fx_options_dict)
+    if scan_category == "🔥 Popular Crypto": current_scan_options, max_limit_val = market_options, len(market_options)
+    elif scan_category == "💱 Forex": current_scan_options, max_limit_val = fx_options_dict, len(fx_options_dict)
     else: current_scan_options, max_limit_val = com_options_dict, len(com_options_dict)
         
-    with col_s2: scan_limit = st.slider("ස්කෑන් කරන Coins ගණන (වේගවත් කිරීම සඳහා):", min_value=1, max_value=max_limit_val, value=min(30, max_limit_val), step=1)
+    with col_s2: scan_limit = st.slider("Number of Assets to Scan (For faster results):", min_value=1, max_value=max_limit_val, value=min(30, max_limit_val), step=1)
     with col_s3:
         st.write(""); st.write("")
         start_scan = st.button("🚀 Start Scan", use_container_width=True)
@@ -650,8 +650,8 @@ with tab2:
         st.session_state.last_scan_empty = False
 
     if st.session_state.get('scanning', False):
-        st.warning("⚠️ ස්කෑන් වෙමින් පවතී... හොඳ සිග්නල් එකක් දැක්කොත් පහළින් ඇති 'Stop Scan' බොත්තම ඔබන්න.")
-        if st.button("🛑 Stop Scan (නවත්වන්න)", type="primary"):
+        st.warning("⚠️ Scanning in progress... You can press 'Stop Scan' below if you spot a good signal.")
+        if st.button("🛑 Stop Scan", type="primary"):
             st.session_state.scanning = False
             if len(st.session_state.scan_results) == 0: st.session_state.last_scan_empty = True
             st.rerun()
@@ -665,7 +665,7 @@ with tab2:
         for i, coin_name in enumerate(coins_to_scan):
             if not st.session_state.scanning: break
             ticker_to_scan = current_scan_options[coin_name]
-            status_text.info(f"🔍 ස්කෑන් කරමින් පවතී: {coin_name}... ({i+1}/{total_coins})")
+            status_text.info(f"🔍 Scanning: {coin_name}... ({i+1}/{total_coins})")
             try:
                 time.sleep(0.05)
                 df_scan = yf.download(ticker_to_scan, period=scan_tf["period"], interval=scan_tf["yf"], auto_adjust=True, progress=False)
@@ -723,10 +723,10 @@ with tab2:
                         else:
                             min_conf_s = 60.0
                             if prediction_s == 1:
-                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value >= 80: confluence_pass_s = False
+                                if scan_category == "🔥 Popular Crypto" and fng_value >= 80: confluence_pass_s = False
                                 elif (last_ema9_s < last_ema21_s) and (last_macd_s < 0) and not (last_rsi_s < 45 and ("Hammer" in scan_pattern or "Bullish" in scan_pattern)): confluence_pass_s = False
                             else:
-                                if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" and fng_value <= 20: confluence_pass_s = False
+                                if scan_category == "🔥 Popular Crypto" and fng_value <= 20: confluence_pass_s = False
                                 elif (last_ema9_s > last_ema21_s) and (last_macd_s > 0) and not (last_rsi_s > 55 and ("Shooting Star" in scan_pattern or "Bearish" in scan_pattern)): confluence_pass_s = False
                                     
                         if ai_confidence_s >= min_conf_s and confluence_pass_s:
@@ -745,7 +745,7 @@ with tab2:
                                 tp1_price_s, tp2_price_s, tp3_price_s = entry_price_s - (atr_val_s * 1.5), entry_price_s - (atr_val_s * 3.0), entry_price_s - (atr_val_s * 5.0)
                                 sl_price_s = entry_price_s + (atr_val_s * 2.0)
                                 
-                            clean_symbol = ticker_to_scan.replace('-USD', 'USDT') if scan_category == "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)" else ticker_to_scan.replace('=X', '') if scan_category == "💱 ෆොරෙක්ස් (Forex)" else ticker_to_scan.replace('=F', '')
+                            clean_symbol = ticker_to_scan.replace('-USD', 'USDT') if scan_category == "🔥 Popular Crypto" else ticker_to_scan.replace('=X', '') if scan_category == "💱 Forex" else ticker_to_scan.replace('=F', '')
                             st.session_state.scan_results.append({"Coin": coin_name, "Ticker": ticker_to_scan, "Clean_Symbol": clean_symbol, "Direction_Label": dir_str, "Direction": dir_text, "Confidence": ai_confidence_s, "Pattern": scan_pattern, "Entry": entry_price_s, "TP1": tp1_price_s, "TP2": tp2_price_s, "TP3": tp3_price_s, "SL": sl_price_s, "TF": st.session_state.scan_tf, "Category": scan_category, "Strategy_Mode": strategy_mode_scan, "Chart_DF": df_scan.tail(120).copy()})
                             
                             if st.session_state.scan_results:
@@ -761,7 +761,7 @@ with tab2:
 
     if not st.session_state.get('scanning', False):
         if st.session_state.get('scan_results'):
-            st.success(f"🎉 Valid Signals {len(st.session_state.scan_results)} ක් සොයාගන්නා ලදී!")
+            st.success(f"🎉 Found {len(st.session_state.scan_results)} Valid Signals!")
             df_show = pd.DataFrame(st.session_state.scan_results)[['Coin', 'Direction_Label', 'Confidence', 'Pattern']]
             df_show.columns, df_show['Confidence'] = ['Coin / Pair', 'Direction', 'Confidence', 'Pattern'], df_show['Confidence'].apply(lambda x: f"{x:.1f}%" if isinstance(x, float) else x)
             st.table(df_show)
@@ -769,11 +769,11 @@ with tab2:
             st.write("---")
             st.write("### ⚙️ Scanner Actions")
             options = [f"{s['Coin']} - {s['Direction_Label']} ({s['Confidence']:.1f}%)" for s in st.session_state.scan_results]
-            select_all = st.checkbox("සියල්ල තෝරන්න (Select All)")
-            selected_opts = st.multiselect("Signals තෝරන්න:", options, default=options if select_all else None)
+            select_all = st.checkbox("Select All")
+            selected_opts = st.multiselect("Select Signals:", options, default=options if select_all else None)
             
             if st.button("💾 Save Selected to My History", use_container_width=True):
-                if not selected_opts: st.warning("⚠️ කරුණාකර Save කිරීමට සිග්නල් තෝරන්න.")
+                if not selected_opts: st.warning("⚠️ Please select signals to save.")
                 else:
                     for opt in selected_opts:
                         idx = options.index(opt)
@@ -785,11 +785,11 @@ with tab2:
                         except: chart_b64 = ""
                         data_to_save = {"Date": date_str, "Ticker": sel_s['Ticker'], "Coin": sel_s['Coin'].split()[0], "Category": sel_s['Category'], "Strategy": sel_s['Strategy_Mode'], "Direction": sel_s['Direction'], "Entry": sel_s['Entry'], "TP1": sel_s['TP1'], "TP2": sel_s['TP2'], "TP3": sel_s['TP3'], "SL": sel_s['SL'], "Status": "⏳ Pending Entry", "created_by": user_info['email'], "TF": sel_s['TF'], "Pattern": sel_s['Pattern'], "chart_base64": chart_b64}
                         save_to_supabase(data_to_save)
-                    st.success("✅ තෝරාගත් Signals සාර්ථකව ප්‍රස්ථාර සමග ඔබගේ History එකට සේව් වුණා!")
+                    st.success("✅ Selected Signals and charts saved successfully to your History!")
 
             if user_info['role'] in ["Owner", "Admin"]:
                 if st.button("🚀 Broadcast Selected to Telegram", type="primary", use_container_width=True):
-                    if not selected_opts: st.warning("⚠️ කරුණාකර යැවීමට සිග්නල් තෝරන්න.")
+                    if not selected_opts: st.warning("⚠️ Please select signals to broadcast.")
                     else:
                         for opt in selected_opts:
                             idx = options.index(opt)
@@ -798,7 +798,7 @@ with tab2:
                             dir_text_full = "🟢 BUY / LONG 📈 ⬆️" if sel_s['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                             cat_tag = "Crypto 🪙" if "Crypto" in sel_s['Category'] else "Forex 💱" if "Forex" in sel_s['Category'] else "Commodities ✨"
                             telegram_text = f"🚨 *PRO AI TRADING SIGNAL* 🚨\n\n🏦 *Market:* {cat_tag}\n⚙️ *Strategy Mode:* {sel_s['Strategy_Mode']}\n🪙 *Coin/Pair:* {sel_s['Coin']}\n⏱ *Timeframe:* {sel_s['TF']}\n🔥 *Direction:* {dir_text_full}\n🧩 *Detected Pattern:* {sel_s['Pattern']}\n\n🔵 *Entry Price:* `${sel_s['Entry']:.{dp}f}`\n🎯 *TP 1:* `${sel_s['TP1']:.{dp}f}`\n🎯 *TP 2:* `${sel_s['TP2']:.{dp}f}`\n🎯 *TP 3:* `${sel_s['TP3']:.{dp}f}`\n🛑 *Stop Loss (SL):* `${sel_s['SL']:.{dp}f}`\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                            with st.spinner(f"⏳ {sel_s['Coin']} යවමින් පවතී..."):
+                            with st.spinner(f"⏳ Processing {sel_s['Coin']}..."):
                                 try:
                                     chart_image_bytes = generate_candlestick_image_bytes(sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], sel_s['Entry'], sel_s['TP1'], sel_s['TP2'], sel_s['TP3'], sel_s['SL'], sel_s['TF'], sel_s['Pattern'])
                                     success = send_telegram_photo_bytes(telegram_text, chart_image_bytes)
@@ -809,10 +809,10 @@ with tab2:
                                 date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                                 data_to_save = {"Date": date_str, "Ticker": sel_s['Ticker'], "Coin": sel_s['Coin'].split()[0], "Category": cat_tag, "Strategy": sel_s['Strategy_Mode'], "Direction": sel_s['Direction'], "Entry": sel_s['Entry'], "TP1": sel_s['TP1'], "TP2": sel_s['TP2'], "TP3": sel_s['TP3'], "SL": sel_s['SL'], "Status": "⏳ Pending Entry", "created_by": user_info['email'], "TF": sel_s['TF'], "Pattern": sel_s['Pattern'], "chart_base64": chart_b64}
                                 save_to_supabase(data_to_save)
-                                st.success(f"✅ {sel_s['Coin']} සාර්ථකව Telegram යැව්වා!")
-                            else: st.error(f"❌ {sel_s['Coin']} යැවීම අසාර්ථකයි.")
-        elif st.session_state.get('last_scan_empty', False): st.warning(f"⚠️ ස්කෑන් කිරීම අවසන්! නමුත් මේ මොහොතේ {st.session_state.scan_tf} Timeframe එක සඳහා තෝරාගත් ප්‍රවර්ගයේ කිසිදු Coin එකක පැහැදිලි (Valid) Signal එකක් නොමැත. කරුණාකර වෙනත් Timeframe එකක් තෝරා නැවත උත්සාහ කරන්න.")
-        else: st.info("අලුත් Signals සෙවීමට 'Start Scan' බොත්තම ඔබන්න.")
+                                st.success(f"✅ {sel_s['Coin']} broadcasted successfully to Telegram!")
+                            else: st.error(f"❌ Failed to broadcast {sel_s['Coin']}.")
+        elif st.session_state.get('last_scan_empty', False): st.warning(f"⚠️ Scan Complete! However, no highly confident signals were found for the selected timeframe and category. Please try a different Timeframe.")
+        else: st.info("Press 'Start Scan' to search for new Signals.")
 
 # --- Tab 3 & 4: Data Processing ---
 display_df = pd.DataFrame()
@@ -825,7 +825,7 @@ if not history_df.empty:
 
 if not history_df.empty:
     updated, live_prices_dict = False, {}
-    with st.spinner('සජීවීව මාකට් එක පරීක්ෂා කරමින් පවතී... 🔍'):
+    with st.spinner('Checking live market prices... 🔍'):
         for index, row in history_df.iterrows():
             status_val = str(row['Status'])
             if "Cancelled" in status_val: live_prices_dict[index] = np.nan; continue
@@ -883,9 +883,9 @@ if not history_df.empty:
     if 'id' in display_df.columns: display_df.drop(columns=['id'], inplace=True)
 
 with tab3:
-    st.subheader("📂 ගත්තු Signals වල History එක සහ Live Price")
-    st.write("මාකට් එකේ සජීවී මිල මෙහි යාවත්කාලීන වේ. TP 1, 2, හෝ 3 Hit වූ විට Status එක Auto වෙනස් වෙනවා!")
-    auto_refresh = st.checkbox("🔄 Auto Refresh (සෑම තත්පර 15කට වරක් යාවත්කාලීන වීමට මෙහි ටික් එකක් දාන්න)")
+    st.subheader("📂 Signal History & Live Tracking")
+    st.write("Live market prices are updated here. Status automatically updates when TP 1, 2, or 3 are hit!")
+    auto_refresh = st.checkbox("🔄 Auto Refresh (Check to refresh every 15 seconds)")
 
     if not display_df.empty:
         html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}} .corrupt-row td {color: #ff4b4b;}</style>"
@@ -901,24 +901,24 @@ with tab3:
         chart_df = history_df[history_df.get('chart_base64', pd.Series(dtype=object)).notna() & (history_df.get('chart_base64', '') != "")]
         if not chart_df.empty:
             st.write("---")
-            st.subheader("🖼️ Saved Charts (ප්‍රස්ථාර බලන්න)")
+            st.subheader("🖼️ Saved Charts")
             c_options = [f"{row['Date']} | {row['Coin']} | {row['Direction']}" for _, row in chart_df.iterrows()]
-            selected_c = st.selectbox("ප්‍රස්ථාරය බැලීමට Signal එක තෝරන්න:", c_options)
+            selected_c = st.selectbox("Select a Signal to view its chart:", c_options)
             if selected_c:
                 sel_row_c = chart_df.iloc[c_options.index(selected_c)]
                 try:
                     img_bytes = base64.b64decode(sel_row_c['chart_base64'])
                     st.image(img_bytes, caption=f"Saved Setup for {sel_row_c['Coin']} - {sel_row_c['Direction']} ({sel_row_c['Date']})", use_container_width=True)
-                except: st.error("ප්‍රස්ථාරය පෙන්වීමේ දෝෂයක්.")
+                except: st.error("Error loading chart.")
 
         if user_info['role'] in ["Admin", "Owner", "Moderator"]:
             st.write("---")
-            st.subheader("📢 Result එක Telegram යවන්න")
+            st.subheader("📢 Broadcast Results & Updates to Telegram")
             completed_signals = history_df[history_df['Status'].str.contains("Pending|HIT|Active|Missed|Invalid", na=False, case=False)]
             
             if not completed_signals.empty:
                 options = [f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" for index, row in completed_signals.iterrows()]
-                selected_sig = st.selectbox("Update කරන්න අවශ්‍ය Signal එක තෝරන්න:", options)
+                selected_sig = st.selectbox("Select a Signal to Broadcast Update:", options)
                 if selected_sig:
                     selected_idx = options.index(selected_sig)
                     sel_row = completed_signals.iloc[selected_idx]
@@ -926,7 +926,7 @@ with tab3:
                     cat_val, strat_val = sel_row.get('Category', 'Crypto 🪙'), sel_row.get('Strategy', 'N/A')
                     
                     st.markdown(f"**Selected:** {sel_row['Coin']} ({sel_row['Direction']})")
-                    if st.button("🚀 Initial Signal එක Telegram යවන්න (ප්‍රස්ථාරය සමග)", type="primary"):
+                    if st.button("🚀 Broadcast Initial Signal to Telegram (With Chart)", type="primary"):
                         tf_val, pattern_val = sel_row.get('TF', 'N/A'), sel_row.get('Pattern', 'N/A')
                         dp_val = 8 if float(str(sel_row['Entry']).replace('$', '').replace(',', '')) < 0.01 else 4
                         entry_v, tp1_v, tp2_v, tp3_v, sl_v = [float(str(sel_row[k]).replace('$', '').replace(',', '')) for k in ['Entry', 'TP1', 'TP2', 'TP3', 'SL']]
@@ -937,8 +937,8 @@ with tab3:
                             try: success = send_telegram_photo_bytes(telegram_text, base64.b64decode(sel_row['chart_base64']))
                             except: pass
                         if not success: success = send_telegram_message(telegram_text)
-                        if success: st.success("✅ Initial Signal එක සාර්ථකව Telegram යැව්වා!")
-                        else: st.error("❌ යැවීම අසාර්ථකයි.")
+                        if success: st.success("✅ Initial Signal broadcasted successfully!")
+                        else: st.error("❌ Failed to broadcast.")
                     
                     st.write("---")
                     
@@ -947,30 +947,30 @@ with tab3:
                         dp_val = 8 if entry_val < 0.01 else 4
                         col_pend1, col_pend2 = st.columns(2)
                         with col_pend1:
-                            if st.button("⏳ Pending Alert මැසේජ් එක යවන්න"):
+                            if st.button("⏳ Send Pending Alert Message"):
                                 msg = f"⏳ *TRADE SETUP READY (PENDING)* ⏳\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Point:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry Point එකට එනකන් අපි බලාගෙන ඉන්නවා. Limit Order එක දාලා තියාගන්න! 🚀\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                                if send_telegram_message(msg): st.success("⏳ Pending Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                                if send_telegram_message(msg): st.success("✅ Pending Alert sent successfully!")
                         with col_pend2:
-                            if st.button("🚫 Signal එක Cancel කරන්න"):
+                            if st.button("🚫 Cancel Signal / Send Invalid Alert"):
                                 msg = f"🚫 *SIGNAL CANCELLED* 🚫\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමේ Setup එක දැන් අවලංගු (Invalid) නිසා අපි මේ සිග්නල් එක Cancel කරනවා. ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                                if send_telegram_message(msg): update_supabase_status(sel_row['Date'], sel_row['Coin'], "🚫 Cancelled"); st.success("🚫 Cancel මැසේජ් එක යැව්වා! Database අප්ඩේට් විය."); time.sleep(1); st.rerun()
+                                if send_telegram_message(msg): update_supabase_status(sel_row['Date'], sel_row['Coin'], "🚫 Cancelled"); st.success("✅ Cancel message sent and Database updated!"); time.sleep(1); st.rerun()
 
                     elif "Missed (Hit TP)" in sel_row['Status']:
-                        if st.button("⚠️ Missed Setup මැසේජ් එක යවන්න"):
+                        if st.button("⚠️ Send Missed Setup Message"):
                             msg = f"⚠️ *MISSED TRADE (HIT TP)* ⚠️\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nඅපේ Analysis එක 100% ක් නිවැරදියි! නමුත් මාකට් එක අපේ Entry එකට එන්නේ නැතුව කෙලින්ම Target (TP) එකට ගියා. Setup එක සම්පූර්ණයි, ඒ නිසා Limit Order එක අයින් කරගන්න. 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                            if send_telegram_message(msg): update_supabase_status(sel_row['Date'], sel_row['Coin'], "🚫 Cancelled"); st.success("⚠️ Missed Setup මැසේජ් එක සාර්ථකව යැව්වා!"); time.sleep(1); st.rerun()
+                            if send_telegram_message(msg): update_supabase_status(sel_row['Date'], sel_row['Coin'], "🚫 Cancelled"); st.success("✅ Missed Setup message sent successfully!"); time.sleep(1); st.rerun()
 
                     elif "Invalid (Hit SL)" in sel_row['Status']:
-                        if st.button("🚫 Invalid Setup මැසේජ් එක යවන්න"):
+                        if st.button("🚫 Send Invalid Setup Message"):
                             msg = f"🚫 *SETUP INVALID (HIT SL)* 🚫\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක අපේ Entry Point එකට කලින්ම Stop Loss (SL) මට්ටම කඩාගෙන ගියා. Market Structure එක වෙනස් වුණු නිසා මේ Setup එක දැන් අවලංගුයි. ❌\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                            if send_telegram_message(msg): update_supabase_status(sel_row['Date'], sel_row['Coin'], "🚫 Cancelled"); st.success("🚫 Setup Invalid මැසේජ් එක සාර්ථකව යැව්වා!"); time.sleep(1); st.rerun()
+                            if send_telegram_message(msg): update_supabase_status(sel_row['Date'], sel_row['Coin'], "🚫 Cancelled"); st.success("✅ Invalid Setup message sent successfully!"); time.sleep(1); st.rerun()
                                 
                     elif "Active" in sel_row['Status']:
                         entry_val = float(str(sel_row['Entry']).replace('$', '').replace(',', ''))
                         dp_val = 8 if entry_val < 0.01 else 4
-                        if st.button("🟢 Active Alert මැසේජ් එක යවන්න"):
+                        if st.button("🟢 Send Active Alert Message"):
                             msg = f"🟢 *TRADE IS NOW ACTIVE!* 🚀\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n🔵 *Entry Triggered:* `${entry_val:.{dp_val}f}`\n\nමාකට් එක අපේ Entry ලෙවල් එකට ආවා! අපේ ට්‍රේඩ් එක දැන් පටන් ගත්තා (Running). Let's go! 🔥\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                            if send_telegram_message(msg): st.success("🟢 Active Alert මැසේජ් එක සාර්ථකව යැව්වා!")
+                            if send_telegram_message(msg): st.success("✅ Active Alert sent successfully!")
                     
                     elif "TP" in sel_row['Status']:
                         hit_level = sel_row['Status'].split()[1]
@@ -981,42 +981,42 @@ with tab3:
                         elif hit_level == "TP3": tp_msg_part = f"🥇 🎯 *TP1 Reached:* `${tp1_v:.{dp_1}f}` ✅\n🥈 🎯 *TP2 Reached:* `${tp2_v:.{dp_2}f}` ✅\n🥉 🎯 *TP3 Reached:* `${tp3_v:.{dp_3}f}` ✅\n\nALL 🎯TARGET 💯% COMPLETE 🏆️🎖️🎉️"
                         else: tp_msg_part = f"🎯 *Target Reached*"
 
-                        if st.button(f"✅ {hit_level} Profit මැසේජ් එක යවන්න"):
+                        if st.button(f"✅ Send {hit_level} Profit Message"):
                             msg = f"✅ *PROFIT TARGET HIT!* 🎉\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\n{tp_msg_part}\n\n🤑 _💯PRO💥VIP⚡SIGNALS🛜 100% සාර්ථකයි!_"
-                            if send_telegram_message(msg): st.success(f"✅ {hit_level} Profit මැසේජ් එක යැව්වා!")
+                            if send_telegram_message(msg): st.success(f"✅ {hit_level} Profit message sent!")
                     
                     elif "SL" in sel_row['Status']:
-                        if st.button("🛑 Loss මැසේජ් එක යවන්න"):
+                        if st.button("🛑 Send Stop Loss Message"):
                             msg = f"🛑 *STOP LOSS HIT* 📉\n\n🏦 *Market:* {cat_val}\n⚙️ *Strategy Mode:* {strat_val}\n🪙 *Coin/Pair:* {sel_row['Coin']}\n🔥 *Direction:* {dir_text_with_icons}\n\nමාකට් එක වෙනස් වුණා. Risk Management අනුගමනය කරන්න. ඊළඟ Trade එකෙන් අපි අල්ලමු! 💪\n\n💎 _Exclusive Signal by_ 💯PRO💥VIP⚡SIGNALS🛜"
-                            if send_telegram_message(msg): st.success("🛑 Stop Loss මැසේජ් එක යැව්වා!")
-            else: st.info("තවම Active, Pending, TP, SL හෝ Invalid වුණු සිග්නල් නැත.")
+                            if send_telegram_message(msg): st.success("🛑 Stop Loss message sent!")
+            else: st.info("No Active, Pending, TP, SL, or Invalid signals available to update.")
 
         st.write("---")
-        st.subheader("🗑️ History කළමනාකරණය (Database එකෙන් මැකීම)")
+        st.subheader("🗑️ Manage History (Delete from Database)")
         all_delete_options = [f"{row['Date']} | {row['Coin']} | {row['Direction']} ({row['Status']})" for index, row in history_df.iterrows()]
-        selected_to_delete = st.multiselect("මකා දැමීමට අවශ්‍ය සිග්නල් තෝරන්න:", all_delete_options)
+        selected_to_delete = st.multiselect("Select signals to delete:", all_delete_options)
         
         col_del1, col_del2 = st.columns(2)
         with col_del1:
-            if st.button("🗑️ තෝරාගත් ඒවා පමණක් මකන්න"):
+            if st.button("🗑️ Delete Selected Only"):
                 if selected_to_delete:
                     for item in selected_to_delete:
                         date_str_del, coin_str_del = item.split(" | ")[0], item.split(" | ")[1]
                         delete_from_supabase(date_str_del, coin_str_del, user_info['email'], user_info['role'])
-                    st.success("✅ තෝරාගත් සිග්නල් Database එකෙන් මකා දැමුවා!"); time.sleep(1); st.rerun()
-                else: st.warning("⚠️ මකා දැමීමට කිසිවක් තෝරා නැත.")
+                    st.success("✅ Selected signals deleted from Database!"); time.sleep(1); st.rerun()
+                else: st.warning("⚠️ No signals selected for deletion.")
                     
         with col_del2:
-            if st.button("🚨 මගේ History ඔක්කොම මකන්න (Clear All)"):
+            if st.button("🚨 Clear All My History"):
                 clear_all_supabase(user_info['email'], user_info['role'])
-                st.success("✅ Database History එක මකා දැමුවා!"); time.sleep(1); st.rerun()
+                st.success("✅ Database History cleared successfully!"); time.sleep(1); st.rerun()
             
         if auto_refresh: time.sleep(15); st.rerun()
-    else: st.info("දැනට Database එකේ කිසිම Signal එකක් Save වෙලා නෑ.")
+    else: st.info("No signals saved in the Database yet.")
 
 with tab4:
     st.subheader("💼 VIP Auto Demo Trading Account (Simulated)")
-    st.write("ඔබ ලබාගන්නා සියලුම AI Signals ස්වයංක්‍රීයව මෙම $10,000 ක අතත්‍ය ගිණුමේ Trade වේ.")
+    st.write("All AI Signals you save are automatically traded on this simulated $10,000 virtual portfolio.")
 
     if not display_df.empty:
         INITIAL_BALANCE, RISK_AMOUNT = 10000.0, 100.0 
@@ -1044,16 +1044,16 @@ with tab4:
             except Exception: continue
 
         current_balance, equity = INITIAL_BALANCE + realized_pnl, (INITIAL_BALANCE + realized_pnl) + floating_pnl
-        st.write("### 🏦 ගිණුමේ සාරාංශය (Account Summary)")
+        st.write("### 🏦 Account Summary")
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         col_m1.metric("💰 Balance", f"${current_balance:,.2f}"); col_m2.metric("📊 Equity", f"${equity:,.2f}", f"{floating_pnl:,.2f} Floating")
         col_m3.metric("🟢 Active Trades", len(active_trades_list)); col_m4.metric("📁 Closed Trades", len(closed_trades_list))
         
-        st.write("---"); st.write("### 🟢 Active Positions (ක්‍රියාත්මක වන Trades)")
+        st.write("---"); st.write("### 🟢 Active Positions")
         if active_trades_list: st.dataframe(pd.DataFrame(active_trades_list), use_container_width=True)
-        else: st.info("දැනට Active Trades කිසිවක් නොමැත.")
+        else: st.info("No Active Trades at the moment.")
             
-        st.write("---"); st.write("### 📁 Trade History (අවසන් කළ Trades)")
+        st.write("---"); st.write("### 📁 Trade History (Closed Positions)")
         if closed_trades_list: st.dataframe(pd.DataFrame(closed_trades_list), use_container_width=True)
-        else: st.info("තවම Trade කිසිවක් Close වී නොමැත.")
-    else: st.info("ඔබ තවමත් Signals කිසිවක් ලබාගෙන නැත.")
+        else: st.info("No trades have been closed yet.")
+    else: st.info("You haven't generated any signals yet.")
