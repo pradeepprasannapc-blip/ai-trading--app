@@ -17,43 +17,8 @@ from supabase import create_client, Client
 st.set_page_config(page_title="PRO AI Trading Signal App", page_icon="⚡", layout="wide")
 
 # ==========================================
-# 🚀 NEW VIP ADMIN & LOGIN SYSTEM
+# 🚀 DYNAMIC APP SETTINGS & SUPABASE INIT
 # ==========================================
-
-WHATSAPP_NUMBER = "94757970703" 
-
-PRICE_1_MONTH = 2500
-PRICE_2_MONTHS = 5000
-PRICE_3_MONTHS = 6500
-
-DETAILS_IPAY = """
-<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #2962ff; margin-bottom:10px;'>
-    <b style='color:#00ffcc; font-size:16px;'>📲 iPay Payment Details</b><br><br>
-    • <b>App Name:</b> iPay<br>
-    • <b>Mobile Number:</b> 0757970703<br>
-    • <b>Account Name:</b> Pradeep prasanna
-</div>
-"""
-
-DETAILS_FLEX = """
-<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #ff9800; margin-bottom:10px;'>
-    <b style='color:#ffeb3b; font-size:16px;'>📲 Flex Payment Details</b><br><br>
-    • <b>Method:</b> Flex BOC<br>
-    • <b>Account Number:</b> 88314511<br>
-    • <b>Account Name:</b> W.K.P.P.SENAVIRATHNA
-</div>
-"""
-
-DETAILS_CDM_BANK = """
-<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #089981; margin-bottom:10px;'>
-    <b style='color:#0bfd9e; font-size:16px;'>🏦 CDM / Bank Transfer Details</b><br><br>
-    • <b>Bank Name:</b> BOC (ලංකා බැංකුව)<br>
-    • <b>Account Number:</b> 88314511<br>
-    • <b>Account Name:</b> W.K.P.P.SENAVIRATHNA
-</div>
-"""
-
-DETAILS_OTHER = "වෙනත් ක්‍රමයක් නම් කරුණාකර WhatsApp හරහා අපව සම්බන්ධ කරගන්න."
 
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'user_data' not in st.session_state: st.session_state.user_data = None
@@ -66,9 +31,32 @@ except KeyError:
     st.error("⚠️ Supabase Secrets සකසා නැත!")
     st.stop()
 
+# 🟢 FEATURE: Default Settings (Database එකේ නැත්නම් මේවා පාවිච්චි වේ)
+DEFAULT_SETTINGS = {
+    "whatsapp": "94757970703",
+    "price_7d": "1000",
+    "price_1m": "2500",
+    "price_2m": "5000",
+    "price_3m": "6500",
+    "free_trial": "true",
+    "trial_days": "3",
+    "details_ipay": "<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #2962ff; margin-bottom:10px;'><b style='color:#00ffcc; font-size:16px;'>📲 iPay Payment Details</b><br><br>• <b>App Name:</b> iPay<br>• <b>Mobile Number:</b> 0757970703<br>• <b>Account Name:</b> Pradeep prasanna</div>",
+    "details_flex": "<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #ff9800; margin-bottom:10px;'><b style='color:#ffeb3b; font-size:16px;'>📲 Flex Payment Details</b><br><br>• <b>Method:</b> Flex BOC<br>• <b>Account Number:</b> 88314511<br>• <b>Account Name:</b> W.K.P.P.SENAVIRATHNA</div>",
+    "details_bank": "<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #089981; margin-bottom:10px;'><b style='color:#0bfd9e; font-size:16px;'>🏦 CDM / Bank Transfer Details</b><br><br>• <b>Bank Name:</b> BOC (ලංකා බැංකුව)<br>• <b>Account Number:</b> 88314511<br>• <b>Account Name:</b> W.K.P.P.SENAVIRATHNA</div>"
+}
+
+# 🟢 Database එකෙන් Settings ලබා ගැනීම සහ Default ඒවා සමඟ ගැලපීම
+try:
+    db_settings_data = supabase.table("app_settings").select("*").execute().data
+    db_settings = {s['setting_name']: s['setting_value'] for s in db_settings_data}
+except: db_settings = {}
+
+settings = {k: db_settings.get(k, v) for k, v in DEFAULT_SETTINGS.items()}
+
+# --- Functions ---
 def admin_panel():
     st.title("⚙️ Admin / Moderator Dashboard")
-    tab_users, tab_payments, tab_settings = st.tabs(["👥 User Management", "💳 Payment Approvals", "🛠️ Settings"])
+    tab_users, tab_payments, tab_settings = st.tabs(["👥 User Management", "💳 Payment Approvals", "🛠️ Dynamic Settings"])
     current_user_role = st.session_state.user_data['role']
     
     with tab_users:
@@ -112,7 +100,13 @@ def admin_panel():
                     if p.get('receipt_base64'):
                         try: st.image(base64.b64decode(p['receipt_base64']), caption="Payment Receipt", use_container_width=True)
                         except: st.write("⚠️ රිසිට් පින්තූරය පෙන්වීමේ දෝෂයක්.")
-                    days_to_add = 60 if "2 Months" in p['method'] else 90 if "3 Months" in p['method'] else 30
+                    
+                    # 🟢 FEATURE: Auto calculate days based on pkg
+                    days_to_add = 30
+                    if "7 Days" in p['method']: days_to_add = 7
+                    elif "2 Months" in p['method']: days_to_add = 60
+                    elif "3 Months" in p['method']: days_to_add = 90
+                        
                     if st.button(f"✅ Approve & Add {days_to_add} Days", key=f"app_{p['id']}"):
                         user = supabase.table("custom_users").select("sub_end").eq("email", p['email']).execute().data[0]
                         current_end = datetime.fromisoformat(user['sub_end']) if user['sub_end'] else datetime.now()
@@ -123,11 +117,43 @@ def admin_panel():
         else: st.info("අලුත් Payments කිසිවක් නැත.")
         
     with tab_settings:
-        trial_data = supabase.table("app_settings").select("setting_value").eq("setting_name", "free_trial").execute().data
-        is_trial_on = st.toggle("3-Day Free Trial", value=(trial_data[0]['setting_value'] == 'true' if trial_data else True))
-        if st.button("Save Settings"):
-            supabase.table("app_settings").update({"setting_value": 'true' if is_trial_on else 'false'}).eq("setting_name", "free_trial").execute()
-            st.success("✅ Settings යාවත්කාලීන විය!")
+        st.write("### ⚙️ System Configurations (ඇප් එකේ සැකසුම්)")
+        st.info("කෝඩ් එක වෙනස් නොකර, මෙතැනින් ඇප් එකේ Packages, Prices සහ Payment විස්තර වෙනස් කරන්න.")
+        
+        st.write("#### 📞 WhatsApp Number")
+        new_wa = st.text_input("WhatsApp අංකය (උදා: 94757970703)", value=settings['whatsapp'])
+        
+        st.write("---")
+        st.write("#### 🎁 Free Trial Settings (නොමිලේ දෙන දින ගණන)")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1: is_trial_on = st.toggle("Enable Free Trial", value=(settings['free_trial'] == 'true'))
+        with col_t2: trial_d_input = st.number_input("දෙන්න ඕනේ දවස් ගාණ:", min_value=1, value=int(settings['trial_days']))
+            
+        st.write("---")
+        st.write("#### 💰 Package Prices (මිල ගණන්)")
+        col_p0, col_p1, col_p2, col_p3 = st.columns(4)
+        with col_p0: p_7d = st.number_input("7 Days Price", value=int(settings['price_7d']))
+        with col_p1: p_1m = st.number_input("1 Month Price", value=int(settings['price_1m']))
+        with col_p2: p_2m = st.number_input("2 Months Price", value=int(settings['price_2m']))
+        with col_p3: p_3m = st.number_input("3 Months Price", value=int(settings['price_3m']))
+            
+        st.write("---")
+        st.write("#### 💳 Payment Text/Details (බැංකු විස්තර)")
+        det_ipay = st.text_area("iPay Details (HTML අනුමතයි):", value=settings['details_ipay'], height=100)
+        det_flex = st.text_area("Flex Details (HTML අනුමතයි):", value=settings['details_flex'], height=100)
+        det_bank = st.text_area("Bank Details (HTML අනුමතයි):", value=settings['details_bank'], height=100)
+
+        if st.button("💾 Save All Settings", type="primary"):
+            updates = {
+                "whatsapp": new_wa, "free_trial": 'true' if is_trial_on else 'false', "trial_days": str(trial_d_input),
+                "price_7d": str(p_7d), "price_1m": str(p_1m), "price_2m": str(p_2m), "price_3m": str(p_3m),
+                "details_ipay": det_ipay, "details_flex": det_flex, "details_bank": det_bank
+            }
+            with st.spinner("සැකසුම් Save වෙමින් පවතී..."):
+                for k, v in updates.items():
+                    supabase.table("app_settings").delete().eq("setting_name", k).execute()
+                    supabase.table("app_settings").insert({"setting_name": k, "setting_value": v}).execute()
+            st.success("✅ සියලුම සැකසුම් සාර්ථකව යාවත්කාලීන විය!"); time.sleep(1); st.rerun()
 
 def messaging_system():
     st.title("💬 Messages & Support")
@@ -165,9 +191,8 @@ if not st.session_state.logged_in:
             elif "@" not in new_email or "." not in new_email: st.error("⚠️ නිවැරදි Email එකක් දෙන්න.")
             elif supabase.table("custom_users").select("*").eq("email", new_email).execute().data: st.error("⚠️ මේ Email එක දැනටමත් ලියාපදිංචි කර ඇත!")
             else:
-                trial_setting = supabase.table("app_settings").select("setting_value").eq("setting_name", "free_trial").execute()
-                has_trial = trial_setting.data and trial_setting.data[0]['setting_value'] == 'true'
-                sub_end = (datetime.now() + timedelta(days=3)).isoformat() if has_trial else datetime.now().isoformat()
+                has_trial = settings['free_trial'] == 'true'
+                sub_end = (datetime.now() + timedelta(days=int(settings['trial_days']))).isoformat() if has_trial else datetime.now().isoformat()
                 supabase.table("custom_users").insert({"email": new_email, "password": new_password, "phone": new_phone, "play_id": new_play_id, "role": "User", "sub_end": sub_end, "trial_used": has_trial}).execute()
                 st.success("✅ සාර්ථකව Register විය! කරුණාකර Login වෙන්න.")
     st.stop() 
@@ -187,7 +212,7 @@ else: st.sidebar.error("❌ Subscription Expired!")
 menu_options = ["📈 Trading Signals", "💬 Messages"] + (["⚙️ Admin Dashboard"] if user_info['role'] in ["Admin", "Moderator", "Owner"] else [])
 selection = st.sidebar.radio("Navigation", menu_options)
 st.sidebar.markdown("---"); st.sidebar.markdown("💬 **Help & Support**")
-st.sidebar.markdown(f'<a href="https://wa.me/{WHATSAPP_NUMBER}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; font-weight:bold; cursor:pointer;">📞 WhatsApp Admin</button></a>', unsafe_allow_html=True)
+st.sidebar.markdown(f'<a href="https://wa.me/{settings["whatsapp"]}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; width:100%; font-weight:bold; cursor:pointer;">📞 WhatsApp Admin</button></a>', unsafe_allow_html=True)
 st.sidebar.markdown("---")
 if st.sidebar.button("Logout"): st.session_state.logged_in = False; st.rerun()
 
@@ -205,12 +230,22 @@ elif selection == "💬 Messages": messaging_system(); st.stop()
 elif selection == "📈 Trading Signals" and not is_active and user_info['role'] not in ["Admin", "Owner"]:
     st.warning("⚠️ ඔබගේ Subscription කාලය හෝ Free Trial එක අවසන් වී ඇත.")
     st.subheader("💳 App එක Activate කරගන්න")
-    selected_pkg = st.radio("ඔබට අවශ්‍ය පැකේජය තෝරන්න:", [f"1 Month (30 Days) - Rs. {PRICE_1_MONTH}", f"2 Months (60 Days) - Rs. {PRICE_2_MONTHS}", f"3 Months (90 Days) - Rs. {PRICE_3_MONTHS} (🎁 Save Rs. {(PRICE_1_MONTH * 3) - PRICE_3_MONTHS}!)"])
+    
+    # 🟢 FEATURE: Dynamic Pricing Array
+    pkg_options = [
+        f"7 Days (1 Week) - Rs. {settings['price_7d']}",
+        f"1 Month (30 Days) - Rs. {settings['price_1m']}", 
+        f"2 Months (60 Days) - Rs. {settings['price_2m']}", 
+        f"3 Months (90 Days) - Rs. {settings['price_3m']}"
+    ]
+    selected_pkg = st.radio("ඔබට අවශ්‍ය පැකේජය තෝරන්න:", pkg_options)
+    
     st.write("---")
     pay_method = st.selectbox("මුදල් ගෙවන ක්‍රමය තෝරන්න:", ["iPay", "Flex", "Bank Transfer", "CDM", "Other"])
-    st.markdown(DETAILS_IPAY if pay_method == "iPay" else DETAILS_FLEX if pay_method == "Flex" else DETAILS_CDM_BANK if pay_method in ["Bank Transfer", "CDM"] else DETAILS_OTHER, unsafe_allow_html=True)
+    st.markdown(settings['details_ipay'] if pay_method == "iPay" else settings['details_flex'] if pay_method == "Flex" else settings['details_bank'] if pay_method in ["Bank Transfer", "CDM"] else "වෙනත් ක්‍රමයක් නම් WhatsApp හරහා කතා කරන්න.", unsafe_allow_html=True)
     st.write("---")
     pay_ref, receipt_file = st.text_input("Reference Number / Receipt ID / Notes:"), st.file_uploader("රිසිට් එකේ ෆොටෝ එකක් දාන්න (අනිවාර්යයි)", type=["png", "jpg", "jpeg"])
+    
     if st.button("Submit Payment for Approval"):
         if not pay_ref and receipt_file is None: st.error("⚠️ කරුණාකර Reference Number එක හෝ රිසිට් එකේ ෆොටෝ එකක් අනිවාර්යයෙන් ඇතුළත් කරන්න.")
         else:
@@ -236,7 +271,7 @@ except KeyError: st.error("⚠️ රහස්‍ය දත්ත (Secrets) ස�
 def save_to_supabase(data):
     if not supabase: return False
     try: supabase.table("signal_history").insert(data).execute(); return True
-    except: return False
+    except Exception as e: st.error(f"⚠️ Database Error: {e}"); return False
 
 def get_from_supabase():
     if not supabase: return pd.DataFrame()
@@ -292,7 +327,6 @@ def detect_candlestick_pattern(df):
         last, prev = df.iloc[-1], df.iloc[-2]
         last_body, last_is_green, prev_is_green = abs(last['Close'] - last['Open']), last['Close'] > last['Open'], prev['Close'] > prev['Open']
         last_upper_wick, last_lower_wick = last['High'] - max(last['Open'], last['Close']), min(last['Open'], last['Close']) - last['Low']
-        
         if not prev_is_green and last_is_green and (last['Close'] > prev['Open']) and (last['Open'] < prev['Close']): return "Bullish Engulfing 📈"
         if prev_is_green and not last_is_green and (last['Close'] < prev['Open']) and (last['Open'] > prev['Close']): return "Bearish Engulfing 📉"
         if last_lower_wick > (2 * last_body) and last_upper_wick < (0.2 * last_body): return "Hammer (Bullish) 🔨"
@@ -564,7 +598,6 @@ with tab1:
                     st.write("### ⚙️ Signal Actions")
                     
                     if st.button("💾 Save Signal to My History", use_container_width=True):
-                        # 🟢 FEATURE: Save chart_base64
                         chart_b64 = base64.b64encode(chart_image_bytes).decode("utf-8") if image_generated_successfully else ""
                         date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
                         data_to_save = {"Date": date_str, "Ticker": ticker, "Coin": selected_display_name.split()[0], "Category": category, "Strategy": strategy_mode, "Direction": direction_text, "Entry": entry_price, "TP1": tp1_price, "TP2": tp2_price, "TP3": tp3_price, "SL": sl_price, "Status": "⏳ Pending Entry", "created_by": user_info['email'], "TF": tf_display, "Pattern": detected_pattern, "chart_base64": chart_b64}
@@ -749,13 +782,10 @@ with tab2:
                         idx = options.index(opt)
                         sel_s = st.session_state.scan_results[idx]
                         date_str = pd.Timestamp.utcnow().tz_convert('Asia/Colombo').strftime('%Y-%m-%d %H:%M')
-                        
-                        # 🟢 FEATURE: Generate and save chart base64 for scanner signals
                         try:
                             chart_image_bytes = generate_candlestick_image_bytes(sel_s['Chart_DF'], sel_s['Clean_Symbol'], sel_s['Direction'], sel_s['Entry'], sel_s['TP1'], sel_s['TP2'], sel_s['TP3'], sel_s['SL'], sel_s['TF'], sel_s['Pattern'])
                             chart_b64 = base64.b64encode(chart_image_bytes).decode('utf-8')
                         except: chart_b64 = ""
-                        
                         data_to_save = {"Date": date_str, "Ticker": sel_s['Ticker'], "Coin": sel_s['Coin'].split()[0], "Category": sel_s['Category'], "Strategy": sel_s['Strategy_Mode'], "Direction": sel_s['Direction'], "Entry": sel_s['Entry'], "TP1": sel_s['TP1'], "TP2": sel_s['TP2'], "TP3": sel_s['TP3'], "SL": sel_s['SL'], "Status": "⏳ Pending Entry", "created_by": user_info['email'], "TF": sel_s['TF'], "Pattern": sel_s['Pattern'], "chart_base64": chart_b64}
                         save_to_supabase(data_to_save)
                     st.success("✅ තෝරාගත් Signals සාර්ථකව ප්‍රස්ථාර සමග ඔබගේ History එකට සේව් වුණා!")
@@ -871,7 +901,6 @@ with tab3:
         html_table += "</table></div>"
         st.markdown(html_table, unsafe_allow_html=True)
         
-        # 🟢 FEATURE: View Saved Charts 
         chart_df = history_df[history_df.get('chart_base64', pd.Series(dtype=object)).notna() & (history_df.get('chart_base64', '') != "")]
         if not chart_df.empty:
             st.write("---")
@@ -899,7 +928,6 @@ with tab3:
                     dir_text_with_icons = "🟢 BUY / LONG 📈 ⬆️" if sel_row['Direction'] == 'BUY' else "🔴 SELL / SHORT 📉 ⬇️"
                     cat_val, strat_val = sel_row.get('Category', 'Crypto 🪙'), sel_row.get('Strategy', 'N/A')
                     
-                    # 🟢 FEATURE: Send Initial Signal to Telegram Later
                     st.markdown(f"**Selected:** {sel_row['Coin']} ({sel_row['Direction']})")
                     if st.button("🚀 Initial Signal එක Telegram යවන්න (ප්‍රස්ථාරය සමග)", type="primary"):
                         tf_val, pattern_val = sel_row.get('TF', 'N/A'), sel_row.get('Pattern', 'N/A')
