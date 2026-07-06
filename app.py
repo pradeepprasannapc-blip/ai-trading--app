@@ -87,7 +87,7 @@ def admin_panel():
                 if user_roles.get(selected_user) == "Owner": st.error(T("⚠️ Owner cannot be deleted!", "⚠️ Owner ව මකා දැමිය නොහැක!"))
                 else: supabase.table("custom_users").delete().eq("email", selected_user).execute(); st.warning(T("🚫 User deleted!", "🚫 User ව ඉවත් කළා!"))
 
-        st.write("---"); st.write(T("Complete List of Users:", "දැනට ඉන්න Users ලගේ සම්පූර්ණ ලැයිස්තුව:"))
+        st.write("---"); st.write(T("Complete List of Users (Passwords Included):", "දැනට ඉන්න Users ලගේ සම්පූර්ණ ලැයිස්තුව (Passwords ඇතුළුව):"))
         st.dataframe(pd.DataFrame(users)[['email', 'password', 'role', 'phone', 'sub_end']], use_container_width=True)
 
     with tab_payments:
@@ -146,14 +146,16 @@ if not st.session_state.logged_in:
 
     st.title("🔐 VIP Signal App - " + T("Login", "ඇතුල්වන්න"))
     tab_login, tab_reg = st.tabs([T("Login", "ඇතුල්වන්න"), T("Register", "ලියාපදිංචි වන්න")])
+    
     with tab_login:
-        email, password = st.text_input("Email:"), st.text_input("Password:", type="password")
+        email, password = st.text_input("Email:", key="login_email"), st.text_input("Password:", type="password", key="login_pass")
         if st.button(T("Login", "ඇතුල්වන්න")):
             res = supabase.table("custom_users").select("*").eq("email", email).eq("password", password).execute()
             if res.data: st.session_state.logged_in, st.session_state.user_data = True, res.data[0]; st.rerun()
             else: st.error(T("❌ Invalid Email or Password!", "❌ Email හෝ Password වැරදියි!"))
+            
     with tab_reg:
-        new_email, new_phone, new_play_id, new_password = st.text_input(T("Email (Required):", "Email (අනිවාර්යයි):")), st.text_input(T("Phone:", "දුරකථන අංකය:")), st.text_input("Play ID:"), st.text_input(T("Password:", "Password:"), type="password")
+        new_email, new_phone, new_play_id, new_password = st.text_input(T("Email (Required):", "Email (අනිවාර්යයි):"), key="reg_email"), st.text_input(T("Phone:", "දුරකථන අංකය:"), key="reg_phone"), st.text_input("Play ID:", key="reg_playid"), st.text_input(T("Password:", "Password:"), type="password", key="reg_pass")
         if st.button(T("Register & Get Access", "ලියාපදිංචි වී ඇතුල්වන්න")):
             if not all([new_email, new_phone, new_play_id, new_password]): st.error(T("⚠️ Fill all fields!", "⚠️ සියලු විස්තර දෙන්න!"))
             elif "@" not in new_email or "." not in new_email: st.error(T("⚠️ Valid email required.", "⚠️ නිවැරදි Email එකක් දෙන්න."))
@@ -199,8 +201,8 @@ try:
             st.markdown(f"""<div style="background-color:#089981; padding:15px; border-radius:10px; text-align:center; margin-bottom:20px; animation: blinker 1.5s linear infinite; border: 2px solid #0bfd9e;"><b style="color:white; font-size:16px;">🏆 PRO TRADER: {latest_hit.get('created_by', 'Admin').split('@')[0]} | {latest_hit['Coin']} Signal Successfully Achieved {latest_hit['Status'].replace('✅', '')}! 🔥 🎉</b></div><style>@keyframes blinker {{ 50% {{ opacity: 0.6; }} }}</style>""", unsafe_allow_html=True)
 except: pass
 
-if selection in ["⚙️ Admin Dashboard"]: admin_panel(); st.stop() 
-elif selection in ["💬 Messages"]: 
+if selection in ["⚙️ Admin Dashboard", "⚙️ Admin Dashboard"]: admin_panel(); st.stop() 
+elif selection in ["💬 Messages", "💬 Messages"]: 
     st.title("💬 Messages & Support")
     user_email, role = st.session_state.user_data['email'], st.session_state.user_data['role']
     if role in ["Admin", "Moderator", "Owner"]:
@@ -217,7 +219,7 @@ elif selection in ["💬 Messages"]:
         if st.button(T("Send", "යවන්න")): supabase.table("in_app_messages").insert({"sender": user_email, "receiver": "Admin", "message": support_msg}).execute(); st.success("✅ Sent!")
     st.stop()
 
-elif selection in ["📈 Trading Signals"] and not is_active and user_info['role'] not in ["Admin", "Owner"]:
+elif selection in ["📈 Trading Signals", "📈 Trading Signals"] and not is_active and user_info['role'] not in ["Admin", "Owner"]:
     st.warning(T("⚠️ Your Subscription or Free Trial has expired.", "⚠️ ඔබගේ Subscription හෝ Trial කාලය අවසන් වී ඇත."))
     st.subheader(T("💳 Activate Your Account", "💳 App එක Activate කරගන්න"))
     pkg_options = [f"7 Days (1 Week) - Rs. {settings['price_7d']}", f"1 Month (30 Days) - Rs. {settings['price_1m']}", f"2 Months (60 Days) - Rs. {settings['price_2m']}", f"3 Months (90 Days) - Rs. {settings['price_3m']}"]
@@ -426,7 +428,7 @@ with tab1:
     category = st.radio(T("Select Category:", "ප්‍රවර්ගය තෝරන්න:"), [T("🔥 Popular Crypto", "🔥 ජනප්‍රිය ක්‍රිප්ටෝ (Crypto)"), T("💱 Forex", "💱 ෆොරෙක්ස් (Forex)"), T("✨ Metals & Commodities", "✨ ලෝහ සහ තෙල් (Metals & Oil)"), T("✏️ Custom Asset", "✏️ වෙනත් (Custom)")], horizontal=True)
     strategy_mode = st.radio(T("Trading Strategy Mode:", "Trading Strategy Mode:"), [T("🔥 Aggressive Mode (More Signals)", "🔥 Aggressive Mode (More Signals)"), T("🛡️ Safe Mode (Strict)", "🛡️ Safe Mode (Strict)")], horizontal=True)
 
-    if "Crypto" in category:
+    if "Crypto" in category or "ක්‍රිප්ටෝ" in category:
         selected_display_name = st.selectbox(T("Select Asset:", "Coins තෝරන්න:"), list(market_options.keys()))
         ticker, full_tv_ticker = market_options[selected_display_name], f"BINANCE:{market_options[selected_display_name].replace('-USD', 'USDT')}"
     elif "Forex" in category:
