@@ -31,7 +31,7 @@ except KeyError:
     st.error("⚠️ Supabase Secrets සකසා නැත!")
     st.stop()
 
-# 🟢 FEATURE: Default Settings (Database එකේ නැත්නම් මේවා පාවිච්චි වේ)
+# Default Settings (Database එකේ නැත්නම් මේවා පාවිච්චි වේ)
 DEFAULT_SETTINGS = {
     "whatsapp": "94757970703",
     "price_7d": "1000",
@@ -45,7 +45,6 @@ DEFAULT_SETTINGS = {
     "details_bank": "<div style='background-color:#1e293b; padding:15px; border-radius:8px; border-left:5px solid #089981; margin-bottom:10px;'><b style='color:#0bfd9e; font-size:16px;'>🏦 CDM / Bank Transfer Details</b><br><br>• <b>Bank Name:</b> BOC (ලංකා බැංකුව)<br>• <b>Account Number:</b> 88314511<br>• <b>Account Name:</b> W.K.P.P.SENAVIRATHNA</div>"
 }
 
-# 🟢 Database එකෙන් Settings ලබා ගැනීම සහ Default ඒවා සමඟ ගැලපීම
 try:
     db_settings_data = supabase.table("app_settings").select("*").execute().data
     db_settings = {s['setting_name']: s['setting_value'] for s in db_settings_data}
@@ -101,7 +100,6 @@ def admin_panel():
                         try: st.image(base64.b64decode(p['receipt_base64']), caption="Payment Receipt", use_container_width=True)
                         except: st.write("⚠️ රිසිට් පින්තූරය පෙන්වීමේ දෝෂයක්.")
                     
-                    # 🟢 FEATURE: Auto calculate days based on pkg
                     days_to_add = 30
                     if "7 Days" in p['method']: days_to_add = 7
                     elif "2 Months" in p['method']: days_to_add = 60
@@ -231,7 +229,6 @@ elif selection == "📈 Trading Signals" and not is_active and user_info['role']
     st.warning("⚠️ ඔබගේ Subscription කාලය හෝ Free Trial එක අවසන් වී ඇත.")
     st.subheader("💳 App එක Activate කරගන්න")
     
-    # 🟢 FEATURE: Dynamic Pricing Array
     pkg_options = [
         f"7 Days (1 Week) - Rs. {settings['price_7d']}",
         f"1 Month (30 Days) - Rs. {settings['price_1m']}", 
@@ -892,12 +889,12 @@ with tab3:
 
     if not display_df.empty:
         html_style = "<style>.trading-history-container{overflow-x:auto;margin:10px 0;border-radius:8px;border:1px solid #31333f;}.trading-table{width:100%;border-collapse:collapse;background-color:#0e1117;color:#ffffff;font-size:13px;text-align:center;}.trading-table th{background-color:#1f2937;color:#ff4b4b;padding:12px 8px;border:1px solid #31333f;font-weight:bold;}.trading-table td{padding:10px 6px;border:1px solid #31333f;white-space:nowrap;}.marquee-container{width:95px;overflow:hidden;margin:0 auto;white-space:nowrap;}.marquee-scroll{display:inline-block;animation:marqueeEffect 6s linear infinite;}@keyframes marqueeEffect{0%{transform:translate(10%, 0);}50%{transform:translate(-100%, 0);}100%{transform:translate(10%, 0);}} .corrupt-row td {color: #ff4b4b;}</style>"
-        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Trader</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
+        html_table = html_style + "<div class='trading-history-container'><table class='trading-table'><tr><th>#</th><th>Date</th><th>Trader</th><th>Category</th><th>Strategy</th><th>Coin</th><th>Direction</th><th>Entry</th><th>TP1</th><th>TP2</th><th>TP3</th><th>SL</th><th>Status</th><th>Live Price</th></tr>"
         for idx, row in display_df.iterrows():
             trader = str(row.get('created_by', 'Admin')).split('@')[0]
             status_text = str(row['Status'])
             status_td = f"<td><div class='marquee-container'><div class='marquee-scroll'>{status_text}</div></div></td>" if "Pending Entry" in status_text else f"<td>{status_text}</td>"
-            html_table += f"<tr><td>{idx}</td><td>{row['Date']}</td><td style='color:#ffeb3b;'><b>{trader}</b></td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
+            html_table += f"<tr><td>{idx}</td><td>{row['Date']}</td><td style='color:#ffeb3b;'><b>{trader}</b></td><td>{row.get('Category', 'N/A')}</td><td>{row.get('Strategy', 'N/A')}</td><td>{row['Coin']}</td><td>{row['Direction']}</td><td>{row['Entry']}</td><td>{row['TP1']}</td><td>{row['TP2']}</td><td>{row['TP3']}</td><td>{row['SL']}</td>{status_td}<td style='color:#00ffcc; font-weight:bold;'>{row['Live Price']}</td></tr>"
         html_table += "</table></div>"
         st.markdown(html_table, unsafe_allow_html=True)
         
