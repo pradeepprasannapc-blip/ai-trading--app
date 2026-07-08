@@ -1,0 +1,32 @@
+name: Build Android APK
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 18
+    - run: npm install -g cordova
+    - run: |
+        cordova create myapp com.premium.aifactory AI_App
+        cd myapp
+        cordova platform add android
+        rm www/index.html
+        cp ../index.html www/index.html
+    - uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+    - uses: android-actions/setup-android@v3
+    - run: |
+        cd myapp
+        cordova build android --no-telemetry
+    - uses: actions/upload-artifact@v4
+      with:
+        name: premium-app-apk
+        path: myapp/platforms/android/app/build/outputs/apk/debug/app-debug.apk
