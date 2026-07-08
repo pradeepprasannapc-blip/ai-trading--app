@@ -1,275 +1,348 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Trading App - Dashboard</title>
+    <title>AI Trading App Dashboard - Premium UI</title>
     <!-- Tailwind CSS CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom Tailwind Configuration for Dark Mode & Colors -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Enable dark mode based on 'dark' class on the html element
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366F1', // Indigo 500
+                        secondary: '#818CF8', // Indigo 400
+                        accent: '#FBBF24',   // Amber 400 for highlights
+                        darkbg: '#121212',   // Very dark background
+                        darkcard: '#1E1E1E', // Slightly lighter for cards
+                        darktext: '#E0E0E0', // Light gray for text in dark mode
+                        darkborder: '#333333', // Darker border
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'], // A modern, clean font
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom CSS for smooth transitions -->
     <style>
-        /* Custom styles for smooth transitions and scrollbar */
         body {
             transition: background-color 0.3s ease, color 0.3s ease;
         }
-        .card {
-            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        /* Customize scrollbar for a premium feel (optional, but good for dark mode) */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: theme('colors.gray.200');
-            border-radius: 10px;
-        }
-        .dark ::-webkit-scrollbar-track {
-            background: theme('colors.gray.700');
-        }
-        ::-webkit-scrollbar-thumb {
-            background: theme('colors.indigo.400');
-            border-radius: 10px;
-        }
-        .dark ::-webkit-scrollbar-thumb {
-            background: theme('colors.indigo.600');
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: theme('colors.indigo.500');
-        }
-        .dark ::-webkit-scrollbar-thumb:hover {
-            background: theme('colors.indigo.500');
+        /* Add smooth transitions to elements that change appearance */
+        .transition-colors-transform {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
         }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-50 min-h-screen flex flex-col font-sans antialiased">
+<body class="bg-gray-100 dark:bg-darkbg text-gray-900 dark:text-darktext font-sans antialiased">
 
-    <!-- Header -->
-    <header class="bg-white dark:bg-gray-800 shadow-md dark:shadow-xl p-4 flex flex-col md:flex-row items-center justify-between z-10 sticky top-0">
-        <div class="flex items-center space-x-4 mb-4 md:mb-0">
-            <!-- Logo - a simple chart icon representing trading/AI -->
-            <svg class="w-10 h-10 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M18 10h4M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-            <h1 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">AI Trading App</h1>
-        </div>
-
-        <!-- Navigation -->
-        <nav class="flex-grow flex justify-center space-x-4 sm:space-x-6 text-base md:text-lg">
-            <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors duration-200 py-1 border-b-2 border-transparent hover:border-indigo-600 dark:hover:border-indigo-400">Dashboard</a>
-            <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors duration-200 py-1 border-b-2 border-transparent hover:border-indigo-600 dark:hover:border-indigo-400">Strategies</a>
-            <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors duration-200 py-1 border-b-2 border-transparent hover:border-indigo-600 dark:hover:border-indigo-400">Portfolio</a>
-            <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors duration-200 py-1 border-b-2 border-transparent hover:border-indigo-600 dark:hover:border-indigo-400">History</a>
-            <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors duration-200 py-1 border-b-2 border-transparent hover:border-indigo-600 dark:hover:border-indigo-400">Settings</a>
-        </nav>
-
-        <!-- User & Dark Mode Toggle -->
-        <div class="flex items-center space-x-4 mt-4 md:mt-0">
-            <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200">
-                <!-- Moon icon for light mode (click to go dark), Sun icon for dark mode (click to go light) -->
-                <svg id="moon-icon" class="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                <svg id="sun-icon" class="w-6 h-6 text-yellow-500 dark:text-yellow-300 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-            </button>
-            <div class="flex items-center space-x-2 cursor-pointer group">
-                <img class="w-9 h-9 rounded-full ring-2 ring-indigo-400 dark:ring-indigo-600 transform group-hover:scale-105 transition-transform duration-200" src="https://via.placeholder.com/40/6366f1/ffffff?text=JD" alt="User Avatar">
-                <span class="font-semibold text-gray-700 dark:text-gray-200 hidden md:block group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200">John Doe</span>
+    <!-- Header / Navbar -->
+    <header class="bg-white dark:bg-darkcard shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4 py-4 flex items-center justify-between">
+            <!-- App Logo and Title -->
+            <div class="flex items-center space-x-2">
+                <svg class="h-8 w-8 text-primary" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm4.842 6.224a.75.75 0 00-1.06-1.06l-4.5 4.5a.75.75 0 00-1.06 0l-2.25 2.25a.75.75 0 001.06 1.06l1.72-1.72 4.09-4.09zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd" />
+                </svg>
+                <span class="text-2xl font-bold text-gray-800 dark:text-darktext">AI Trade</span>
             </div>
-        </div>
+
+            <!-- Navigation Links (optional, simplified for single HTML) -->
+            <!-- <div class="hidden md:flex space-x-6">
+                <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-secondary font-medium transition-colors duration-200">Dashboard</a>
+                <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-secondary font-medium transition-colors duration-200">Portfolio</a>
+                <a href="#" class="text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-secondary font-medium transition-colors duration-200">Analytics</a>
+            </div> -->
+
+            <!-- User and Theme Toggle -->
+            <div class="flex items-center space-x-4">
+                <!-- Dark Mode Toggle Button -->
+                <button id="theme-toggle" aria-label="Toggle theme" 
+                        class="p-2 rounded-full text-gray-600 dark:text-gray-300 
+                               hover:bg-gray-200 dark:hover:bg-gray-700 
+                               focus:outline-none focus:ring-2 focus:ring-primary 
+                               transition-colors-transform">
+                    <svg id="moon-icon" class="h-6 w-6 hidden" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.598 2.204a.75.75 0 01-.106 1.082C7.34 4.833 6 6.844 6 9.25c0 3.097 2.385 5.653 5.426 5.957a.75.75 0 01.083 1.492 7.5 7.5 0 01-6.66-6.662.75.75 0 011.492.083A5.992 5.992 0 007.5 9.25c0-1.795 1.02-3.376 2.504-4.148a.75.75 0 011.082-.106l.056.046zM15 6.75a.75.75 0 00-1.5 0v.008c0 .414.336.75.75.75h.008a.75.75 0 00.75-.75V6.75zm1.455 1.53a.75.75 0 00-1.284-.698l-.04.032c-.378.337-.87.502-1.365.498a.75.75 0 00-.002 1.5c.677.004 1.353-.24 1.86-.713l.04-.032a.75.75 0 00-.109-1.087zM18.75 12a.75.75 0 00-1.5 0v.008c0 .414.336.75.75.75h.008a.75.75 0 00.75-.75V12zm-3.3-.53a.75.75 0 00-1.082.106l-.046.056c-.461.554-.707 1.282-.647 2.013a.75.75 0 001.499.044c-.052-.716.147-1.397.558-1.916l.046-.056a.75.75 0 00.106-1.082zM12 18.75a.75.75 0 00-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 00.75-.75V18.75zm-1.455-1.53a.75.75 0 001.284.698l.04-.032c.378-.337.87-.502 1.365-.498a.75.75 0 00.002-1.5c-.677-.004-1.353.24-1.86.713l-.04.032a.75.75 0 00.109 1.087zM6.75 12a.75.75 0 00-1.5 0v.008c0 .414.336.75.75.75h.008a.75.75 0 00.75-.75V12zm-3.3.53a.75.75 0 001.082-.106l.046-.056c.461-.554.707-1.282.647-2.013a.75.75 0 00-1.499-.044c.052.716-.147 1.397-.558 1.916l-.046.056a.75.75 0 00-.106 1.082z" />
+                    </svg>
+                    <svg id="sun-icon" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zm9.75-2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V10.5a.75.75 0 01.75-.75zM18.75 12a.75.75 0 01.75-.75h2.25a.75.75 0 010 1.5H19.5a.75.75 0 01-.75-.75zM17.25 19.5a.75.75 0 010-1.5h2.25a.75.75 0 010 1.5H17.25zM4.5 12a.75.75 0 01.75-.75h2.25a.75.75 0 010 1.5H5.25a.75.75 0 01-.75-.75zM7.5 21.75a.75.75 0 01.75-.75h2.25a.75.75 0 010 1.5H8.25a.75.75 0 01-.75-.75zM6 6a.75.75 0 01.128-.53l1.59-1.59a.75.75 0 111.06 1.06L7.22 6.53A.75.75 0 016 6zm12 12a.75.75 0 01.128-.53l1.59-1.59a.75.75 0 111.06 1.06L19.22 18.53A.75.75 0 0118 18zM3 18a.75.75 0 01.128-.53l1.59-1.59a.75.75 0 011.06 1.06L4.22 18.53A.75.75 0 013 18zM18 6a.75.75 0 01.128-.53l1.59-1.59a.75.75 0 111.06 1.06L19.22 6.53A.75.75 0 0118 6z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <a href="#" class="relative p-2 rounded-full text-gray-600 dark:text-gray-300 
+                                  hover:bg-gray-200 dark:hover:bg-gray-700 
+                                  focus:outline-none focus:ring-2 focus:ring-primary 
+                                  transition-colors-transform" aria-label="User profile">
+                    <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-green-500 ring-2 ring-white dark:ring-darkcard"></span>
+                </a>
+            </div>
+        </nav>
     </header>
 
     <!-- Main Content Area -->
-    <main class="flex-grow p-6 lg:p-8">
-        <div class="container mx-auto">
-            <h2 class="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white mb-8">Dashboard Overview</h2>
+    <main class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-extrabold mb-10 text-center text-gray-800 dark:text-darktext">
+            AI-Powered Trading Dashboard
+        </h1>
 
-            <!-- Key Metrics Section -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <!-- Metric Card 1: Total Profit -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-200 dark:border-gray-700 card flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Total Profit</h3>
-                        <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                    </div>
-                    <p class="text-4xl lg:text-5xl font-bold text-green-600 dark:text-green-400 leading-tight">$24,567.89</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">+12.3% last 30 days</p>
+        <!-- Stock Input and Search Section -->
+        <section class="mb-10 p-6 bg-white dark:bg-darkcard rounded-xl shadow-lg transition-colors-transform">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-800 dark:text-darktext">Analyze a Stock</h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" placeholder="Enter Stock Symbol (e.g., TSLA, GOOGL)" 
+                       class="flex-grow p-4 border border-gray-300 dark:border-darkborder rounded-lg 
+                              bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-gray-100 
+                              focus:ring-2 focus:ring-primary focus:border-transparent 
+                              placeholder-gray-400 dark:placeholder-gray-500 
+                              transition-colors-transform" 
+                       aria-label="Stock Symbol Input">
+                <button class="bg-primary text-white px-8 py-4 rounded-lg 
+                               font-semibold hover:bg-secondary focus:outline-none 
+                               focus:ring-2 focus:ring-primary focus:ring-offset-2 
+                               dark:focus:ring-offset-darkbg 
+                               transition-colors-transform active:scale-98">
+                    Get AI Insights
+                </button>
+            </div>
+        </section>
+
+        <!-- Key Metrics / Summary Cards -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <!-- Card 1: Current Price -->
+            <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-lg flex flex-col justify-between 
+                        border border-gray-200 dark:border-darkborder transition-colors-transform">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Current Price</p>
+                    <p class="text-4xl font-extrabold text-gray-900 dark:text-darktext mt-1">$175.45</p>
                 </div>
-                <!-- Metric Card 2: Win Rate -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-200 dark:border-gray-700 card flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Win Rate</h3>
-                        <svg class="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
-                    </div>
-                    <p class="text-4xl lg:text-5xl font-bold text-blue-600 dark:text-blue-400 leading-tight">72.5%</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Consistent performance</p>
+                <p class="text-md font-semibold text-green-600 dark:text-green-400 flex items-center mt-3">
+                    <svg class="h-5 w-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.25H6.75a.75.75 0 000 1.5h4.5a.75.75 0 00.75-.75V6.75z" clip-rule="evenodd" />
+                    </svg>
+                    +1.23% Today
+                </p>
+            </div>
+
+            <!-- Card 2: Daily Volume -->
+            <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-lg flex flex-col justify-between 
+                        border border-gray-200 dark:border-darkborder transition-colors-transform">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Daily Volume</p>
+                    <p class="text-4xl font-extrabold text-gray-900 dark:text-darktext mt-1">12.8M</p>
                 </div>
-                <!-- Metric Card 3: Current Balance -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-200 dark:border-gray-700 card flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Current Balance</h3>
-                        <svg class="w-7 h-7 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    </div>
-                    <p class="text-4xl lg:text-5xl font-bold text-indigo-600 dark:text-indigo-400 leading-tight">$123,456.78</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Available for trading</p>
+                <p class="text-md font-semibold text-red-600 dark:text-red-400 flex items-center mt-3">
+                    <svg class="h-5 w-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM.75 10.75a.75.75 0 00-.75.75v4.25H6.75a.75.75 0 000 1.5h4.5a.75.75 0 00.75-.75V6.75z" clip-rule="evenodd" />
+                    </svg>
+                    -3.15% from Avg
+                </p>
+            </div>
+
+            <!-- Card 3: Market Sentiment -->
+            <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-lg flex flex-col justify-between 
+                        border border-gray-200 dark:border-darkborder transition-colors-transform">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">AI Sentiment</p>
+                    <p class="text-4xl font-extrabold text-primary dark:text-secondary mt-1">Bullish</p>
                 </div>
-                <!-- Metric Card 4: Active Trades -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-200 dark:border-gray-700 card flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Active Trades</h3>
-                        <svg class="w-7 h-7 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.001 12.001 0 002.92 12c0 3.072 1.343 5.961 3.71 8.022M12 21c3.217 0 6.33-1.085 8.98-3.046M7 13h10"></path></svg>
-                    </div>
-                    <p class="text-4xl lg:text-5xl font-bold text-yellow-600 dark:text-yellow-400 leading-tight">7</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Currently being managed</p>
+                <p class="text-md font-semibold text-gray-700 dark:text-gray-200 flex items-center mt-3">
+                    <svg class="h-5 w-5 mr-1 text-accent" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7.625 3.525a.75.75 0 001.06 1.06L15.39 10l-2.88-2.88a.75.75 0 00-1.06 1.06l1.625 1.625H5a.75.75 0 000 1.5h8.625l-1.625 1.625z" />
+                    </svg>
+                    High confidence
+                </p>
+            </div>
+
+            <!-- Card 4: AI Prediction Accuracy -->
+            <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-lg flex flex-col justify-between 
+                        border border-gray-200 dark:border-darkborder transition-colors-transform">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">AI Accuracy (30-day)</p>
+                    <p class="text-4xl font-extrabold text-green-600 dark:text-green-400 mt-1">91.7%</p>
+                </div>
+                <p class="text-md font-semibold text-gray-700 dark:text-gray-200 flex items-center mt-3">
+                    <svg class="h-5 w-5 mr-1 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                        <path fill-rule="evenodd" d="M.661 10.51A8.013 8.013 0 0110 3a8.013 8.013 0 019.339 7.51A8.013 8.013 0 0110 18a8.013 8.013 0 01-9.339-7.49zM10 16a6 6 0 100-12 6 6 0 000 12z" clip-rule="evenodd" />
+                    </svg>
+                    Historical performance
+                </p>
+            </div>
+        </section>
+
+        <!-- Chart & AI Prediction Details Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+            <!-- Chart Placeholder -->
+            <div class="lg:col-span-2 bg-white dark:bg-darkcard p-6 rounded-xl shadow-lg 
+                        border border-gray-200 dark:border-darkborder transition-colors-transform">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800 dark:text-darktext">Price History & AI Forecast</h2>
+                <div class="h-80 bg-gray-50 dark:bg-darkbg flex items-center justify-center 
+                            text-gray-400 dark:text-gray-500 rounded-lg border border-gray-200 dark:border-darkborder">
+                    <p class="text-lg">Interactive Chart Placeholder (e.g., TradingView, Chart.js Integration)</p>
+                </div>
+                <div class="mt-4 flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+                    <button class="px-5 py-2 rounded-lg text-sm font-medium 
+                                   bg-primary text-white hover:bg-secondary 
+                                   focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-darkbg 
+                                   transition-colors-transform">1W</button>
+                    <button class="px-5 py-2 rounded-lg text-sm font-medium 
+                                   bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+                                   hover:bg-gray-300 dark:hover:bg-gray-600 
+                                   focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-darkbg 
+                                   transition-colors-transform">1M</button>
+                    <button class="px-5 py-2 rounded-lg text-sm font-medium 
+                                   bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+                                   hover:bg-gray-300 dark:hover:bg-gray-600 
+                                   focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-darkbg 
+                                   transition-colors-transform">3M</button>
+                    <button class="px-5 py-2 rounded-lg text-sm font-medium 
+                                   bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+                                   hover:bg-gray-300 dark:hover:bg-gray-600 
+                                   focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-darkbg 
+                                   transition-colors-transform">1Y</button>
+                    <button class="px-5 py-2 rounded-lg text-sm font-medium 
+                                   bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+                                   hover:bg-gray-300 dark:hover:bg-gray-600 
+                                   focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-darkbg 
+                                   transition-colors-transform">ALL</button>
                 </div>
             </div>
 
-            <!-- Charts and Recent Activity -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Performance Chart -->
-                <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-200 dark:border-gray-700 card">
-                    <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-5">Portfolio Performance (Last 30 Days)</h3>
-                    <div class="h-64 bg-gray-50 dark:bg-gray-700 rounded-lg flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 text-lg border border-dashed border-gray-300 dark:border-gray-600 p-4">
-                        <svg class="w-16 h-16 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M18 10h4M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                        <p class="font-medium">Interactive Chart Placeholder</p>
-                        <p class="text-sm text-gray-400 dark:text-gray-600">Data visualization powered by your backend (e.g., Plotly, Chart.js)</p>
-                    </div>
-                </div>
-
-                <!-- Recent Activity -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-200 dark:border-gray-700 card">
-                    <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-5">Recent Activity</h3>
-                    <ul class="space-y-5">
-                        <li class="flex items-start space-x-3">
-                            <span class="p-2 rounded-full bg-green-100 dark:bg-green-700 text-green-600 dark:text-green-200 flex-shrink-0 mt-1">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11h10m-5-5v12"></path></svg>
-                            </span>
-                            <div>
-                                <p class="font-medium text-gray-700 dark:text-gray-200">Trade executed: <span class="text-green-600 dark:text-green-400 font-bold">BTC/USD BUY</span></p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">1 hour ago via "Aggressive Growth"</p>
-                            </div>
-                        </li>
-                        <li class="flex items-start space-x-3">
-                            <span class="p-2 rounded-full bg-red-100 dark:bg-red-700 text-red-600 dark:text-red-200 flex-shrink-0 mt-1">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6"></path></svg>
-                            </span>
-                            <div>
-                                <p class="font-medium text-gray-700 dark:text-gray-200">Trade executed: <span class="text-red-600 dark:text-red-400 font-bold">ETH/EUR SELL</span></p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">3 hours ago via "Market Fluctuation"</p>
-                            </div>
-                        </li>
-                        <li class="flex items-start space-x-3">
-                            <span class="p-2 rounded-full bg-blue-100 dark:bg-blue-700 text-blue-600 dark:text-blue-200 flex-shrink-0 mt-1">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4h-.025A6.002 6.002 0 004 15.397V16H2.98A4.004 4.004 0 004 20h16a4.004 4.004 0 001.02-4h-1.02v-.603C20 10.518 16 6 12 6z"></path></svg>
-                            </span>
-                            <div>
-                                <p class="font-medium text-gray-700 dark:text-gray-200">Strategy "<span class="text-indigo-600 dark:text-indigo-400 font-bold">Scalper V2</span>" updated</p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">Yesterday by John Doe</p>
-                            </div>
-                        </li>
-                    </ul>
+            <!-- AI Trading Insights -->
+            <div class="bg-white dark:bg-darkcard p-6 rounded-xl shadow-lg 
+                        border border-gray-200 dark:border-darkborder transition-colors-transform">
+                <h2 class="text-2xl font-semibold mb-5 text-gray-800 dark:text-darktext">AI Trading Insights</h2>
+                <div class="space-y-4">
+                    <p class="flex justify-between items-center">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Recommendation:</span>
+                        <span class="text-green-600 dark:text-green-400 font-bold text-lg">STRONG BUY</span>
+                    </p>
+                    <p class="flex justify-between items-center">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Confidence Score:</span>
+                        <span class="text-accent font-bold text-lg">92.5%</span>
+                    </p>
+                    <p class="flex justify-between items-center">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Predicted Target:</span>
+                        <span class="font-bold text-lg">$180.10 <span class="text-sm text-green-500 ml-1">(+2.65%)</span></span>
+                    </p>
+                    <p class="flex justify-between items-center">
+                        <span class="font-medium text-gray-700 dark:text-gray-200">Risk Level:</span>
+                        <span class="font-bold text-orange-500 text-lg">Moderate</span>
+                    </p>
+                    <hr class="border-gray-200 dark:border-darkborder my-4">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Based on real-time market data, historical patterns, news sentiment, and proprietary AI models.
+                        Always conduct your own research before making investment decisions.
+                    </p>
                 </div>
             </div>
+        </section>
 
-            <!-- Trading Strategies Section (Simplified) -->
-            <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-200 dark:border-gray-700 card">
-                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
-                    <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4 sm:mb-0">Your Trading Strategies</h3>
-                    <button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg flex items-center space-x-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                        <span>Add New Strategy</span>
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-700">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Strategy Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Asset</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Profit/Loss (30D)</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Trend Follower Pro</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100">Active</span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">BTC/USD</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-400 font-bold">+5.2%</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="#" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 transition-colors duration-200 mr-4">Edit</a>
-                                    <a href="#" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 transition-colors duration-200">Stop</a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Scalper V2</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100">Idle</span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">ETH/USD</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-bold">0.0%</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="#" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 transition-colors duration-200 mr-4">Edit</a>
-                                    <a href="#" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200 transition-colors duration-200">Start</a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Arbitrage Hunter</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-100">Inactive</span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">Multi-Asset</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-400 font-bold">-1.8%</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="#" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 transition-colors duration-200 mr-4">Configure</a>
-                                    <a href="#" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200 transition-colors duration-200">Activate</a>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <!-- Recent News & Alerts Section -->
+        <section class="mb-10 p-6 bg-white dark:bg-darkcard rounded-xl shadow-lg 
+                        border border-gray-200 dark:border-darkborder transition-colors-transform">
+            <h2 class="text-2xl font-semibold mb-6 text-gray-800 dark:text-darktext">Recent News & Alerts</h2>
+            <ul class="divide-y divide-gray-200 dark:divide-darkborder">
+                <li class="py-4 flex flex-col md:flex-row justify-between items-start md:items-center">
+                    <a href="#" class="text-gray-800 dark:text-darktext hover:text-primary dark:hover:text-secondary 
+                                      font-medium text-lg transition-colors duration-200">
+                        Tech Giants Report Record Earnings, Fueling Market Optimism
+                    </a>
+                    <span class="text-sm text-gray-500 dark:text-gray-400 mt-1 md:mt-0 md:ml-4 flex-shrink-0">
+                        <span class="mr-1">2 hours ago</span>
+                        <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-900/20 dark:text-green-400 dark:ring-green-400/20">Positive</span>
+                    </span>
+                </li>
+                <li class="py-4 flex flex-col md:flex-row justify-between items-start md:items-center">
+                    <a href="#" class="text-gray-800 dark:text-darktext hover:text-primary dark:hover:text-secondary 
+                                      font-medium text-lg transition-colors duration-200">
+                        Inflation Concerns Rise as Consumer Spending Slows Down
+                    </a>
+                    <span class="text-sm text-gray-500 dark:text-gray-400 mt-1 md:mt-0 md:ml-4 flex-shrink-0">
+                        <span class="mr-1">Yesterday</span>
+                        <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10 dark:bg-red-900/20 dark:text-red-400 dark:ring-red-400/20">Negative</span>
+                    </span>
+                </li>
+                <li class="py-4 flex flex-col md:flex-row justify-between items-start md:items-center">
+                    <a href="#" class="text-gray-800 dark:text-darktext hover:text-primary dark:hover:text-secondary 
+                                      font-medium text-lg transition-colors duration-200">
+                        AI-Powered Trading Platforms Gain Traction Among Retail Investors
+                    </a>
+                    <span class="text-sm text-gray-500 dark:text-gray-400 mt-1 md:mt-0 md:ml-4 flex-shrink-0">
+                        <span class="mr-1">3 days ago</span>
+                        <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 dark:bg-blue-900/20 dark:text-blue-400 dark:ring-blue-400/20">Neutral</span>
+                    </span>
+                </li>
+            </ul>
+        </section>
 
-        </div>
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white dark:bg-gray-800 shadow-inner dark:shadow-md mt-10 p-6 text-center text-gray-600 dark:text-gray-400 text-sm">
-        &copy; 2023 AI Trading App. All rights reserved. Designed by Premium UI Developer. Powered by pradeepprasannapc-blip.
+    <footer class="bg-gray-800 dark:bg-darkcard text-white dark:text-gray-300 py-8 text-center text-sm">
+        <div class="container mx-auto px-4">
+            <p>&copy; 2023 AI Trading App. All rights reserved.</p>
+            <p class="mt-2 text-gray-400">
+                Powered by <span class="font-semibold">GitHub Scanner AI</span> &amp; <span class="font-semibold">Premium UI Development</span>
+            </p>
+            <div class="mt-4 flex justify-center space-x-6">
+                <a href="#" class="text-gray-400 hover:text-primary dark:hover:text-secondary transition-colors duration-200">Privacy Policy</a>
+                <a href="#" class="text-gray-400 hover:text-primary dark:hover:text-secondary transition-colors duration-200">Terms of Service</a>
+                <a href="#" class="text-gray-400 hover:text-primary dark:hover:text-secondary transition-colors duration-200">Contact</a>
+            </div>
+        </div>
     </footer>
 
-    <!-- Dark Mode Toggle JavaScript -->
+    <!-- Embedded JavaScript for Theme Toggle functionality -->
     <script>
-        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggle = document.getElementById('theme-toggle');
         const htmlElement = document.documentElement;
-        const moonIcon = document.getElementById('moon-icon'); // Moon icon (visible in light mode, click to go dark)
-        const sunIcon = document.getElementById('sun-icon');   // Sun icon (visible in dark mode, click to go light)
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
 
-        // Initialize theme based on local storage or system preference
-        const savedTheme = localStorage.getItem('theme');
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
-            htmlElement.classList.add('dark');
-            moonIcon.classList.add('hidden'); // Hide moon, show sun
-            sunIcon.classList.remove('hidden');
-        } else {
-            htmlElement.classList.remove('dark'); // Default to light
-            moonIcon.classList.remove('hidden'); // Show moon, hide sun
-            sunIcon.classList.add('hidden');
+        // Function to set theme
+        function setTheme(theme) {
+            if (theme === 'dark') {
+                htmlElement.classList.add('dark');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            } else {
+                htmlElement.classList.remove('dark');
+                moonIcon.classList.add('hidden');
+                sunIcon.classList.remove('hidden');
+            }
+            localStorage.setItem('theme', theme); // Save preference
         }
 
-        themeToggleBtn.addEventListener('click', () => {
+        // Initial theme load
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            setTheme(savedTheme);
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            // Check system preference if no saved theme
+            setTheme('dark');
+        } else {
+            setTheme('light'); // Default to light
+        }
+
+        // Toggle theme on button click
+        themeToggle.addEventListener('click', () => {
             if (htmlElement.classList.contains('dark')) {
-                // Switch to light mode
-                htmlElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                moonIcon.classList.remove('hidden'); // Show moon for light mode
-                sunIcon.classList.add('hidden');     // Hide sun
+                setTheme('light');
             } else {
-                // Switch to dark mode
-                htmlElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                moonIcon.classList.add('hidden');    // Hide moon for dark mode
-                sunIcon.classList.remove('hidden');  // Show sun
+                setTheme('dark');
             }
         });
     </script>
