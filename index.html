@@ -1,21 +1,401 @@
-```html
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PRO AI Trading Signal App</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts - Poppins -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        /* Custom Tailwind Configuration (conceptually, direct usage in classes is preferred for a single file) */
-        /* For custom styles like glassmorphism */
-        .glassmorphism {
-            backdrop-filter: blur(10px);
-            background-color: rgba(30, 41, 59, 0.4); /* slate-800 with transparency */
-            border: 1px solid rgba(71, 85, 105, 0.3); /* slate-600 with transparency */
-            box-
+    <style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-gray-950 text-gray-100 font-sans;
+                font-family: 'Inter', sans-serif;
+            }
+        }
+        .glass-card {
+            @apply bg-white/5 backdrop-blur-lg rounded-xl shadow-lg border border-gray-700/50;
+        }
+        .bottom-nav-item {
+            @apply flex flex-col items-center justify-center p-2 text-xs font-medium text-gray-400 hover:text-cyan-400 transition-colors duration-200;
+        }
+        .bottom-nav-item.active {
+            @apply text-cyan-400;
+        }
+        .bottom-nav-item svg {
+            @apply h-6 w-6 mb-1;
+        }
+    </style>
+    <!-- Google Fonts for Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 flex flex-col min-h-screen">
+
+    <!-- Main App Container -->
+    <div class="flex flex-col flex-1 w-full max-w-md mx-auto relative overflow-hidden">
+
+        <!-- Header -->
+        <header class="p-4 bg-gray-900/70 backdrop-blur-md border-b border-gray-800 fixed top-0 left-0 right-0 z-10 max-w-md mx-auto w-full">
+            <h1 class="text-2xl font-bold text-cyan-400 flex items-center">
+                <span class="mr-2 text-xl">⚡</span> PRO AI Trading
+            </h1>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto pt-20 pb-20 p-4 no-scrollbar">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="page-section" style="display: block;">
+                <h2 class="text-xl font-semibold mb-6 text-gray-50">Welcome Back, <span id="user-display-name" class="text-cyan-300">Trader!</span></h2>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div class="glass-card p-4 text-center">
+                        <p class="text-sm text-gray-400">Win Rate</p>
+                        <p id="dashboard-win-rate" class="text-2xl font-bold text-green-400 mt-1"></p>
+                    </div>
+                    <div class="glass-card p-4 text-center">
+                        <p class="text-sm text-gray-400">Total Profit</p>
+                        <p id="dashboard-profit" class="text-2xl font-bold text-green-400 mt-1"></p>
+                    </div>
+                    <div class="glass-card p-4 text-center col-span-2">
+                        <p class="text-sm text-gray-400">Active Signals</p>
+                        <p id="dashboard-active-signals" class="text-2xl font-bold text-yellow-400 mt-1"></p>
+                    </div>
+                </div>
+
+                <!-- Trading Chart -->
+                <div class="glass-card p-4 mb-8">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-50">BTC/USDT Daily Chart</h3>
+                    <canvas id="tradingChart"></canvas>
+                </div>
+
+                <!-- Recent Signals -->
+                <div class="glass-card p-4">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-50">Recent AI Signals</h3>
+                    <ul id="recent-signals-list">
+                        <!-- Signals will be injected here by JS -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Signals Section -->
+            <div id="signals" class="page-section" style="display: none;">
+                <h2 class="text-xl font-semibold mb-6 text-gray-50">All AI Trading Signals</h2>
+                <div id="all-signals-list" class="space-y-4">
+                    <!-- Signals will be injected here by JS -->
+                </div>
+            </div>
+
+            <!-- Portfolio Section -->
+            <div id="portfolio" class="page-section" style="display: none;">
+                <h2 class="text-xl font-semibold mb-6 text-gray-50">My Portfolio</h2>
+                <div class="glass-card p-4 mb-4">
+                    <p class="text-sm text-gray-400">Total Value</p>
+                    <p id="portfolio-total-value" class="text-3xl font-bold text-green-400 mt-1"></p>
+                </div>
+                <div class="glass-card p-4">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-50">Holdings</h3>
+                    <ul id="portfolio-holdings-list">
+                        <!-- Holdings will be injected here by JS -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settings" class="page-section" style="display: none;">
+                <h2 class="text-xl font-semibold mb-6 text-gray-50">Settings</h2>
+                <div class="glass-card p-4 mb-4">
+                    <p class="text-lg font-medium mb-2">Account</p>
+                    <p class="text-gray-400">Username: <span class="text-cyan-300">pradeepprasannapc</span></p>
+                    <p class="text-gray-400">Email: <span class="text-cyan-300">user@example.com</span></p>
+                </div>
+                <div class="glass-card p-4">
+                    <p class="text-lg font-medium mb-2">App Preferences</p>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-800 last:border-b-0">
+                        <span class="text-gray-300">Notification Alerts</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" value="" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-700 rounded-full peer peer-focus:ring-4 peer-focus:ring-cyan-300 dark:peer-focus:ring-cyan-800 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-cyan-600"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-gray-800 last:border-b-0">
+                        <span class="text-gray-300">Dark Mode (Default)</span>
+                        <span class="text-gray-500 text-sm">Always On</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 z-20 bg-gray-900/70 backdrop-blur-md border-t border-gray-800 max-w-md mx-auto w-full">
+            <div class="flex justify-around h-16">
+                <button id="nav-dashboard" class="bottom-nav-item active">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"></path>
+                    </svg>
+                    <span>Dashboard</span>
+                </button>
+                <button id="nav-signals" class="bottom-nav-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 14.25v2.25m4.5-4.5v4.5m4.5-7.5v7.5m-18 0h18a2.25 2.25 0 002.25-2.25v-10.5a2.25 2.25 0 00-2.25-2.25H3.75A2.25 2.25 0 001.5 3.75v10.5a2.25 2.25 0 002.25 2.25z"></path>
+                    </svg>
+                    <span>Signals</span>
+                </button>
+                <button id="nav-portfolio" class="bottom-nav-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25c.621 0 1.125.504 1.125 1.125v.375M3.75 4.5H20.25M2.25 6h18m-1.5 2.25a.75.75 0 01-.75.75H20.25a.75.75 0 00.75-.75m-18 0a.75.75 0 00-.75.75H3.75a.75.75 0 01.75-.75m0 0H5.25ZM3 11.25h14.25c.621 0 1.125.504 1.125 1.125v.25M3 11.25h.375M3 11.25v9.75"></path>
+                    </svg>
+                    <span>Portfolio</span>
+                </button>
+                <button id="nav-settings" class="bottom-nav-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.515-1.22 1.956-1.22 2.472 0l.525 1.248a1 1 0 00.957.679h1.365c1.266 0 1.879 1.586.994 2.513l-.865.918a1 1 0 00-.284.81l.24 1.342c.21 1.176-.948 2.059-1.936 1.385l-1.157-.771a1 1 0 00-1.173 0l-1.157.771c-.988.674-2.147-.209-1.936-1.385l.24-1.342a1 1 0 00-.284-.81l-.865-.918c-.885-.927-.272-2.513.994-2.513h1.365a1 1 0 00.957-.679l.525-1.248z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18a6 6 0 100-12 6 6 0 000 12z"></path>
+                    </svg>
+                    <span>Settings</span>
+                </button>
+            </div>
+        </nav>
+
+    </div>
+
+    <!-- JavaScript for Mock Data, Chart.js, and Navigation -->
+    <script>
+        // --- Mock Data ---
+        const mockUserData = {
+            logged_in: true,
+            user_data: {
+                username: "pradeepprasannapc",
+                email: "user@example.com",
+                display_name: "Blip AI Trader"
+            }
+        };
+
+        const generateMockCandlestickData = (numDays) => {
+            const data = [];
+            let currentPrice = 40000; // Starting price for BTC
+            let date = new Date();
+            date.setDate(date.getDate() - numDays);
+
+            for (let i = 0; i < numDays; i++) {
+                const open = currentPrice;
+                const high = open + Math.random() * 500 + 100;
+                const low = open - Math.random() * 500 - 100;
+                const close = low + Math.random() * (high - low);
+
+                data.push({
+                    date: date.toISOString().split('T')[0],
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: close,
+                });
+                currentPrice = close + (Math.random() - 0.5) * 1000; // Fluctuate price
+                date.setDate(date.getDate() + 1);
+            }
+            return data;
+        };
+
+        const mockChartData = generateMockCandlestickData(60); // 60 days of data
+
+        const mockSignals = [
+            { id: 1, asset: "BTC/USDT", type: "BUY", price: 42150.20, date: "2023-11-20 10:30", status: "Active", profit: null },
+            { id: 2, asset: "ETH/USDT", type: "SELL", price: 2350.50, date: "2023-11-19 14:00", status: "Closed", profit: -120.50 },
+            { id: 3, asset: "ADA/USDT", type: "BUY", price: 0.3810, date: "2023-11-18 09:15", status: "Active", profit: null },
+            { id: 4, asset: "BTC/USDT", type: "SELL", price: 43500.00, date: "2023-11-17 18:45", status: "Closed", profit: 850.00 },
+            { id: 5, asset: "SOL/USDT", type: "BUY", price: 62.80, date: "2023-11-16 11:00", status: "Active", profit: null },
+            { id: 6, asset: "DOT/USDT", type: "BUY", price: 5.25, date: "2023-11-15 08:00", status: "Closed", profit: 50.00 },
+            { id: 7, asset: "XRP/USDT", type: "SELL", price: 0.62, date: "2023-11-14 16:30", status: "Closed", profit: 25.00 },
+            { id: 8, asset: "LTC/USDT", type: "BUY", price: 70.10, date: "2023-11-13 12:00", status: "Active", profit: null },
+        ];
+
+        const mockDashboardStats = {
+            winRate: "72.5%",
+            totalProfit: "$1,850.75",
+            activeSignals: 4
+        };
+
+        const mockPortfolioHoldings = [
+            { asset: "BTC", quantity: 0.12, avgPrice: 41500, currentValue: 5100, profitLoss: 250, profitLossPct: 5.1 },
+            { asset: "ETH", quantity: 1.5, avgPrice: 2200, currentValue: 2325, profitLoss: 125, profitLossPct: 5.7 },
+            { asset: "ADA", quantity: 500, avgPrice: 0.36, currentValue: 195, profitLoss: 15, profitLossPct: 8.3 },
+            { asset: "SOL", quantity: 10, avgPrice: 60, currentValue: 630, profitLoss: 30, profitLossPct: 5.0 },
+        ];
+
+        // --- UI Logic ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set User Display Name
+            if (mockUserData.logged_in && mockUserData.user_data) {
+                document.getElementById('user-display-name').textContent = mockUserData.user_data.display_name;
+            }
+
+            // Populate Dashboard Cards
+            document.getElementById('dashboard-win-rate').textContent = mockDashboardStats.winRate;
+            document.getElementById('dashboard-profit').textContent = mockDashboardStats.totalProfit;
+            document.getElementById('dashboard-active-signals').textContent = mockDashboardStats.activeSignals;
+
+            // Populate Recent Signals on Dashboard
+            const recentSignalsList = document.getElementById('recent-signals-list');
+            mockSignals.slice(0, 3).forEach(signal => { // Show top 3 recent signals
+                const listItem = document.createElement('li');
+                listItem.className = 'flex items-center justify-between py-2 border-b border-gray-800 last:border-b-0';
+                const signalTypeClass = signal.type === 'BUY' ? 'text-green-400' : 'text-red-400';
+                const profitText = signal.profit !== null ? `<span class="${signal.profit >= 0 ? 'text-green-400' : 'text-red-400'} text-xs font-semibold">${signal.profit.toFixed(2)}</span>` : '<span class="text-yellow-400 text-xs font-semibold">Active</span>';
+
+                listItem.innerHTML = `
+                    <div>
+                        <span class="font-semibold ${signalTypeClass}">${signal.type}</span>
+                        <span class="ml-2 text-gray-300">${signal.asset}</span>
+                        <span class="ml-2 text-gray-400 text-sm">@ ${signal.price}</span>
+                    </div>
+                    <div>
+                        ${profitText}
+                    </div>
+                `;
+                recentSignalsList.appendChild(listItem);
+            });
+
+            // Populate All Signals page
+            const allSignalsList = document.getElementById('all-signals-list');
+            mockSignals.forEach(signal => {
+                const signalCard = document.createElement('div');
+                signalCard.className = 'glass-card p-4 flex justify-between items-center';
+                const signalTypeClass = signal.type === 'BUY' ? 'bg-green-600' : 'bg-red-600';
+                const profitElement = signal.profit !== null ? `<span class="${signal.profit >= 0 ? 'text-green-400' : 'text-red-400'} font-bold">${signal.profit >= 0 ? '+' : ''}${signal.profit.toFixed(2)}</span>` : `<span class="text-yellow-400 font-bold">Active</span>`;
+
+                signalCard.innerHTML = `
+                    <div>
+                        <div class="flex items-center mb-1">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold text-white ${signalTypeClass}">${signal.type}</span>
+                            <span class="ml-2 text-lg font-semibold text-gray-50">${signal.asset}</span>
+                        </div>
+                        <p class="text-gray-400 text-sm">Price: <span class="text-cyan-300">${signal.price}</span></p>
+                        <p class="text-gray-500 text-xs">${signal.date}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-400">P/L</p>
+                        <p class="text-xl">${profitElement}</p>
+                    </div>
+                `;
+                allSignalsList.appendChild(signalCard);
+            });
+
+            // Populate Portfolio Page
+            const portfolioTotalValueEl = document.getElementById('portfolio-total-value');
+            let totalPortfolioValue = 0;
+            mockPortfolioHoldings.forEach(holding => {
+                totalPortfolioValue += holding.currentValue;
+            });
+            portfolioTotalValueEl.textContent = `$${totalPortfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            const portfolioHoldingsList = document.getElementById('portfolio-holdings-list');
+            mockPortfolioHoldings.forEach(holding => {
+                const listItem = document.createElement('li');
+                listItem.className = 'flex items-center justify-between py-2 border-b border-gray-800 last:border-b-0';
+                const profitLossClass = holding.profitLoss >= 0 ? 'text-green-400' : 'text-red-400';
+
+                listItem.innerHTML = `
+                    <div>
+                        <span class="text-lg font-semibold text-gray-50">${holding.asset}</span>
+                        <p class="text-gray-400 text-sm">${holding.quantity} @ ${holding.avgPrice}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-400">Current: <span class="text-cyan-300">$${holding.currentValue.toFixed(2)}</span></p>
+                        <p class="${profitLossClass} text-sm">${holding.profitLoss >= 0 ? '+' : ''}$${holding.profitLoss.toFixed(2)} (${holding.profitLossPct >= 0 ? '+' : ''}${holding.profitLossPct.toFixed(2)}%)</p>
+                    </div>
+                `;
+                portfolioHoldingsList.appendChild(listItem);
+            });
+
+
+            // --- Chart.js Initialization ---
+            const ctx = document.getElementById('tradingChart').getContext('2d');
+
+            const labels = mockChartData.map(d => d.date);
+            const datasets = [{
+                label: 'Price',
+                data: mockChartData.map(d => d.close),
+                borderColor: 'rgb(6, 182, 212)', // cyan-500
+                backgroundColor: 'rgba(6, 182, 212, 0.2)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }];
+
+            const tradingChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        title: {
+                            display: false,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false,
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                autoSkip: true,
+                                maxTicksLimit: 7
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+
+            // --- Navigation Logic ---
+            const navButtons = document.querySelectorAll('.bottom-nav-item');
+            const pageSections = document.querySelectorAll('.page-section');
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetPageId = button.id.replace('nav-', '');
+
+                    // Hide all sections
+                    pageSections.forEach(section => {
+                        section.style.display = 'none';
+                    });
+
+                    // Show the target section
+                    document.getElementById(targetPageId).style.display = 'block';
+
+                    // Update active state for navigation buttons
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
